@@ -223,7 +223,7 @@ class CatchStatementDecorator extends React.Component {
      * @returns {XML} rendered component.
      */
     render() {
-        const { bBox, expression, isBreakpoint, isDebugHit, connectorStartX } = this.props;
+        const { bBox, expression, isBreakpoint, isDebugHit, connectorStartX, tryStmtBottomY } = this.props;
         const { designer } = this.context;
 
         const model = this.props.model;
@@ -249,16 +249,17 @@ class CatchStatementDecorator extends React.Component {
         //                    (P6)
 
         const p1X = bBox.x - gapLeft;
-        const p1Y = bBox.y + gapTop;
+        const p1Y = bBox.y;
 
         const p2X = bBox.x - (titleW / 2);
         const p2Y = p1Y + (titleH / 2);
 
-        const p6X = bBox.x;
-        const p6Y = bBox.y + bBox.h;
-
         const p8X = bBox.x;
-        const p8Y = p2Y + (titleH / 2);
+        const p8Y = p1Y + titleH;
+
+        const p6X = bBox.x;
+
+        const p6Y = p8Y + viewState.components['statement-box'].h;
 
         const p11X = p1X;
         const p11Y = p1Y + (titleH / 2);

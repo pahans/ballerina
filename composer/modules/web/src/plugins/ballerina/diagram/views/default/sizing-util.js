@@ -1782,6 +1782,9 @@ class SizingUtil {
         // end of try block sizing
 
         let nodeHeight = viewState.bBox.h;
+        if (catchStmts.length > 0) {
+            // nodeHeight += node.viewState.components['statement-box'].h;
+        }
         let nodeWidth = viewState.bBox.w;
 
         // try catch sizing

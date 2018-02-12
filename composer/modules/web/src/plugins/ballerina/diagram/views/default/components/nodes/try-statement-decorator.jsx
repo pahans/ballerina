@@ -298,8 +298,8 @@ class TryStatementDecorator extends React.Component {
                     if (model.catchBlocks.length > 0) {
                         let connectorEdgeTopX = p4X;
                         let connectorEdgeBottomX = p4X;
-                        let connectorEdgeBottomY = model.catchBlocks[0].viewState.bBox.y +
-                            model.catchBlocks[0].viewState.bBox.h;
+                        let connectorEdgeBottomY = model.catchBlocks[0].viewState.bBox.y
+                            + model.catchBlocks[0].viewState.bBox.h;
                         if (finallyStmt) {
                             connectorEdgeBottomY +=
                                 (model.viewState.components['finally-block'].components['block-header'].h
@@ -328,21 +328,22 @@ class TryStatementDecorator extends React.Component {
                                         expression={catchExpression}
                                         disableButtons={{ delete: disableDeleteForCatch }}
                                         editorOptions={catchEditorOptions}
+                                        tryStmtBottomY={viewState.bBox.y}
                                     />
                                     <line
                                         x1={catchStmt.viewState.bBox.x}
-                                        y1={connectorEdgeBottomY}
+                                        y1={bBox.y + bBox.h}
                                         x2={connectorEdgeBottomX}
-                                        y2={connectorEdgeBottomY}
+                                        y2={bBox.y + bBox.h}
                                         className='flowchart-background-empty-rect'
                                     />
-                                    <line
+                                    {/* <line
                                         x1={catchStmt.viewState.bBox.x}
                                         y1={catchStmt.viewState.bBox.y + catchStmt.viewState.bBox.h}
                                         x2={catchStmt.viewState.bBox.x}
                                         y2={connectorEdgeBottomY}
                                         className='flowchart-background-empty-rect'
-                                    />
+                                    /> */}
                                 </g>);
                             connectorEdgeTopX = catchStmt.viewState.bBox.x + (titleW / 2);
                             connectorEdgeBottomX = catchStmt.viewState.bBox.x;

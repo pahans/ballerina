@@ -1428,7 +1428,8 @@ class PositioningUtil {
 
         // position catch nodes
         const catchStartX = node.viewState.bBox.x + this.config.compoundStatement.gap.left;
-        const catchStartY = node.viewState.bBox.y + this.config.compoundStatement.padding.top;
+        const catchStartY = node.viewState.bBox.y + 20
+             + node.viewState.components['statement-box'].h;
 
         let catchStmtWidth = node.viewState.components['statement-box'].w;
         let catchHeight = node.viewState.components['statement-box'].h;
@@ -1438,7 +1439,7 @@ class PositioningUtil {
             catchStmt.viewState.bBox.y = catchStartY;
             catchStmt.body.viewState.bBox.x = catchStmt.viewState.bBox.x;
             catchStmt.body.viewState.bBox.y = catchStartY
-                + catchStmt.viewState.components['block-header'].h + catchHeight;
+                + catchStmt.viewState.components['block-header'].h;
             catchStmt.viewState.components['statement-box'].y = catchStmt.body.viewState.bBox.y;
             catchStmt.viewState.components['statement-box'].x = catchStmt.body.viewState.bBox.x;
             catchStmtWidth += catchStmt.viewState.bBox.w;
