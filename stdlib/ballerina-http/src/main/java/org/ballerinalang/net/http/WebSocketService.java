@@ -40,6 +40,7 @@ public class WebSocketService implements Service {
     private final int idleTimeoutInSeconds;
     private final Map<String, Resource> resourceMap = new ConcurrentHashMap<>();
     private String basePath;
+    private BStruct serviceEndpoint;
 
     public WebSocketService(Service service) {
         this.service = service;
@@ -93,12 +94,6 @@ public class WebSocketService implements Service {
 
     public int getIdleTimeoutInSeconds() {
         return idleTimeoutInSeconds;
-    }
-
-    public BStruct createHandshakeConnectionStruct() {
-        return BLangConnectorSPIUtil.createBStruct(WebSocketUtil.getProgramFile(service.getResources()[0]),
-                                                   HttpConstants.PROTOCOL_PACKAGE_HTTP,
-                                                   WebSocketConstants.STRUCT_WEBSOCKET_HANDSHAKE_CONNECTION);
     }
 
     public BStruct createTextFrameStruct() {
@@ -167,5 +162,13 @@ public class WebSocketService implements Service {
 
     public void setBasePath(String basePath) {
         this.basePath = basePath;
+    }
+
+    public BStruct getServiceEndpoint() {
+        return serviceEndpoint;
+    }
+
+    public void setServiceEndpoint(BStruct serviceEndpoint) {
+        this.serviceEndpoint = serviceEndpoint;
     }
 }

@@ -1,11 +1,11 @@
-import ballerina.data.sql;
+import ballerina/data.sql;
 
 struct ResultCount {
     int COUNTVAL;
 }
 
-function testXAransactonSuccess () (int count1, int count2) {
-	endpoint<sql:Client> testDBEP1 {
+function testXAransactonSuccess () returns (int, int) {
+	endpoint sql:Client testDB1 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_1/",
         port: 0,
@@ -13,9 +13,9 @@ function testXAransactonSuccess () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
+    };
 	
-	endpoint<sql:Client> testDBEP2 {
+	endpoint sql:Client testDB2 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_2/",
         port: 0,
@@ -23,10 +23,7 @@ function testXAransactonSuccess () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
-	
-	var testDB1 = testDBEP1.getConnector();
-	var testDB2 = testDBEP2.getConnector();
+    };
 	
     transaction {
         _ = testDB1 -> update("insert into Customers (customerId, name, creditLimit, country)
@@ -36,6 +33,9 @@ function testXAransactonSuccess () (int count1, int count2) {
     //check whether update action is performed
     table dt = testDB1 -> select("Select COUNT(*) as countval from Customers where customerId = 1 ",
                                   null, typeof ResultCount);
+
+    int count1;
+    int count2;
     while (dt.hasNext()) {
         var rs, _ = (ResultCount)dt.getNext();
         count1 = rs.COUNTVAL;
@@ -48,12 +48,12 @@ function testXAransactonSuccess () (int count1, int count2) {
     }
     testDB1 -> close();
     testDB2 -> close();
-    return;
+    return (count1, count2);
 }
 
-function testXAransactonFailed1 () (int count1, int count2) {
+function testXAransactonFailed1 () returns (int, int) {
 
-	endpoint<sql:Client> testDBEP1 {
+	endpoint sql:Client testDB1 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_1/",
         port: 0,
@@ -61,9 +61,9 @@ function testXAransactonFailed1 () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
+    };
 	
-	endpoint<sql:Client> testDBEP2 {
+	endpoint sql:Client testDB2 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_2/",
         port: 0,
@@ -71,10 +71,7 @@ function testXAransactonFailed1 () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
-	
-	var testDB1 = testDBEP1.getConnector();
-	var testDB2 = testDBEP2.getConnector();
+    };
 	
     try {
         transaction {
@@ -88,6 +85,10 @@ function testXAransactonFailed1 () (int count1, int count2) {
     //check whether update action is performed
     table dt = testDB1 -> select("Select COUNT(*) as countval from Customers where customerId = 2", null,
                                   typeof ResultCount);
+
+    int count1;
+    int count2;
+
     while (dt.hasNext()) {
         var rs, _ = (ResultCount)dt.getNext();
         count1 = rs.COUNTVAL;
@@ -100,12 +101,12 @@ function testXAransactonFailed1 () (int count1, int count2) {
     }
     testDB1 -> close();
     testDB2 -> close();
-    return;
+    return (count1, count2);
 }
 
-function testXAransactonFailed2 () (int count1, int count2) {
+function testXAransactonFailed2 () returns (int, int) {
 
-	endpoint<sql:Client> testDBEP1 {
+	endpoint sql:Client testDB1 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_1/",
         port: 0,
@@ -113,9 +114,9 @@ function testXAransactonFailed2 () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
+    };
 	
-	endpoint<sql:Client> testDBEP2 {
+	endpoint sql:Client testDB2 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_2/",
         port: 0,
@@ -123,10 +124,7 @@ function testXAransactonFailed2 () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
-	
-	var testDB1 = testDBEP1.getConnector();
-	var testDB2 = testDBEP2.getConnector();
+    };
 	
     try {
         transaction {
@@ -140,6 +138,9 @@ function testXAransactonFailed2 () (int count1, int count2) {
     //check whether update action is performed
     table dt = testDB1 -> select("Select COUNT(*) as countval from Customers where customerId = 2",
                                   null, typeof ResultCount);
+    int count1;
+    int count2;
+
     while (dt.hasNext()) {
         var rs, _ = (ResultCount)dt.getNext();
         count1 = rs.COUNTVAL;
@@ -152,12 +153,12 @@ function testXAransactonFailed2 () (int count1, int count2) {
     }
     testDB1 -> close();
     testDB2 -> close();
-    return;
+    return (count1, count2);
 }
 
-function testXAransactonRetry () (int count1, int count2) {
+function testXAransactonRetry () returns (int, int) {
 
-	endpoint<sql:Client> testDBEP1 {
+	endpoint sql:Client testDB1 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_1/",
         port: 0,
@@ -165,9 +166,9 @@ function testXAransactonRetry () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
+    };
 	
-	endpoint<sql:Client> testDBEP2 {
+	endpoint sql:Client testDB2 {
         database: sql:DB.H2_FILE,
         host: "./target/H2_2/",
         port: 0,
@@ -175,10 +176,7 @@ function testXAransactonRetry () (int count1, int count2) {
         username: "sa",
         password: "",
         options: {maximumPoolSize:1, isXA:true}
-    }
-	
-	var testDB1 = testDBEP1.getConnector();
-	var testDB2 = testDBEP2.getConnector();
+    };
 
     int i = 0;
     try {
@@ -191,7 +189,7 @@ function testXAransactonRetry () (int count1, int count2) {
                         values (4, 'John', 1000, 'UK')", null);
             }
             _ = testDB2 -> update("insert into Salary (id, value ) values (4, 1000)", null);
-        } failed {
+        } onretry {
             i = i + 1;
         }
     } catch (error e) {
@@ -199,6 +197,9 @@ function testXAransactonRetry () (int count1, int count2) {
     //check whether update action is performed
     table dt = testDB1 -> select("Select COUNT(*) as countval from Customers where customerId = 4",
                                         null, typeof ResultCount);
+    int count1;
+    int count2;
+
     while (dt.hasNext()) {
         var rs, _ = (ResultCount)dt.getNext();
         count1 = rs.COUNTVAL;
@@ -211,5 +212,5 @@ function testXAransactonRetry () (int count1, int count2) {
     }
     testDB1 -> close();
     testDB2 -> close();
-    return;
+    return (count1, count2);
 }

@@ -18,18 +18,28 @@
 
 package org.ballerinalang.net.http;
 
+import io.netty.handler.codec.http.HttpHeaders;
 import org.ballerinalang.bre.Context;
 import org.ballerinalang.connector.api.Annotation;
 import org.ballerinalang.connector.api.BLangConnectorSPIUtil;
+import org.ballerinalang.connector.api.Executor;
+import org.ballerinalang.connector.api.ParamDetail;
 import org.ballerinalang.connector.api.Resource;
 import org.ballerinalang.connector.api.Service;
-import org.ballerinalang.model.values.BConnector;
 import org.ballerinalang.model.values.BMap;
+import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BStruct;
+import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.services.ErrorHandlerUtils;
 import org.ballerinalang.util.codegen.ProgramFile;
 import org.ballerinalang.util.exceptions.BallerinaException;
+import org.wso2.transport.http.netty.contract.websocket.HandshakeFuture;
+import org.wso2.transport.http.netty.contract.websocket.HandshakeListener;
+import org.wso2.transport.http.netty.contract.websocket.WebSocketInitMessage;
 
 import java.util.List;
+import java.util.Map;
+import javax.websocket.Session;
 
 
 /**
@@ -45,11 +55,10 @@ public abstract class WebSocketUtil {
         return new BMap<>();
     }
 
-    public static BConnector createAndGetConnector(Resource resource) {
-        return BLangConnectorSPIUtil.createBConnector(getProgramFile(resource), HttpConstants.HTTP_PACKAGE_PATH,
-                                                      WebSocketConstants.WEBSOCKET_CONNECTOR, new BMap<>());
+    public static BStruct createAndGetBStruct(Resource resource) {
+        return BLangConnectorSPIUtil.createBStruct(getProgramFile(resource), HttpConstants.HTTP_PACKAGE_PATH,
+                                                   WebSocketConstants.WEBSOCKET_CONNECTOR, new BMap<>());
     }
-
 
 
     public static ProgramFile getProgramFile(Resource resource) {
@@ -70,5 +79,44 @@ public abstract class WebSocketUtil {
         }
 
         return annotationList.isEmpty() ? null : annotationList.get(0);
+    }
+
+    public static void handleHandshake(WebSocketInitMessage initMessage, WebSocketService wsService,
+                                       HttpHeaders headers, BStruct wsConnection) {
+        String[] subProtocols = wsService.getNegotiableSubProtocols();
+        int idleTimeoutInSeconds = wsService.getIdleTimeoutInSeconds();
+        HandshakeFuture future = initMessage.handshake(subProtocols, true, idleTimeoutInSeconds * 1000, headers);
+        future.setHandshakeListener(new HandshakeListener() {
+            @Override
+            public void onSuccess(Session session) {
+                wsConnection.setStringField(0, session.getId());
+                wsConnection.setStringField(1, session.getNegotiatedSubprotocol());
+                wsConnection.setBooleanField(0, session.isSecure() ? 1 : 0);
+                wsConnection.setBooleanField(0, session.isOpen() ? 1 : 0);
+                wsConnection.addNativeData(WebSocketConstants.NATIVE_DATA_WEBSOCKET_SESSION, session);
+                wsConnection.addNativeData(WebSocketConstants.WEBSOCKET_MESSAGE, initMessage);
+                Map<String, String> upgradeHeaders = initMessage.getHeaders();
+                BMap<String, BString> bUpgradeHeaders = new BMap<>();
+                upgradeHeaders.forEach((key, value) -> bUpgradeHeaders.put(key, new BString(value)));
+                wsConnection.setRefField(1, bUpgradeHeaders);
+                WebSocketConnectionManager.getInstance().addService(session.getId(), wsService);
+
+                Resource onOpenResource = wsService.getResourceByName(WebSocketConstants.RESOURCE_NAME_ON_OPEN);
+                if (onOpenResource == null) {
+                    return;
+                }
+                List<ParamDetail> paramDetails =
+                        onOpenResource.getParamDetails();
+                BValue[] bValues = new BValue[paramDetails.size()];
+                bValues[0] = wsService.getServiceEndpoint();
+                //TODO handle BallerinaConnectorException
+                Executor.submit(onOpenResource, new WebSocketEmptyCallableUnitCallback(), null, bValues);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                ErrorHandlerUtils.printError(throwable);
+            }
+        });
     }
 }

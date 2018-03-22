@@ -1,5 +1,5 @@
-import ballerina.io;
-import ballerina.file;
+import ballerina/io;
+import ballerina/file;
 
 function main (string[] args) {
     file:File target = {path:"/tmp/result.txt"};
@@ -11,7 +11,7 @@ function main (string[] args) {
 
     blob data;
     int len;
-    data, len, _ = bchannel.read(intArg, intArg);
+    data, len, _ = bchannel.read(intArg);
 
     testFunction(data, data);
 }
