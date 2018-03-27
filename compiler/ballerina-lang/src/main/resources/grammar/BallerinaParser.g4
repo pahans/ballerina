@@ -40,7 +40,6 @@ definition
     |   functionDefinition
     |   structDefinition
     |   typeDefinition
-    |   streamletDefinition
     |   enumDefinition
     |   constantDefinition
     |   annotationDefinition
@@ -186,7 +185,6 @@ attachmentPoint
      | RESOURCE
      | FUNCTION
      | STRUCT
-     | STREAMLET
      | ENUM
      | ENDPOINT
      | CONST
@@ -241,7 +239,8 @@ annotatedTypeName
 
 // Temporary production rule name
 simpleTypeName
-    :   TYPE_ANY
+    :   NullLiteral
+    |   TYPE_ANY
     |   TYPE_DESC
     |   valueTypeName
     |   referenceTypeName
@@ -284,8 +283,6 @@ builtInReferenceTypeName
     |   TYPE_JSON (LT nameReference GT)?
     |   TYPE_TABLE (LT nameReference GT)?
     |   TYPE_STREAM (LT nameReference GT)?
-    |   STREAMLET
-    |   TYPE_AGGREGATION (LT nameReference GT)?
     |   functionTypeName
     ;
 
@@ -328,8 +325,10 @@ statement
     |   expressionStmt
     |   transactionStatement
     |   abortStatement
+    |   failStatement
     |   lockStatement
     |   namespaceDeclarationStatement
+    |   foreverStatement
     |   streamingQueryStatement
     ;
 
@@ -500,7 +499,7 @@ workerReply
 
 variableReference
     :   nameReference                                                           # simpleVariableReference
-    |   functionInvocation                                                      # functionInvocationReference
+    |   ASYNC? functionInvocation                                               # functionInvocationReference
     |   awaitExpression                                                         # awaitExpressionReference
     |   variableReference index                                                 # mapArrayVariableReference
     |   variableReference field                                                 # fieldVariableReference
@@ -521,7 +520,7 @@ xmlAttrib
     ;
 
 functionInvocation
-    : ASYNC? nameReference LEFT_PARENTHESIS invocationArgList? RIGHT_PARENTHESIS
+    : nameReference LEFT_PARENTHESIS invocationArgList? RIGHT_PARENTHESIS
     ;
 
 invocation
@@ -539,7 +538,7 @@ invocationArg
     ;
 
 actionInvocation
-    : nameReference RARROW functionInvocation
+    : ASYNC? nameReference RARROW functionInvocation
     ;
 
 expressionList
@@ -579,16 +578,20 @@ abortStatement
     :   ABORT SEMICOLON
     ;
 
+failStatement
+    :   FAIL SEMICOLON
+    ;
+
 retriesStatement
-    :   RETRIES LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
+    :   RETRIES ASSIGN expression
     ;
 
 oncommitStatement
-    :   ONCOMMIT LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
+    :   ONCOMMIT ASSIGN expression
     ;
 
 onabortStatement
-    :   ONABORT LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
+    :   ONABORT ASSIGN expression
     ;
 
 namespaceDeclarationStatement
@@ -671,7 +674,7 @@ formalParameterList
     ;
 
 fieldDefinition
-    :   typeName Identifier (ASSIGN simpleLiteral)? SEMICOLON
+    :   typeName Identifier (ASSIGN expression)? SEMICOLON
     ;
 
 simpleLiteral
@@ -802,27 +805,15 @@ aggregationQuery
 
     ;
 
-streamletDefinition
-    :   STREAMLET Identifier LEFT_PARENTHESIS parameterList? RIGHT_PARENTHESIS streamletBody
-    ;
-
-streamletBody
-    :   LEFT_BRACE streamingQueryDeclaration  RIGHT_BRACE
-    ;
-
-streamingQueryDeclaration
-    :   variableDefinitionStatement* (streamingQueryStatement | queryStatement+)
-    ;
-
-queryStatement
-    :   QUERY Identifier LEFT_BRACE streamingQueryStatement RIGHT_BRACE
+foreverStatement
+    :   FOREVER LEFT_BRACE  streamingQueryStatement+ RIGHT_BRACE
     ;
 
 streamingQueryStatement
     :   FROM (streamingInput (joinStreamingInput)? | patternClause)
         selectClause?
         orderByClause?
-        outputRate?
+        outputRateLimit?
         streamingAction
     ;
 
@@ -861,9 +852,7 @@ havingClause
     ;
 
 streamingAction
-    :   INSERT outputEventType? INTO Identifier
-    |   UPDATE (OR INSERT INTO)? Identifier setClause ? ON expression
-    |   DELETE Identifier ON expression
+    :   EQUAL_GT LEFT_PARENTHESIS formalParameterList? RIGHT_PARENTHESIS callableUnitBody
     ;
 
 setClause
@@ -882,8 +871,9 @@ joinStreamingInput
     :   (UNIDIRECTIONAL joinType | joinType UNIDIRECTIONAL | joinType) streamingInput ON expression
     ;
 
-outputRate
-    : OUTPUT outputRateType? EVERY integerLiteral EVENTS
+outputRateLimit
+    : OUTPUT (ALL | LAST | FIRST) EVERY ( DecimalIntegerLiteral timeScale | DecimalIntegerLiteral EVENTS )
+    | OUTPUT SNAPSHOT EVERY DecimalIntegerLiteral timeScale
     ;
 
 patternStreamingInput
@@ -896,7 +886,7 @@ patternStreamingInput
     ;
 
 patternStreamingEdgeInput
-    :   Identifier whereClause? intRangeExpression? (AS alias=Identifier)?
+    :   variableReference whereClause? intRangeExpression? (AS alias=Identifier)?
     ;
 
 whereClause
@@ -923,10 +913,13 @@ joinType
     | INNER? JOIN
     ;
 
-outputRateType
-    : ALL
-    | LAST
-    | FIRST
+timeScale
+    : SECOND
+    | MINUTE
+    | HOUR
+    | DAY
+    | MONTH
+    | YEAR
     ;
 
 // Deprecated parsing.

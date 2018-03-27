@@ -13,8 +13,7 @@ endpoint http:ClientEndpoint stockqEP {
 };
 
 @http:ServiceConfig {
-    basePath:"/product",
-    endpoints: [headerServiceEP]
+    basePath:"/product"
 }
 service<http:Service> headerService bind headerServiceEP {
 
@@ -37,18 +36,20 @@ service<http:Service> headerService bind headerServiceEP {
 
         match reply {
             http:Response clientResponse => {
-                var result = clientResponse.getHeaders("person");
-                match result {
-                    string[] headers => {
-                        json payload = {header1:headers[0] , header2:headers[1]};
-                        http:Response res = {};
-                        res.setJsonPayload(payload);
-                        _ = conn -> respond(res);
+                json payload = {};
+                if (clientResponse.hasHeader("person")) {
+                    string[] headers = clientResponse.getHeaders("person");
+                    if (lengthof(headers) == 2) {
+                        payload = {header1:headers[0], header2:headers[1]};
+                    } else {
+                        payload = {"response":"expected number of 'person' headers not found"};
                     }
-                    any|null => {
-                        return;
-                    }
+                } else {
+                    payload = {"response":"person header not available"};
                 }
+                http:Response res = {};
+                res.setJsonPayload(payload);
+                _ = conn -> respond(res);
             }
             any|null => {
                 return;
@@ -58,8 +59,7 @@ service<http:Service> headerService bind headerServiceEP {
 }
 
 @http:ServiceConfig {
-    basePath:"/sample",
-    endpoints: [headerServiceEP]
+    basePath:"/sample"
 }
 service<http:Service> quoteService bind stockServiceEP {
 
@@ -68,19 +68,20 @@ service<http:Service> quoteService bind stockServiceEP {
         path:"/stocks"
     }
     company (endpoint conn, http:Request req) {
-        //string[] headers = req.getHeaders("core");
-        var result = req.getHeaders("core");
-        match result {
-            string[] headers => {
-                json payload = {header1:headers[0] , header2:headers[1]};
-                http:Response res = {};
-                res.setJsonPayload(payload);
-                _ = conn -> respond(res);
+        json payload = {};
+        if (req.hasHeader("core")) {
+            string[] headers = req.getHeaders("core");
+            if (lengthof(headers) == 2) {
+                payload = {header1:headers[0], header2:headers[1]};
+            } else {
+                payload = {"response":"expected number of 'core' headers not found"};
             }
-            any|null => {
-                return;
-            }
+        } else {
+            payload = {"response":"core header not available"};
         }
+        http:Response res = {};
+        res.setJsonPayload(payload);
+        _ = conn -> respond(res);
     }
 
     @http:ResourceConfig {
