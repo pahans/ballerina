@@ -34,6 +34,7 @@
         <module>ballerina-to-swagger</module>
         <module>ballerina-tryit</module>
         <module>ballerina-langserver</module>
+        <module>ballerina-project</module>
     </modules>
     <dependencies>
         <dependency>
