@@ -69,6 +69,7 @@ public class FileSystemService implements ComposerService {
     private static final Logger logger = LoggerFactory.getLogger(FileSystemService.class);
     private static final String STATUS = "status";
     private static final String SUCCESS = "success";
+    private static  final String IS_READ_ONLY = "isReadOnly";
     private static final String ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "Access-Control-Allow-Origin";
     private static final String MIME_APPLICATION_JSON = "application/json";
 
@@ -253,10 +254,23 @@ public class FileSystemService implements ComposerService {
             byte[] content = request.isBase64Encoded()
                             ? Base64.getDecoder().decode(request.getContent())
                             : request.getContent().getBytes(Charset.defaultCharset());
-            Files.write(filePath, content);
+
             JsonObject entity = new JsonObject();
-            entity.addProperty(STATUS, SUCCESS);
-            return createOKResponse(entity);
+            if (Files.isWritable(filePath)) {
+                Files.write(filePath, content);
+                entity.addProperty(STATUS, SUCCESS);
+                return createOKResponse(entity);
+            } else {
+                entity.addProperty(IS_READ_ONLY, true);
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                        .entity(entity)
+                        .header(ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, '*')
+                        .type(MediaType.APPLICATION_JSON)
+                        .build();
+            }
+
+
+
         } catch (Throwable throwable) {
             logger.error("/write service error", throwable.getMessage(), throwable);
             return createErrorResponse(throwable);

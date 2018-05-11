@@ -95,8 +95,21 @@ export function getHandlerDefinitions(workspaceManager) {
                             }
                         })
                         .catch((error) => {
-                            log.error(error);
-                            onSaveFail(error);
+                            if (error.response.data.isReadOnly) {
+                                const id = DIALOGS.SAVE_FILE;
+                                dispatch(LAYOUT_COMMANDS.POPUP_DIALOG, {
+                                    id,
+                                    additionalProps: {
+                                        file: targetFile,
+                                        mode: 'SAVE_FILE',
+                                        onSuccess,
+                                        onSaveFail,
+                                    },
+                                });
+                            } else {
+                                log.error(error);
+                                onSaveFail(error);
+                            }
                         });
                 }
             },
