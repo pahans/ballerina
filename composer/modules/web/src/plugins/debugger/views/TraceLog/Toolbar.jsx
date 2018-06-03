@@ -18,7 +18,7 @@
 
 import React from 'react';
 import _ from 'lodash';
-import { Dropdown, Button } from 'semantic-ui-react';
+import { Dropdown, Button, Grid } from 'semantic-ui-react';
 /**
  *
  * @extends React.Component
@@ -75,45 +75,39 @@ class ToolBar extends React.Component {
             });
         });
 
-        return (
-            <div className='logs-console-toolbar'>
-                <div>
-                    <Button
-                        icon='fw fw-clear'
-                        className='pull-left clear-button'
-                        onClick={() => this.props.clearLogs()}
-                    />
-                </div>
-                {
-                    keys.map((key) => {
-                        groupedMessages[key] = groupedMessages[key] || [];
-                        const options = groupedMessages[key].map((option) => {
-                            return {
-                                key: option,
-                                text: option,
-                                value: option,
-                            };
-                        });
-                        options.unshift({
-                            key: 'all',
-                            text: 'All',
-                            value: 'all',
-                        });
-                        return (
-                            <div className={`filter-${key} pull-right`}>
-                                <label htmlFor='dropdown'>{filters[key]}</label>
-                                <Dropdown
-                                    direction='left'
-                                    value={this.state.filterValue[key]}
-                                    options={options}
-                                    onChange={(e, data) => this.onChangeFilter(key, data.value)}
-                                />
-                            </div>);
-                    })
-                }
+        return keys.map((key) => {
+            groupedMessages[key] = groupedMessages[key] || [];
+            const options = groupedMessages[key].map((option) => {
+                return {
+                    key: option,
+                    text: option,
+                    value: option,
+                };
+            });
+            options.unshift({
+                key: 'all',
+                text: 'All',
+                value: 'all',
+            });
+            if (filters[key]) {
+                return (
+                    <Grid.Column className='summary'>
+                        <label htmlFor='dropdown'>{filters[key]}</label>
+                        <Dropdown
+                            direction='left'
+                            value={this.state.filterValue[key]}
+                            options={options}
+                            onChange={(e, data) => this.onChangeFilter(key, data.value)}
+                        />
+                    </Grid.Column>);
+            } else {
+                return (
+                    <Grid.Column className='summary'>
+                        &nbsp;
+                    </Grid.Column>);
+            }
 
-            </div>
-        );
+        });
     }
 }
 

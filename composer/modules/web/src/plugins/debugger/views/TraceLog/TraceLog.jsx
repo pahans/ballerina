@@ -20,7 +20,7 @@ import React from 'react';
 import Proptypes from 'prop-types';
 import _ from 'lodash';
 import moment from 'moment';
-import { Grid, Icon } from 'semantic-ui-react';
+import { Grid, Icon, Dropdown } from 'semantic-ui-react';
 import SplitPane from 'react-split-pane';
 import ErrorBoundary from 'core/editor/views/ErrorBoundary';
 import ToolBar from './Toolbar';
@@ -137,23 +137,6 @@ class LogsConsole extends React.Component {
             <div id='logs-console' ref={(stickyContext) => { this.stickyContext = stickyContext; }} style={{ height }}>
                 <ErrorBoundary>
                     <div>
-                        <ToolBar
-                            messages={this.state.messages}
-                            filters={{
-                                'message.meta.id': 'Activity Id',
-                                'message.record.logger': 'Logger',
-                                'message.meta.path': 'Path',
-                                'message.meta.direction': 'Inbound/Outbound',
-                                'message.meta.httpMethod': 'Method',
-                            }}
-                            onFilteredMessages={this.onFilteredMessages}
-                            clearLogs={() => {
-                                this.setState({
-                                    messages: [],
-                                    filteredMessages: [],
-                                });
-                            }}
-                        />
                         {
                             this.state.messages.length > 0 &&
                             <div >
@@ -165,18 +148,22 @@ class LogsConsole extends React.Component {
                                     <div>
                                         <Grid style={{ margin: 0 }}>
                                             <Grid.Row className='table-heading'>
-                                                <Grid.Column className='summary'>
-                                                    &nbsp;
-                                                </Grid.Column>
-                                                <Grid.Column className='activity'>
-                                                    Activity Id
-                                                </Grid.Column>
-                                                <Grid.Column className='time'>
-                                                    Time
-                                                </Grid.Column>
-                                                <Grid.Column className='path'>
-                                                    Path
-                                                </Grid.Column>
+                                                <ToolBar
+                                                    messages={this.state.messages}
+                                                    filters={{
+                                                        'message.meta.direction': 'Inbound/Outbound',
+                                                        'message.meta.id': 'Activity Id',
+                                                        'empty-cell': null,
+                                                        'message.meta.path': 'Path',
+                                                    }}
+                                                    onFilteredMessages={this.onFilteredMessages}
+                                                    clearLogs={() => {
+                                                        this.setState({
+                                                            messages: [],
+                                                            filteredMessages: [],
+                                                        });
+                                                    }}
+                                                />
                                             </Grid.Row>
                                         </Grid>
                                         <Grid
