@@ -44,7 +44,7 @@ public class LogParser {
     static final Pattern HTTP_METHOD = Pattern.compile("(GET|POST|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)");
     static final Pattern PATH = Pattern.compile("(?:GET|POST|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)"
             + " ([^\\s]+)");
-
+    static final String HEADER_ATTRIBUTES_PATTERN = "^[^:]+";
     static final Pattern CONTENT_TYPE = Pattern.compile("(?:content-type): ?(.*)",  Pattern.CASE_INSENSITIVE);
 
     public static LogParser getLogParserInstance() {
@@ -163,6 +163,10 @@ public class LogParser {
         return "";
     }
 
+    private String decorateHeader(String header) {
+        return Pattern.compile("^(?s)[^:]+", Pattern.MULTILINE).matcher(header).replaceAll("<b>$0</b>");
+    }
+
     /**
      * Remove payload from header.
      * @param header String
@@ -182,7 +186,7 @@ public class LogParser {
         String header = getHeader(logLine);
         String headerType = getHeaderType(logLine);
         String payload = getPayload(header);
-        log.setHeaders(removePayload(header, payload));
+        log.setHeaders(decorateHeader(removePayload(header, payload)));
         log.setHeaderType(headerType);
         log.setContentType(getContentType(logLine));
         log.setHttpMethod(getHttpMethod(logLine));
