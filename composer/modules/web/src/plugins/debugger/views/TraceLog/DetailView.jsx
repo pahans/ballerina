@@ -42,9 +42,7 @@ class DetailView extends React.Component {
             <Segment className='detail-view' inverted>
                 <Icon name='close' className='close' onClick={this.props.hideDetailView} />
                 <code>
-                    <pre>
-                        {meta.headers}
-                    </pre>
+                    <pre dangerouslySetInnerHTML={{ __html: meta.headers }} />
                 </code>
                 {
                     meta.contentType === 'application/json' && isJson(payload) ?
