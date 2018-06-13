@@ -28,6 +28,9 @@ import Breakpoint from '../decorators/breakpoint';
 import { getComponentForNodeArray } from './../../../../diagram-util';
 import ElseStatementDecorator from './else-statement-decorator';
 import ArrowDecorator from '../decorators/arrow-decorator';
+import Tools from '../controllers/tools';
+import { Menu } from 'semantic-ui-react';
+import BlockCtrl from 'plugins/ballerina/diagram/views/default/components/controllers/block-ctrl';
 
 /**
  * Wraps other UI elements and provide box with a heading.
@@ -333,10 +336,20 @@ class IfStatementDecorator extends React.Component {
                     />
                     {expression && <title> {expression.text} </title>}
                 </g>
-                { isBreakpoint && this.renderBreakpointIndicator() }
+                {isBreakpoint && this.renderBreakpointIndicator()}
                 {this.props.children}
                 {body}
-                <ActionBox
+                <Tools bBox={{ y: p6Y, x: p5X, w: 100, h: 100 }} >
+                    {/* <Menu vertical>
+                        <Menu.Item href='//google.com' target='_blank'>
+                            Visit Google
+                        </Menu.Item>
+                        <Menu.Item link>Link via prop</Menu.Item>
+                        <Menu.Item onClick={this.handleClick}>Javascript Link</Menu.Item>
+                    </Menu> */}
+                    <BlockCtrl model={model} />
+                </Tools>
+                {/* <ActionBox
                     bBox={actionBoxBbox}
                     show={this.state.active}
                     isBreakpoint={isBreakpoint}
@@ -344,7 +357,7 @@ class IfStatementDecorator extends React.Component {
                     onJumptoCodeLine={() => this.onJumpToCodeLine()}
                     onBreakpointClick={() => this.props.onBreakpointClick()}
                     disableButtons={this.props.disableButtons}
-                />
+                /> */}
                 {elseComp && <ElseStatementDecorator
                     dropTarget={model}
                     bBox={elseComp.viewState.bBox}
