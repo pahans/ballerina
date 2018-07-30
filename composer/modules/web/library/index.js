@@ -26,6 +26,7 @@ import HTML5Backend from 'react-dnd-html5-backend';
 import Diagram from 'plugins/ballerina/diagram/diagram.jsx';
 import TreeBuilder from 'plugins/ballerina/model/tree-builder.js';
 import '../src/ballerina-theme/semantic.less';
+import DebugManager from 'plugins/debugger/DebugManager/DebugManager.js';
 
 function renderDiagram(target, modelJson, props = {}) {
     const defaultProps = {
@@ -46,5 +47,6 @@ export {
     TreeBuilder,
     Diagram,
     BalDiagram,
-    renderDiagram
+    renderDiagram,
+    DebugManager,
 }

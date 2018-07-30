@@ -81,9 +81,13 @@ function buildTree(model) {
     return window.buildTree(model);
 }
 
+function getDebugManager() {
+    return window.DebugManager
+}
 module.exports = {
     initialize,
     render,
     generateSource,
     buildTree,
+    getDebugManager,
 }

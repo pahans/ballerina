@@ -31,7 +31,7 @@ const config = require('../resources/config');
 const renderingSkip = config.skip["rendering"];
 const sourceGenSkip = config.skip["source-gen"];
 
-const testFilesDir = path.join(__dirname, '../resources/ballerina-examples');
+const testFilesDir = path.join(__dirname, '..', 'resources', 'ballerina-examples');
 
 describe('Ballerina Composer Test Suite', () => {
     let testFiles = [];
@@ -61,48 +61,48 @@ describe('Ballerina Composer Test Suite', () => {
 
     testFiles.forEach(testFile => {
         describe(path.basename(testFile), () => {
-            let model;
-            let content;
+            // let model;
+            // let content;
             
-            before(done => {
-                model = undefined;
-                content = undefined;
-                fs.readFile(testFile, 'utf8', (err, fileContent) => {
-                    parse(fileContent, testFile, parsedModel => {
-                        content = fileContent;
-                        model = parsedModel;
-                        let error;
-                        if (!model) {
-                            error = new Error('Could not parse!');
-                        }
-                        done(error);
-                    });
-                })
-            });
+            // before(done => {
+            //     model = undefined;
+            //     content = undefined;
+            //     fs.readFile(testFile, 'utf8', (err, fileContent) => {
+            //         parse(fileContent, testFile, parsedModel => {
+            //             content = fileContent;
+            //             model = parsedModel;
+            //             let error;
+            //             if (!model) {
+            //                 error = new Error('Could not parse!');
+            //             }
+            //             done(error);
+            //         });
+            //     })
+            // });
 
-            it('renders', function () {
-                if(renderingSkip.includes(path.basename(testFile))) {
-                    this.skip();
-                }
+            // it('renders', function () {
+            //     if(renderingSkip.includes(path.basename(testFile))) {
+            //         this.skip();
+            //     }
 
-                testEnv.render(model)
-            });
+            //     testEnv.render(model)
+            // });
 
-            it('generates source', function () {
-                if(sourceGenSkip.includes(path.basename(testFile))) {
-                    this.skip();
-                }
+            // it('generates source', function () {
+            //     if(sourceGenSkip.includes(path.basename(testFile))) {
+            //         this.skip();
+            //     }
 
-                const generatedSource = testEnv.generateSource(model);
-                expect(generatedSource).to.equal(content);
-            });
+            //     const generatedSource = testEnv.generateSource(model);
+            //     expect(generatedSource).to.equal(content);
+            // });
 
-            if (process.env.DEBUG == "true") {
-                it('debug print', () => {
-                    const tree = testEnv.buildTree(model);
-                    debugPrint(tree);
-                });
-            }
+            // if (process.env.DEBUG == "true") {
+            //     it('debug print', () => {
+            //         const tree = testEnv.buildTree(model);
+            //         debugPrint(tree);
+            //     });
+            // }
         });
     });
 

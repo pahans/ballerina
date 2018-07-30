@@ -36,6 +36,11 @@
             <artifactId>ballerina-examples</artifactId>
             <type>zip</type>
         </dependency>
+        <dependency>
+            <groupId>org.ballerinalang</groupId>
+            <artifactId>ballerina</artifactId>
+            <type>zip</type>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -65,6 +70,19 @@
                                 ballerina-examples
                             </includeArtifactIds>
                             <outputDirectory>src/test/resources/ballerina-examples</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>unpack-distribution</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                             <includeArtifactIds>
+                                ballerina
+                            </includeArtifactIds>
+                            <outputDirectory>${project.build.directory}/ballerina-dist</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
