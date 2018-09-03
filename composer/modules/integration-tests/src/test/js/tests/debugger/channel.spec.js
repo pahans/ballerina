@@ -4,8 +4,7 @@ const { expect } = require('chai');
 const { spawn } = require('child_process');
 var WebSocket = require('ws');
 var http = require("http");
-const kill  = require('tree-kill');
-const findProcess = require('find-process');
+const ps = require('ps-node');
 
 const testEnv = require('../../environment');
 
@@ -24,15 +23,27 @@ const testFilesDir = path.join(__dirname, 'resources/');
 
 let backEndProcess;
 
+function killBackend() {
+    if (!backEndProcess) {
+        return;
+    }
+    ps.lookup({
+        arguments: ['org.ballerinalang.launcher.Main', 'run', backEndProcess.spawnargs[2]],
+        }, (err, resultList = [] ) => {
+        resultList.forEach(( process ) => {
+            ps.kill(process.pid);
+        });
+    });
+}
+
 describe('Ballerina Composer Debugger Test Suite', () => {
 
     beforeEach(function () {
-        findProcess('ballerina')
-        backEndProcess && terminate(backEndProcess.pid);
+        killBackend();
     });
 
     afterEach(function () {
-        backEndProcess && terminate(backEndProcess.pid);
+        killBackend();
     });
 
     it('Hello world Main function debug hit', function (done) {
@@ -60,8 +71,7 @@ describe('Ballerina Composer Debugger Test Suite', () => {
                             "packagePath": ".",
                         });
                         done();
-                        backEndProcess.kill();
-                        backEndProcess.stdin.pause();
+                        killBackend();
                     }
                 }
                 websocket.onerror = () => {};
@@ -77,7 +87,6 @@ describe('Ballerina Composer Debugger Test Suite', () => {
         let stdIndata = '';
         backEndProcess.stdout.on('data', (data) => {
             stdIndata += data;
-            console.log(stdIndata);
             if (stdIndata.includes('ballerina: started HTTP/WS endpoint') > 0) {
                 const req = http.get('http://127.0.0.1:9090/hello/sayHello', function(res) {
                     // console.log(res.statusCode)
@@ -96,7 +105,6 @@ describe('Ballerina Composer Debugger Test Suite', () => {
                 }
                 websocket.onmessage = function (event) {
                     const data = JSON.parse(event.data);
-                    console.log(data.code);
                     if (data.code === 'DEBUG_HIT') {
                         expect(data.location).to.deep.equal({
                             "fileName": "hello_world_service.bal",
@@ -104,7 +112,7 @@ describe('Ballerina Composer Debugger Test Suite', () => {
                             "packagePath": ".",
                         });
                         done();
-                        backEndProcess.kill();
+                        killBackend();
                     }
                 }
                 websocket.onerror = () => {};
@@ -113,4 +121,47 @@ describe('Ballerina Composer Debugger Test Suite', () => {
             }
         });
     });
+
+    // it('Package main debug hit', function (done) {
+    //     const filepath = path.join(testFilesDir, 'hello_world_service.bal');
+    //     backEndProcess = spawn(`${executable}`, [`run`, filepath, '--debug', '5006']);
+    //     backEndProcess.stderr.pipe(process.stderr);
+    //     let stdIndata = '';
+    //     backEndProcess.stdout.on('data', (data) => {
+    //         stdIndata += data;
+    //         if (stdIndata.includes('ballerina: started HTTP/WS endpoint') > 0) {
+    //             const req = http.get('http://127.0.0.1:9090/hello/sayHello', function(res) {
+    //                 // console.log(res.statusCode)
+    //             });
+    //             req.end();
+    //         }
+    //         if (stdIndata.includes("Ballerina remote debugger is activated on port : 5006") > 0) {
+    //             var websocket = new WebSocket("ws://127.0.0.1:5006/debug");
+    //             websocket.onopen = function (event) {
+    //                 websocket.send(JSON.stringify({
+    //                     command: "SET_POINTS", points: [
+    //                         { fileName: "hello_world_service.bal", lineNumber: 9, packagePath: "." }
+    //                     ]
+    //                 }));
+    //                 websocket.send(JSON.stringify({ command: "START" }));
+    //             }
+    //             websocket.onmessage = function (event) {
+    //                 const data = JSON.parse(event.data);
+    //                 if (data.code === 'DEBUG_HIT') {
+    //                     expect(data.location).to.deep.equal({
+    //                         "fileName": "hello_world_service.bal",
+    //                         "lineNumber": 9,
+    //                         "packagePath": ".",
+    //                     });
+    //                     done();
+    //                     killBackend();
+    //                 }
+    //             }
+    //             websocket.onerror = () => {};
+    //             websocket.onclose = () => {};
+
+    //         }
+    //     });
+    // });
+
 });
