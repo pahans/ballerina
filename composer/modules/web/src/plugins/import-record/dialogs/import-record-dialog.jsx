@@ -164,11 +164,11 @@ class ImportRecordDialog extends React.Component {
                     <Accordion as={Form.Field} className='inverted'>
                         <Accordion.Title active={this.state.activeIndex === 0} index={0} onClick={this.handleAccordion}>
                             <Icon name='dropdown' />
-                            Create record using JSON.
+                            Create rawMessage using JSON.
                         </Accordion.Title>
                         <Accordion.Content active={this.state.activeIndex === 0}>
                             <Form.Field>
-                                <p>Please enter a valid sample JSON to generate a record.</p>
+                                <p>Please enter a valid sample JSON to generate a rawMessage.</p>
                                 <MonacoEditor
                                     width='auto'
                                     height='300'

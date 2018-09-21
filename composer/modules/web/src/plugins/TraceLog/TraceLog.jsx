@@ -42,48 +42,28 @@ const directionToIcon = {
  *
  * @extends React.Component
  */
-class LogsConsole extends React.Component {
+class TraceLog extends React.Component {
 
     /**
-     * Creates an instance of LogsConsole.
-     * @memberof LogsConsole
+     * Creates an instance of TraceLog.
+     * @memberof TraceLog
      */
     constructor(props) {
         super(props);
         this.state = {
-            messages: [],
-            filteredMessages: [],
+            messages: props.traces,
+            filteredMessages: props.traces,
             details: false,
         };
         this.onFilteredMessages = this.onFilteredMessages.bind(this);
-        this.debouncedSetState = _.debounce(nextState => this.setState({ messages: nextState }), 400);
         this.toggleDetails = this.toggleDetails.bind(this);
-
-        props.LaunchManager.on('execution-started', () => {
-            this.setState({
-                messages: [],
-                filteredMessages: [],
-            });
-        });
-
-        props.LaunchManager.on('print-trace-message', (message) => {
-            if (!message.message.meta.direction || !message.message.meta.headers) {
-                return;
-            }
-            this.setState({
-                messages: [...this.state.messages, message],
-                filteredMessages: this.mergeRelatedMessages([...this.state.filteredMessages, message]),
-            });
-        });
     }
 
-    componentDidMount() {
-        const messages = this.props.LaunchManager.messages.filter( (message) => {
-            return message.type === 'TRACE' && message.message.meta.direction;
-        });
+    componentWillReceiveProps(nextProps) {
         this.setState({
-            messages,
-            filteredMessages: this.mergeRelatedMessages(messages),
+            messages: nextProps.traces,
+            filteredMessages: nextProps.traces,
+            details: false,
         });
     }
 
@@ -101,21 +81,21 @@ class LogsConsole extends React.Component {
     mergeRelatedMessages(messages) {
         const newMessages = [];
         for (let index = 0; index < messages.length; index++) {
-            let message1 = messages[index];
-            let message2 = messages[index + 1];
-            if (message1.message.meta.headerType.startsWith('DefaultHttpRequest')
-                && message2
-                && message1.message.rawMessage.thread === message2.message.rawMessage.thread
-                && (message2.message.meta.headerType.startsWith('DefaultLastHttpContent')
-                    || message2.message.meta.headerType.startsWith('EmptyLastHttpContent'))) {
+            let record1 = messages[index];
+            let record2 = messages[index + 1];
+            if (record1.message.headerType.startsWith('DefaultHttpRequest')
+                && record2
+                && record1.rawMessage.thread === record2.rawMessage.thread
+                && (record2.message.headerType.startsWith('DefaultLastHttpContent')
+                    || record2.message.headerType.startsWith('EmptyLastHttpContent'))) {
 
-                message1.message.meta.payload = message2.message.meta.payload;
-                newMessages.push(message1);
-            } else if (message1.message.meta.headerType.startsWith('DefaultLastHttpContent') ||
-            message1.message.meta.headerType.startsWith('EmptyLastHttpContent')) {
+                record1.message.payload = record2.message.payload;
+                newMessages.push(record1);
+            } else if (record1.message.headerType.startsWith('DefaultLastHttpContent') ||
+            record1.message.headerType.startsWith('EmptyLastHttpContent')) {
                 // do nothing
             } else {
-                newMessages.push(message1);
+                newMessages.push(record1);
             }
         }
         return newMessages;
@@ -134,17 +114,17 @@ class LogsConsole extends React.Component {
         const { height } = this.props;
         const { details } = this.state;
         return (
-            <div id='logs-console' ref={(stickyContext) => { this.stickyContext = stickyContext; }} style={{ height }}>
+            <div id='logs-console' ref={(stickyContext) => { this.stickyContext = stickyContext; }}>
                 <ErrorBoundary>
                     <div>
                         <ToolBar
                             messages={this.state.messages}
                             filters={{
-                                'message.meta.id': 'Activity Id',
-                                'message.rawMessage.logger': 'Logger',
-                                'message.meta.path': 'Path',
-                                'message.meta.direction': 'Inbound/Outbound',
-                                'message.meta.httpMethod': 'Method',
+                                'message.id': 'Activity Id',
+                                'rawMessage.logger': 'Logger',
+                                'message.path': 'Path',
+                                'message.direction': 'Inbound/Outbound',
+                                'message.httpMethod': 'Method',
                             }}
                             onFilteredMessages={this.onFilteredMessages}
                             clearLogs={() => {
@@ -181,34 +161,33 @@ class LogsConsole extends React.Component {
                                         </Grid>
                                         <Grid
                                             className='table-content'
-                                            style={{ maxHeight: height }}
                                         >
-                                            {this.state.filteredMessages.map((message) => {
-                                                const timeString = moment(parseInt(message.message.rawMessage.millis)).format('HH:mm:ss.SSS');
+                                            {this.state.filteredMessages.map((record) => {
+                                                const timeString = moment(parseInt(record.millis)).format('HH:mm:ss.SSS');
                                                 return (
                                                     <Grid.Row
-                                                        className={(details && details.id === message.id) ? 'active clickable' : 'clickable'}
-                                                        onClick={() => this.toggleDetails(message)}
+                                                        className={(details && details.id === record.id) ? 'active clickable' : 'clickable'}
+                                                        onClick={() => this.toggleDetails(record)}
                                                     >
                                                         <Grid.Column
                                                             className='wrap-text summary'
                                                         >
                                                             <Icon
-                                                                name={this.getDirectionIcon(message.message.rawMessage.logger,
-                                                                    message.message.meta.direction)}
-                                                                title={message.message.meta.direction}
+                                                                name={this.getDirectionIcon(record.logger,
+                                                                    record.direction)}
+                                                                title={record.direction}
                                                             />
                                                         </Grid.Column>
                                                         <Grid.Column className='wrap-text activity'>
-                                                            {message.message.meta.id}
+                                                            {record.message.id}
                                                         </Grid.Column>
                                                         <Grid.Column className='wrap-text time'>
                                                             {timeString}
                                                         </Grid.Column>
                                                         <Grid.Column className='wrap-text path'>
-                                                            {message.message.meta.httpMethod}
+                                                            {record.message.httpMethod}
                                                             &nbsp;
-                                                            {message.message.meta.path}
+                                                            {record.message.path}
                                                         </Grid.Column>
                                                     </Grid.Row>
                                                 );
@@ -218,8 +197,8 @@ class LogsConsole extends React.Component {
                                     {details &&
                                         <div width={12} style={{ height, overflow: 'auto' }}>
                                             <DetailView
-                                                rawLog={details.message.rawMessage}
-                                                meta={details.message.meta}
+                                                rawLog={details.rawMessage}
+                                                meta={details.message}
                                                 hideDetailView={() => { this.setState({ details: null }); }}
                                             />
                                         </div>
@@ -234,12 +213,12 @@ class LogsConsole extends React.Component {
     }
 }
 
-LogsConsole.propTypes = {
-    height: Proptypes.number,
+TraceLog.propTypes = {
+
 };
 
-LogsConsole.defaultProps = {
-    height: 0,
+TraceLog.defaultProps = {
+
 };
 
-export default LogsConsole;
+export default TraceLog;

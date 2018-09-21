@@ -31,6 +31,7 @@ import DesignView from 'plugins/ballerina/views/design-view.jsx';
 import TreeBuilder from 'plugins/ballerina/model/tree-builder.js';
 import FragmentUtils from 'plugins/ballerina/utils/fragment-utils';
 import '../src/ballerina-theme/semantic.less';
+import TraceLogs from '../src/plugins/TraceLog/TraceLog.jsx';
 
 const BalDiagram = DragDropContext(HTML5Backend)(Diagram);
 const BallerinaDesignView = DragDropContext(HTML5Backend)(DesignView);
@@ -191,10 +192,19 @@ function renderSamplesList(target, samples, openSample, openLink) {
     ReactDOM.render(SamplesListElement, target);
 }
 
+function renderTracingUI(target, traces = []) {
+    const props = {
+        traces,
+    };
+    const TraceLogsElement = createElement(TraceLogs, props);
+    ReactDOM.render(TraceLogsElement, target);
+}
+
 export {
     renderStaticDiagram,
     renderEditableDiagram,
     renderSamplesList,
+    renderTracingUI,
     TreeBuilder,
     BallerinaDesignView,
     BallerinaDiagram,

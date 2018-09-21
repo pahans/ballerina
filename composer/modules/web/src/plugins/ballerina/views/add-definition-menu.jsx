@@ -43,8 +43,8 @@ class AddDefinitionMenu extends React.Component {
                             return (<Dropdown.Item
                                 onClick={
                                 (event, item) => {
-                                    if (item.data.id === 'record') {
-                                        this.context.command.dispatch('show-import-record-dialog');
+                                    if (item.data.id === 'rawMessage') {
+                                        this.context.command.dispatch('show-import-rawMessage-dialog');
                                         return;
                                     }
                                     // Handle struct / transformer addition.

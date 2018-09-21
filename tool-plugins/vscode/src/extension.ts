@@ -25,7 +25,9 @@ import { } from 'vscode-debugadapter';
 import { BallerinaPluginConfig, getPluginConfig } from './config';
 import { activate as activateRenderer, errored as rendererErrored } from './renderer';
 import { activate as activateSamples } from './examples';
+import { activate as activateTraceLogs } from './trace-logs';
 import BallerinaExtension from './core/ballerina-extension';
+import { StaticFeature, ClientCapabilities, ServerCapabilities, DocumentSelector } from 'vscode-languageclient';
 
 const debugConfigResolver: DebugConfigurationProvider = {
 	resolveDebugConfiguration(folder: WorkspaceFolder, config: DebugConfiguration)
@@ -42,13 +44,25 @@ const debugConfigResolver: DebugConfigurationProvider = {
 };
 
 export function activate(context: ExtensionContext): void {
-
 	BallerinaExtension.setContext(context);
 	BallerinaExtension.init()
 		.then(success => {
 			// start the features.
 			activateRenderer(context, BallerinaExtension.langClient!);
-			activateSamples(context, BallerinaExtension.langClient!);
+            activateSamples(context, BallerinaExtension.langClient!);
+            activateTraceLogs(context, BallerinaExtension.langClient!);
+
+            class TraceLogsFeature implements StaticFeature {
+                fillClientCapabilities(capabilities: ClientCapabilities): void {
+                    capabilities.experimental = capabilities.experimental || {};
+                    capabilities.experimental = { introspection: true };
+                }
+                initialize(capabilities: ServerCapabilities, documentSelector: DocumentSelector | undefined): void {
+                    console.log(capabilities);
+                }
+            }
+
+            BallerinaExtension.langClient!.registerFeature(new TraceLogsFeature());
 		}, () => {
 			// If home is not valid show error on design page.
 			if (!BallerinaExtension.isValidBallerinaHome()) {

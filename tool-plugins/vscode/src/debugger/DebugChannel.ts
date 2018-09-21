@@ -20,7 +20,6 @@ import { EventEmitter } from 'events';
 import * as WebSocket from 'ws';
 // See http://tools.ietf.org/html/rfc6455#section-7.4.1
 const WS_NORMAL_CODE = 1000;
-const WS_SSL_CODE = 1015;
 const WS_PING_INTERVAL = 15000;
 
 interface WebSocketOnMessageEvt {
@@ -115,15 +114,10 @@ export class DebugChannel extends EventEmitter {
         this.stopPing();
         let reason;
         if (event.code === WS_NORMAL_CODE) {
-            reason = 'Normal closure';
-            this.emit('session-ended');
             return;
-        } else if (event.code === WS_SSL_CODE) {
-            reason = 'Certificate Issue';
-        } else {
-            reason = `Debug socket close with reason :${event.code}`;
         }
         this.emit('session-terminated', { reason });
+        this.emit('session-ended');
     }
     /**
      * Handles websocket onError event
