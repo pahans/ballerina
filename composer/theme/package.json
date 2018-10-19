@@ -2,18 +2,27 @@
   "name": "@ballerina/theme",
   "version": "0.982.1-SNAPSHOT",
   "description": "",
-  "main": "index.js",
+  "main": "lib/src/index.js",
   "scripts": {
-    "build": "npm run build-font",
+    "build": "lessc src/ballerina-theme/semantic.less lib/default.css",
     "build-font": "node src/font-ballerina/build.js",
     "test": "echo \"Error: no test specified\"",
     "test-coverage": "npm run test -- --coverage",
-    "watch": "watch \"npm run build\" src"
+    "watch": "watch \"npm run build\" src",
+    "postinstall": "cp src/ballerina-theme/theme.config ./node_modules/semantic-ui-less/"
   },
   "author": "ballerina.io",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@babel/cli": "^7.1.2",
+    "@babel/core": "^7.1.2",
+    "@babel/preset-env": "^7.1.0",
+    "babel-plugin-module-resolver": "^3.1.1",
+    "cash-cp": "^0.2.0",
+    "less": "^2.7.2",
+    "semantic-ui-less": "^2.3.2",
     "watch": "^1.0.2",
     "webfont": "^8.1.4"
-  }
+  },
+  "dependencies": {}
 }

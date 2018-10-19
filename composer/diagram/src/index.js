@@ -29,7 +29,7 @@ import Diagram from 'plugins/ballerina/diagram/diagram';
 import DesignView from 'plugins/ballerina/views/design-view';
 import TreeBuilder from 'plugins/ballerina/model/tree-builder';
 import FragmentUtils from 'plugins/ballerina/utils/fragment-utils';
-import './ballerina-theme/semantic.less';
+// import './ballerina-theme/semantic.less';
 import './scss/themes/default.scss';
 import '@ballerina/theme/font-ballerina';
 

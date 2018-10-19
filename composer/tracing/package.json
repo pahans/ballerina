@@ -2,7 +2,7 @@
   "name": "@ballerina/tracing",
   "version": "0.982.1-SNAPSHOT",
   "description": "",
-  "main": "index.js",
+  "main": "lib/src/index.js",
   "scripts": {
     "storybook": "start-storybook -p 9002 -c .storybook",
     "compile": "tsc -p ./",
