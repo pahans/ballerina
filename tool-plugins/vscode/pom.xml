@@ -54,12 +54,12 @@
         </repository>
     </repositories>
     <dependencies>
-        <dependency>
+        <!-- <dependency>
             <groupId>org.ballerinalang</groupId>
             <artifactId>composer-library</artifactId>
             <version>${project.version}</version>
             <type>zip</type>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.ballerinalang</groupId>
             <artifactId>ballerina-tools</artifactId>
@@ -220,7 +220,6 @@
                         </goals>
                         <configuration>
                             <includeGroupIds>org.ballerinalang</includeGroupIds>
-                            <includeArtifactIds>composer-library</includeArtifactIds>
                             <outputDirectory>${project.build.directory}/composer</outputDirectory>
                             <overWriteReleases>true</overWriteReleases>
                             <overWriteSnapshots>true</overWriteSnapshots>
