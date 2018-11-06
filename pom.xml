@@ -2132,6 +2132,11 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${maven.jacoco.plugin.version}</version>
                 </plugin>
+                <plugin>
+                        <groupId>org.eluder.coveralls</groupId>
+                        <artifactId>coveralls-maven-plugin</artifactId>
+                        <version>${maven.coveralls.plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -2316,6 +2321,7 @@
         <maven.exec.plugin.version>1.6.0</maven.exec.plugin.version>
         <maven.replacer.plugin.version>1.5.3</maven.replacer.plugin.version>
         <maven.jacoco.plugin.version>0.8.1</maven.jacoco.plugin.version>
+        <maven.coveralls.plugin.version>4.3.0</maven.coveralls.plugin.version>
 
         <apache.rat.plugin.version>0.11</apache.rat.plugin.version>
         <clirr.maven.plugin.version>2.7</clirr.maven.plugin.version>

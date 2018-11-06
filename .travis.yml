@@ -31,7 +31,8 @@ install:
   - nvm install 8.9.0
   - nvm use 8.9.0
   - npm install -g npm@'5.6.0'
-  - mvn install -B -V -Dvscode.test.skip=true
+  - mvn install -B -V -Dvscode.test.skip=true -DskipTests=true
+  - mvn clean test jacoco:report coveralls:report
 
 script: echo "Done"
 
