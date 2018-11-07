@@ -31,9 +31,12 @@ install:
   - nvm install 8.9.0
   - nvm use 8.9.0
   - npm install -g npm@'5.6.0'
-  - mvn install -B -V -Dvscode.test.skip=true
+  - mvn clean install -B -V -Dvscode.test.skip=true -Dcheckstyle.skip -Dfindbugs.skip=true -Dspotbugs.skip=true
 
 script: echo "Done"
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 cache:
   directories:
