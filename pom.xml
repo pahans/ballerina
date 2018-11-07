@@ -1833,9 +1833,9 @@
                 <module>bvm/ballerina-config</module>
                 <module>bvm/ballerina-core</module>
                 <module>bvm/ballerina-streaming</module>
-                <module>bvm/ballerina-logging</module>
+                <!-- <module>bvm/ballerina-logging</module> -->
                 <module>cli/ballerina-launcher</module>
-                <module>cli/ballerina-packerina</module>
+                <!-- <module>cli/ballerina-packerina</module> -->
                 <!-- <module>compiler/ballerina-backend-llvm</module> -->
                 <!--<module>compiler/ballerina-backend-bvm</module>-->
 
