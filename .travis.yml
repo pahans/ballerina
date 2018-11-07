@@ -16,6 +16,10 @@ language: java
 
 sudo: required
 
+env: 
+  global: 
+    - COVERALLS_PARALLEL=true
+
 services:
   - docker
 
@@ -34,6 +38,9 @@ install:
   - mvn clean install -B -V -Dvscode.test.skip=true -Dcheckstyle.skip -Dfindbugs.skip=true -Dspotbugs.skip=true
 
 script: echo "Done"
+
+notifications:
+  webhooks: https://coveralls.io/webhook
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
