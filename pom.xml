@@ -1682,30 +1682,30 @@
 
                 <module>cli/ballerina-cli-utils</module>
 
-                <module>language-server</module>
-                <module>misc/docerina</module>
+                <!-- <module>language-server</module> -->
+                <!-- <module>misc/docerina</module> -->
                 <module>misc/ballerina-maven-plugins</module>
                 <module>misc/swagger-ballerina</module>
-                <module>misc/testerina</module>
+                <!-- <module>misc/testerina</module> -->
                 <module>misc/toml-parser</module>
                 <module>misc/metrics-extensions</module>
                 <module>misc/tracing-extensions</module>
                 <module>misc/strip-bouncycastle</module>
 
-                <module>composer</module>
-                <module>distribution/zip/ballerina</module>
-                <module>distribution/zip/ballerina-tools</module>
+                <!-- <module>composer</module> -->
+                <!-- <module>distribution/zip/ballerina</module> -->
+                <!-- <module>distribution/zip/ballerina-tools</module> -->
 
                 <module>tests/observability-test-utils</module>
                 <module>tests/ballerina-integration-test-utils</module>
                 <module>tests/ballerina-integration-test</module>
                 <module>tests/ballerina-tools-integration-test</module>
                 <module>tests/ballerina-compiler-plugin-test</module>
-                <module>tool-plugins/intellij</module>
-                <module>tool-plugins/vscode</module>
+                <!-- <module>tool-plugins/intellij</module>
+                <module>tool-plugins/vscode</module> -->
                 <!--<module>tool-plugins/theia</module> -->
 
-                <module>benchmarks</module>
+                <!-- <module>benchmarks</module> -->
             </modules>
             <properties>
                 <skipBenchmarks>true</skipBenchmarks>
@@ -1836,43 +1836,43 @@
                 <module>bvm/ballerina-logging</module>
                 <module>cli/ballerina-launcher</module>
                 <module>cli/ballerina-packerina</module>
-                <module>compiler/ballerina-backend-llvm</module>
+                <!-- <module>compiler/ballerina-backend-llvm</module> -->
                 <!--<module>compiler/ballerina-backend-bvm</module>-->
 
                 <!--Should Run Before tests/ballerina-test-->
                 <module>misc/protobuf-ballerina</module>
 
-                <module>tests/ballerina-unit-test</module>
+                <!-- <module>tests/ballerina-unit-test</module> -->
                 <module>tests/ballerina-compiler-plugin-test</module>
 
                 <module>cli/ballerina-cli-utils</module>
 
-                <module>language-server</module>
+                <!-- <module>language-server</module> -->
                 <module>misc/ballerina-maven-plugins</module>
-                <module>misc/docerina</module>
-                <module>misc/swagger-ballerina</module>
-                <module>misc/testerina</module>
-                <module>misc/toml-parser</module>
-                <module>misc/metrics-extensions</module>
-                <module>misc/tracing-extensions</module>
-                <module>misc/strip-bouncycastle</module>
+                <!-- <module>misc/docerina</module> -->
+                <!-- <module>misc/swagger-ballerina</module> -->
+                <!-- <module>misc/testerina</module> -->
+                <!-- <module>misc/toml-parser</module> -->
+                <!-- <module>misc/metrics-extensions</module> -->
+                <!-- <module>misc/tracing-extensions</module> -->
+                <!-- <module>misc/strip-bouncycastle</module> -->
 
-                <module>composer</module>
+                <!-- <module>composer</module> -->
 
                 <module>distribution/zip/ballerina</module>
                 <module>distribution/zip/ballerina-tools</module>
 
-                <module>tests/observability-test-utils</module>
+                <!-- <module>tests/observability-test-utils</module>
                 <module>tests/ballerina-integration-test-utils</module>
-                <module>tests/ballerina-integration-test</module>
-                <module>tests/ballerina-tools-integration-test</module>
+                <module>tests/ballerina-integration-test</module> -->
+                <!-- <module>tests/ballerina-tools-integration-test</module> -->
 
                 <!-- Intellij build disabled in default build -->
                 <!--<module>tool-plugins/intellij</module>-->
-                <module>tool-plugins/vscode</module>
+                <!-- <module>tool-plugins/vscode</module> -->
                 <!--<module>tool-plugins/theia</module> -->
 
-                <module>benchmarks</module>
+                <!-- <module>benchmarks</module> -->
             </modules>
             <properties>
                 <skipBenchmarks>true</skipBenchmarks>
