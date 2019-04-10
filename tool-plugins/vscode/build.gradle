@@ -5,6 +5,7 @@ configurations {
     dist {
       transitive false
     }
+    ballerinaTools
 }
 
 npmBuild() {
@@ -38,4 +39,22 @@ task assemble(overwrite: true) {
 
 dependencies {
     dist project(':composer-library')
+    ballerinaTools project(path: ':ballerina-tools', configuration: 'unzipped')
+}
+
+task test(overwrite: true) {
+    dependsOn ":ballerina-tools:build"
+    onlyIf {
+        !assemble.state.upToDate
+    }
+    def resourcePath = configurations.ballerinaTools.asPath
+    doFirst {
+        exec {
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                commandLine "RESOURCE_PATH=${resourcePath}", 'cmd', '/c', 'npm', 'run', 'test'
+            } else {
+                commandLine "RESOURCE_PATH=${resourcePath}", 'npm', 'run', 'test'
+            }
+        }
+    }
 }
