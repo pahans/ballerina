@@ -8,8 +8,16 @@ configurations {
 }
 
 npmBuild() {
+    PatternSet patternSet = new PatternSet();
+	patternSet.exclude("**/out/**");
+    patternSet.exclude("**/*.vsix/**");
+    patternSet.exclude("**/coverage/**");
+
+    FileTree src = files('.').asFileTree;
+    inputs.files(src.matching(patternSet))
+
     dependsOn(':composer-library:build')
-    outputs.dir("$buildDir/out")
+    outputs.dir("out")
     outputs.cacheIf { true } 
 
     doFirst {
