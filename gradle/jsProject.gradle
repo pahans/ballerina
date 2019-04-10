@@ -41,5 +41,5 @@ task test() {
 
 build {
     dependsOn assemble
-    finalizedBy test
+    // finalizedBy test
 }
