@@ -43,18 +43,23 @@ dependencies {
 }
 
 task test(overwrite: true) {
-    dependsOn ":ballerina-tools:build"
+    // dependsOn ":ballerina-tools:build"
     onlyIf {
         !assemble.state.upToDate
     }
     def resourcePath = configurations.ballerinaTools.asPath
     doFirst {
         exec {
+            environment "RESOURCE_PATH" "$resourcePath"
             if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                commandLine "RESOURCE_PATH=${resourcePath}", 'cmd', '/c', 'npm', 'run', 'test'
+                commandLine 'cmd', '/c', 'npm', 'run', 'test-gradle'
             } else {
-                commandLine "RESOURCE_PATH=${resourcePath}", 'npm', 'run', 'test'
+                commandLine 'npm', 'run', 'test'
             }
         }
     }
+}
+
+build {
+    finalizedBy test
 }
