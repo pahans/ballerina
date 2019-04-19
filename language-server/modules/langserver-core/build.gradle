@@ -129,7 +129,6 @@ build {
 }
 
 test {
-    exclude '**/*'
     systemProperty "ballerina.home", "$buildDir"
     systemProperty "experimental", "true"
     useTestNG() {
