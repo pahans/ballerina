@@ -588,7 +588,7 @@ public class JBallerinaDebugServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
-        eventBus.createStepRequest(args.getThreadId(), StepRequest.STEP_OVER);
+        eventBus.createStepOverRequest(args.getThreadId());
         return CompletableFuture.completedFuture(null);
     }
 

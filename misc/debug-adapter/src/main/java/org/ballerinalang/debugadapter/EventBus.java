@@ -17,10 +17,13 @@
 package org.ballerinalang.debugadapter;
 
 import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
+import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.event.Event;
@@ -35,6 +38,7 @@ import com.sun.jdi.request.StepRequest;
 import org.eclipse.lsp4j.debug.Breakpoint;
 import org.eclipse.lsp4j.debug.ContinuedEventArguments;
 import org.eclipse.lsp4j.debug.ExitedEventArguments;
+import org.eclipse.lsp4j.debug.Source;
 import org.eclipse.lsp4j.debug.StoppedEventArguments;
 import org.eclipse.lsp4j.debug.StoppedEventArgumentsReason;
 import org.slf4j.Logger;
@@ -45,9 +49,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -230,5 +236,47 @@ public class EventBus {
         ContinuedEventArguments continuedEventArguments = new ContinuedEventArguments();
         continuedEventArguments.setAllThreadsContinued(true);
         context.getClient().continued(continuedEventArguments);
+    }
+
+    public void createStepOverRequest(long threadId) {
+        ThreadReference threadReference = getThreadsMap().get(threadId);
+        try {
+            Location currentLocation = threadReference.frames().get(0).location();
+            ReferenceType referenceType = currentLocation.declaringType();
+
+            List<Location> allLineLocations = referenceType.allLineLocations();
+            Optional<Location> lastLocation =
+                    allLineLocations.stream().max(Comparator.comparingInt(Location::lineNumber));
+
+            int nextStepLine = currentLocation.lineNumber() + 1;
+
+            while (true) {
+                List<Location> locations = referenceType.locationsOfLine(nextStepLine);
+                if (locations.size() > 0) {
+                    Location nextSteplocation = locations.get(0);
+                    BreakpointRequest bpReq = context.getDebuggee().eventRequestManager()
+                            .createBreakpointRequest(nextSteplocation);
+                    bpReq.enable();
+                    break;
+                }
+
+                if (lastLocation.isPresent() && nextStepLine < lastLocation.get().lineNumber()) {
+                    nextStepLine++;
+                } else {
+                    break;
+                }
+
+            }
+
+            context.getDebuggee().resume();
+
+            // We are resuming all threads, we need to notify debug client about this.
+            ContinuedEventArguments continuedEventArguments = new ContinuedEventArguments();
+            continuedEventArguments.setAllThreadsContinued(true);
+            context.getClient().continued(continuedEventArguments);
+        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
+            LOGGER.error(e.getMessage());
+            createStepRequest(threadId, StepRequest.STEP_OVER);
+        }
     }
 }
