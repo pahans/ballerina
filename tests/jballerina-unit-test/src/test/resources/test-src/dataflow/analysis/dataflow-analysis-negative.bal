@@ -15,7 +15,7 @@
  // under the License.
  
 import ballerina/http;
-import ballerina/io;
+
  
  function testDataflow_1() returns string {
     string msg;
@@ -245,7 +245,7 @@ function testUninitializedVarReferrencing() {
     }
 
     // uninitialized var in conversion
-    string str = string.convert(a);
+    string|error str = string.constructFrom(a);
 
     // uninitialized var XML
     xml x1 = xml`<foo id="{{a}}" xmlns:ns0="{{a}}">
@@ -258,19 +258,19 @@ function testUninitializedVarReferrencing() {
     string text = string `hello ${a}`;
 
     // uninitialized var index/field based access
-    _ = m.foo;
     _ = m[s];
 
     // uninitialized var in function invocation, expression statement
     _ = m.hasKey(s);
-    foo(a, str = s, s);
+    foo(a, s, s);
 
     // uninitialized var in xml attribute access
     xml x;
     _ = x@[s];
 
     // uninitialized var in range expression
-    int[] range = a...a+5;
+    //
+    var range = a...a+5;
 }
 
 function foo(int a, string str = "hello", string... args) {
@@ -304,12 +304,12 @@ type Foo object {
     int d;
     int e;
 
-    function __init (int c, int e=4, int f, int x) {
+    function __init (int c, int f, int x, int e=4) {
         self.a = globalVar;
         self.b = e;
         self.c = c;
         self.e = e;
-        self.f = f;
+
     }
 
     function getA() returns int {
@@ -352,9 +352,9 @@ function testMatch_1() returns string {
     any x = 6;
     string val;
     match x {
-        6 => val = "int";
-        "" => val = "string";
-        var y => val = "any";
+        6 => {val = "int";}
+        "" => {val = "string";}
+        var y => {val = "any";}
     }
 
     return val;
@@ -362,21 +362,21 @@ function testMatch_1() returns string {
 
 listener http:MockListener echoEP = new(9090);
 
+string x = "x";
+string y = "sample value";
+
 service echo on echoEP {
 
-    private string x;
-    string y = "sample value";
-
     resource function echo_1(http:Caller conn, http:Request request) {
-        string a = self.x;
-        a = self.y;
-        self.x = "init within echo_1";
+        string a = x;
+        a = y;
+        x = "init within echo_1";
     }
 
     resource function echo_2(http:Caller conn, http:Request request) {
-        string a = self.x;
-        a = self.y;
-        self.x = "init within echo_2";
+        string a = x;
+        a = y;
+        x = "init within echo_2";
     }
 }
 
@@ -386,14 +386,14 @@ function testCompoundAssignment() {
 }
 
 
-function testUninitVsPartiallyInit() returns (string, string) {
+function testUninitVsPartiallyInit() returns [string, string] {
     string a;
     string b;
     if (true) {
         if (true) {
             // do nothing
         } else if (true) {
-            b = "something";            
+            b = "something";
         } else {
             // do nothing
         }
@@ -401,7 +401,7 @@ function testUninitVsPartiallyInit() returns (string, string) {
         // do nothing
     }
 
-    return (a, b);
+    return [a, b];
 }
 
 type A object {
@@ -446,13 +446,13 @@ public type D record {
 
 listener http:MockListener testEP = new(9092);
 
+int a = 0;
+
 service testService on testEP {
 
-    private int a;
-
     resource function resource_1(http:Caller conn, http:Request request) {
-        self.a = 5;
-        int b = self.a;
+        a = 5;
+        int b = a;
         int c;
 
         if (true) {
@@ -465,7 +465,7 @@ service testService on testEP {
     }
 
     resource function resource_2(http:Caller conn, http:Request request) {
-        int b = self.a;
+        int b = a;
     }
 }
 
@@ -534,10 +534,10 @@ type Person record {|
     string name;
     boolean married;
     Age age;
-    (string, int) extra;
+    [string, int] extra;
 |};
 
-function testVariableAssignment() returns (string, boolean, int, string) {
+function testVariableAssignment() returns [string, boolean, int, string] {
     string fName;
     boolean married;
     int theAge;
@@ -545,11 +545,11 @@ function testVariableAssignment() returns (string, boolean, int, string) {
     map<any|error> theMap;
 
     {name: fName, married, age: {age: theAge, format}, ...theMap} = getPerson();
-    return (fName, married, theAge, format);
+    return [fName, married, theAge, format];
 }
 
 function getPerson() returns Person {
-    return {name: "Peter", married: true, age: {age:12, format: "Y"}};
+    return {name: "Peter", married: true, age: {age:12, format: "Y"}, extra: ["a", 1]};
 }
 
 function testDataflow_12() returns string {
@@ -577,13 +577,98 @@ type F object {
     public int b;
     string c;
 
-    function __init();
+    function __init() {
+        self.a = 1;
+    }
 };
-
-function F.__init() {
-    self.a = 1;
-}
 
 public function testDataFlow_13(){
     object { public string s; } o = new;
+}
+
+function testMatch2() returns int {
+    any v = 1;
+    int k;
+    match v {
+        1 => {k = 1;}
+        2 => {k = 2;}
+    }
+    return k; // variable 'k' may not have been initialized
+}
+
+function testMatch3() returns int {
+    any v = 1;
+    int k;
+    match v {
+        1 => {k = 1;}
+        2 => {k = 2;}
+        _ => {k = 0;}
+    }
+    return k;
+}
+
+function testMatch4() returns int {
+    any v = 1;
+    int k;
+    match v {
+        1 => {k = 1;}
+        2 => {}
+        _ => {k = 0;}
+    }
+    return k; // variable 'k' may not have been initialized
+}
+
+function testMatch5() returns int {
+    any v = 1;
+    int k;
+    match v {
+        var [a, b] => {k = 1;}
+        var {a, b} => {k = 2;}
+    }
+    return k; // variable 'k' may not have been initialized
+}
+
+function testMatch6() returns int {
+    any v = 1;
+    int k;
+    match v {
+        var [a, b] => {k = 1;}
+        var {a, b} => {k = 2;}
+        var x => {k = 0;}
+    }
+    return k;
+}
+
+function testMatch7() returns int {
+    any v = 1;
+    int k;
+    match v {
+        var [a, b] => {k = 1;}
+        var {a, b} => {}
+        var x => {k = 0;}
+    }
+    return k; // variable 'k' may not have been initialized
+}
+
+function testMatch8() returns int {
+    any | error v = 1;
+    int k;
+    match v {
+        1 => {
+            k = 1;
+        }
+        2 => {
+            k = 2;
+        }
+        3 => {
+            k = 3;
+        }
+        4 => {
+            k = 4;
+        }
+        _ => {
+            k = 0;
+        }
+    }
+    return k; // variable 'k' may not have been initialized
 }

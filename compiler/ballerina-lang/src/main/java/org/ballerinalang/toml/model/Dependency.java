@@ -1,83 +1,90 @@
 /*
- *  Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
- *  WSO2 Inc. licenses this file to you under the Apache License,
- *  Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License.
- *  You may obtain a copy of the License at
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing,
- *  software distributed under the License is distributed on an
- *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- *  KIND, either express or implied.  See the License for the
- *  specific language governing permissions and limitations
- *  under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
+
 package org.ballerinalang.toml.model;
 
+import org.ballerinalang.compiler.BLangCompilerException;
+
+import java.util.Objects;
+
 /**
- * Defines dependency object fields. The same object will be used to define patches.
- *
- * @since 0.964
+ * Dependency definition in Ballerina.toml manifest file.
  */
 public class Dependency {
-    private String packageName;
-    private String version;
-    private String location;
-
-    /**
-     * Get the package name.
-     *
-     * @return package name
-     */
-    public String getPackageName() {
-        return packageName;
+    private String moduleID;
+    private DependencyMetadata metadata;
+    
+    public String getModuleID() {
+        return moduleID == null ? null : moduleID.replaceAll("^\"|\"$", "");
     }
-
-    /**
-     * Set the package name.
-     *
-     * @param packageName name of the dependency
-     */
-    public void setPackageName(String packageName) {
-        this.packageName = packageName;
+    
+    public void setModuleID(String moduleID) {
+        this.moduleID = moduleID.replaceAll("^\"|\"$", "");
     }
-
-    /**
-     * Get version of the dependency.
-     *
-     * @return version of the dependency
-     */
-    public String getVersion() {
-        return version;
+    
+    public String getOrgName() {
+        String[] moduleIDParts = this.getModuleID().split("/");
+        if (moduleIDParts.length == 2) {
+            return moduleIDParts[0];
+        }
+        throw new BLangCompilerException("invalid dependency name. dependency should be in the format " +
+                                         "<org-name>/<module-name>.");
     }
-
-    /**
-     * Set the version of the dependency.
-     *
-     * @param version version of the dependency
-     */
-    public void setVersion(String version) {
-        this.version = version;
+    
+    public String getModuleName() {
+        String[] moduleIDParts = this.getModuleID().split("/");
+        if (moduleIDParts.length == 2) {
+            return moduleIDParts[1];
+        }
+        throw new BLangCompilerException("invalid dependency name. dependency should be in the format " +
+                                         "<org-name>/<module-name>.");
     }
-
-    /**
-     * Get the path/location of the dependency.
-     *
-     * @return location of the dependency
-     */
-    public String getLocation() {
-        return location;
+    
+    public DependencyMetadata getMetadata() {
+        return metadata;
     }
-
-    /**
-     * Set the path/location of the dependency.
-     *
-     * @param location location of the dependency
-     */
-    public void setLocation(String location) {
-        this.location = location;
+    
+    public void setMetadata(DependencyMetadata metadata) {
+        this.metadata = metadata;
+    }
+    
+    @Override
+    public String toString() {
+        return null != this.metadata &&
+               null != this.metadata.getVersion() &&
+               !"".equals(this.metadata.getVersion().trim()) ?
+               getModuleID() + ":" + this.metadata.getVersion() : getModuleID();
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Dependency)) {
+            return false;
+        }
+        Dependency that = (Dependency) o;
+        return this.toString().equals(that.toString());
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(toString());
     }
 }

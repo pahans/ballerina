@@ -19,46 +19,60 @@ package org.wso2.ballerinalang.compiler.bir;
 
 import org.ballerinalang.model.TreeBuilder;
 import org.ballerinalang.model.elements.Flag;
+import org.ballerinalang.model.symbols.SymbolKind;
 import org.ballerinalang.model.tree.NodeKind;
 import org.ballerinalang.model.tree.OperatorKind;
 import org.wso2.ballerinalang.compiler.bir.model.BIRInstruction;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotation;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotationAttachment;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRAnnotationValue;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRBasicBlock;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRConstant;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRFunction;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRFunctionParameter;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRGlobalVariableDcl;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRLockDetailsHolder;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRPackage;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRParameter;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRTypeDefinition;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode.BIRVariableDcl;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.ConstValue;
+import org.wso2.ballerinalang.compiler.bir.model.BIRNode.TaintTable;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator.BinaryOp;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator.FieldAccess;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator.Move;
-import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator.TernaryOp;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNonTerminator.UnaryOP;
 import org.wso2.ballerinalang.compiler.bir.model.BIROperand;
 import org.wso2.ballerinalang.compiler.bir.model.BIRTerminator;
 import org.wso2.ballerinalang.compiler.bir.model.InstructionKind;
 import org.wso2.ballerinalang.compiler.bir.model.VarKind;
 import org.wso2.ballerinalang.compiler.bir.model.VarScope;
-import org.wso2.ballerinalang.compiler.bir.model.Visibility;
 import org.wso2.ballerinalang.compiler.bir.writer.BIRBinaryWriter;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAnnotationSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAttachedFunction;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BConstantSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BObjectTypeSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BRecordTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BXMLNSSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.SymTag;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.Symbols;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.TaintRecord;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BArrayType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
 import org.wso2.ballerinalang.compiler.tree.BLangAnnotation;
+import org.wso2.ballerinalang.compiler.tree.BLangAnnotationAttachment;
+import org.wso2.ballerinalang.compiler.tree.BLangConstantValue;
 import org.wso2.ballerinalang.compiler.tree.BLangFunction;
+import org.wso2.ballerinalang.compiler.tree.BLangIdentifier;
 import org.wso2.ballerinalang.compiler.tree.BLangImportPackage;
 import org.wso2.ballerinalang.compiler.tree.BLangNodeVisitor;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
@@ -68,23 +82,26 @@ import org.wso2.ballerinalang.compiler.tree.BLangVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangXMLNS;
 import org.wso2.ballerinalang.compiler.tree.BLangXMLNS.BLangLocalXMLNS;
 import org.wso2.ballerinalang.compiler.tree.BLangXMLNS.BLangPackageXMLNS;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangArrayLiteral;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangArrayLiteral.BLangJSONArrayLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangBinaryExpr;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangBracedOrTupleExpr;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangErrorConstructorExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstant;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangFieldBasedAccess.BLangStructFunctionVarRef;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangGroupExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangArrayAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangJSONAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangMapAccessExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangStringAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangStructFieldAccessExpr;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangTupleAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess.BLangXMLAccessExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIsAssignableExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIsLikeExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLambdaFunction;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr.BLangArrayLiteral;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr.BLangJSONArrayLiteral;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr.BLangTupleLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral.BLangJSONLiteral;
@@ -94,11 +111,11 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral.BLang
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral.BLangStreamLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral.BLangStructLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef.BLangFunctionVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef.BLangLocalVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef.BLangPackageVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangStatementExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTableLiteral;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangTernaryExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTrapExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeConversionExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeInit;
@@ -106,6 +123,8 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeTestExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypedescExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangUnaryExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangWaitExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangWaitForAllExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangWorkerFlushExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangWorkerReceive;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangWorkerSyncSendExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLAttribute;
@@ -123,6 +142,8 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangContinue;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangExpressionStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangForkJoin;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangIf;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangLock.BLangLockStmt;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangLock.BLangUnLockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangPanic;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangReturn;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangSimpleVariableDef;
@@ -130,6 +151,8 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangStatement;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangWhile;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangWorkerSend;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangXMLNSStatement;
+import org.wso2.ballerinalang.compiler.tree.types.BLangStructureTypeNode;
+import org.wso2.ballerinalang.compiler.tree.types.BLangType;
 import org.wso2.ballerinalang.compiler.util.BArrayState;
 import org.wso2.ballerinalang.compiler.util.CompilerContext;
 import org.wso2.ballerinalang.compiler.util.CompilerUtils;
@@ -139,14 +162,24 @@ import org.wso2.ballerinalang.compiler.util.Names;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
 import org.wso2.ballerinalang.compiler.util.diagnotic.DiagnosticPos;
 import org.wso2.ballerinalang.programfile.CompiledBinaryFile.BIRPackageFile;
+import org.wso2.ballerinalang.util.Flags;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.xml.XMLConstants;
+
+import static org.wso2.ballerinalang.compiler.desugar.AnnotationDesugar.ANNOTATION_DATA;
 
 /**
  * Lower the AST to BIR.
@@ -162,10 +195,16 @@ public class BIRGen extends BLangNodeVisitor {
     private BIRGenEnv env;
     private Names names;
     private final SymbolTable symTable;
+    private BIROptimizer birOptimizer;
 
     // Required variables to generate code for assignment statements
     private boolean varAssignment = false;
     private Map<BTypeSymbol, BIRTypeDefinition> typeDefs = new LinkedHashMap<>();
+    private BLangBlockStmt currentBlock;
+    private Map<BLangBlockStmt, List<BIRVariableDcl>> varDclsByBlock = new HashMap<>();
+    // This is a global variable cache
+    public Map<BSymbol, BIRGlobalVariableDcl> globalVarMap = new HashMap<>();
+
 
     public static BIRGen getInstance(CompilerContext context) {
         BIRGen birGen = context.get(BIR_GEN);
@@ -181,10 +220,34 @@ public class BIRGen extends BLangNodeVisitor {
 
         this.names = Names.getInstance(context);
         this.symTable = SymbolTable.getInstance(context);
+        this.birOptimizer = BIROptimizer.getInstance(context);
     }
 
     public BLangPackage genBIR(BLangPackage astPkg) {
+        BIRPackage birPkg = new BIRPackage(astPkg.pos, astPkg.packageID.orgName,
+                astPkg.packageID.name, astPkg.packageID.version, astPkg.packageID.sourceFileName);
+
+        astPkg.symbol.bir = birPkg; //TODO try to remove this
+
+        this.env = new BIRGenEnv(birPkg);
         astPkg.accept(this);
+
+        this.birOptimizer.optimizePackage(birPkg);
+        astPkg.symbol.birPackageFile = new BIRPackageFile(new BIRBinaryWriter(birPkg).serialize());
+
+        if (astPkg.hasTestablePackage()) {
+            astPkg.getTestablePkgs().forEach(testPkg -> {
+                visitBuiltinFunctions(testPkg, testPkg.initFunction);
+                visitBuiltinFunctions(testPkg, testPkg.startFunction);
+                visitBuiltinFunctions(testPkg, testPkg.stopFunction);
+                // remove imports of the main module from testable module
+                astPkg.imports.stream().forEach(mod -> testPkg.imports.remove(mod));
+                testPkg.accept(this);
+                this.birOptimizer.optimizePackage(birPkg);
+                testPkg.symbol.birPackageFile = new BIRPackageFile(new BIRBinaryWriter(birPkg).serialize());
+            });
+        }
+
         setEntryPoints(astPkg);
         return astPkg;
     }
@@ -209,40 +272,122 @@ public class BIRGen extends BLangNodeVisitor {
         return null;
     }
 
+    private void visitBuiltinFunctions(BLangPackage pkgNode, BLangFunction function) {
+        if (Symbols.isFlagOn(pkgNode.symbol.flags, Flags.TESTABLE)) {
+            String funcName = function.getName().value;
+            String builtinFuncName = funcName.substring(funcName.indexOf("<") + 1, funcName.indexOf(">"));
+            String modifiedFuncName = funcName.replace(builtinFuncName, "test" + builtinFuncName);
+            function.name.setValue(modifiedFuncName);
+            function.originalFuncSymbol.name.value = modifiedFuncName;
+            function.symbol.name.value = modifiedFuncName;
+        }
+    }
+
     // Nodes
 
     @Override
     public void visit(BLangPackage astPkg) {
-        BIRPackage birPkg = new BIRPackage(astPkg.pos, astPkg.packageID.orgName,
-                astPkg.packageID.name, astPkg.packageID.version, astPkg.packageID.sourceFileName);
-
-        astPkg.symbol.bir = birPkg; //TODO try to remove this
-
-        this.env = new BIRGenEnv(birPkg);
         // Lower function nodes in AST to bir function nodes.
         // TODO handle init, start, stop functions
         astPkg.imports.forEach(impPkg -> impPkg.accept(this));
+        astPkg.constants.forEach(astConst -> astConst.accept(this));
         astPkg.typeDefinitions.forEach(astTypeDef -> astTypeDef.accept(this));
         astPkg.globalVars.forEach(astGlobalVar -> astGlobalVar.accept(this));
         astPkg.initFunction.accept(this);
+        astPkg.startFunction.accept(this);
+        astPkg.stopFunction.accept(this);
         astPkg.functions.forEach(astFunc -> astFunc.accept(this));
         astPkg.annotations.forEach(astAnn -> astAnn.accept(this));
-
-        astPkg.symbol.birPackageFile = new BIRPackageFile(new BIRBinaryWriter(birPkg).serialize());
     }
 
     @Override
     public void visit(BLangTypeDefinition astTypeDefinition) {
-        Visibility visibility = getVisibility(astTypeDefinition.symbol);
-
         BIRTypeDefinition typeDef = new BIRTypeDefinition(astTypeDefinition.pos,
                                                           astTypeDefinition.symbol.name,
-                                                          visibility,
+                                                          astTypeDefinition.symbol.flags,
+                                                          astTypeDefinition.symbol.isLabel,
                                                           astTypeDefinition.typeNode.type,
                                                           new ArrayList<>());
         typeDefs.put(astTypeDefinition.symbol, typeDef);
         this.env.enclPkg.typeDefs.add(typeDef);
         typeDef.index = this.env.enclPkg.typeDefs.size() - 1;
+
+        typeDef.setMarkdownDocAttachment(astTypeDefinition.symbol.markdownDocumentation);
+
+        if (astTypeDefinition.typeNode.getKind() == NodeKind.RECORD_TYPE ||
+                astTypeDefinition.typeNode.getKind() == NodeKind.OBJECT_TYPE) {
+            BLangStructureTypeNode typeNode = (BLangStructureTypeNode) astTypeDefinition.typeNode;
+            for (BLangType typeRef : typeNode.typeRefs) {
+                typeDef.referencedTypes.add(typeRef.type);
+            }
+        }
+
+        // Write referenced functions, if this is an abstract-object
+        if (astTypeDefinition.symbol.tag != SymTag.OBJECT ||
+                !Symbols.isFlagOn(astTypeDefinition.symbol.flags, Flags.ABSTRACT)) {
+            return;
+        }
+
+        for (BAttachedFunction func : ((BObjectTypeSymbol) astTypeDefinition.symbol).referencedFunctions) {
+            if (!Symbols.isFlagOn(func.symbol.flags, Flags.INTERFACE)) {
+                return;
+            }
+
+            BInvokableSymbol funcSymbol = func.symbol;
+            BIRFunction birFunc = new BIRFunction(astTypeDefinition.pos, func.funcName, funcSymbol.flags, func.type,
+                    names.fromString(DEFAULT_WORKER_NAME), 0, new TaintTable());
+
+            if (funcSymbol.receiverSymbol != null) {
+                birFunc.receiver = new BIRVariableDcl(astTypeDefinition.pos, funcSymbol.receiverSymbol.type,
+                        funcSymbol.receiverSymbol.name, VarScope.FUNCTION, VarKind.SELF, null);
+            }
+
+            birFunc.setMarkdownDocAttachment(funcSymbol.markdownDocumentation);
+
+            int defaultableParamsCount = 0;
+            birFunc.argsCount = funcSymbol.params.size() + defaultableParamsCount +
+                    (funcSymbol.restParam != null ? 1 : 0);
+            funcSymbol.params.forEach(requiredParam -> addParam(birFunc, requiredParam, astTypeDefinition.pos));
+            if (funcSymbol.restParam != null) {
+                addRestParam(birFunc, funcSymbol.restParam, astTypeDefinition.pos);
+            }
+
+            birFunc.returnVariable = new BIRVariableDcl(astTypeDefinition.pos, funcSymbol.retType,
+                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.RETURN, null);
+
+            typeDef.attachedFuncs.add(birFunc);
+        }
+    }
+
+    @Override
+    public void visit(BLangConstant astConstant) {
+        BConstantSymbol constantSymbol = astConstant.symbol;
+        Name constName = constantSymbol.name;
+        BType type = constantSymbol.type;
+
+        // Get the value of the constant.
+        ConstValue constantValue = getBIRConstantVal(constantSymbol.value);
+
+        // Create a new constant info object.
+        BIRConstant birConstant = new BIRConstant(astConstant.pos, constName, constantSymbol.flags, type,
+                                                  constantValue);
+        birConstant.constValue = constantValue;
+
+        birConstant.setMarkdownDocAttachment(astConstant.symbol.markdownDocumentation);
+
+        // Add the constant to the package.
+        this.env.enclPkg.constants.add(birConstant);
+    }
+
+    private ConstValue getBIRConstantVal(BLangConstantValue constValue) {
+        if (constValue.type.tag == TypeTags.MAP) {
+            Map<String, ConstValue> mapConstVal = new HashMap<>();
+            ((Map<String, BLangConstantValue>) constValue.value)
+                    .forEach((key, value) -> mapConstVal.put(key, getBIRConstantVal(value)));
+            return new ConstValue(mapConstVal, constValue.type);
+        }
+
+        return new ConstValue(constValue.value, constValue.type);
     }
 
     @Override
@@ -253,7 +398,6 @@ public class BIRGen extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangFunction astFunc) {
-        Visibility visibility = getVisibility(astFunc.symbol);
         BInvokableType type = astFunc.symbol.getType();
 
         boolean isTypeAttachedFunction = astFunc.flagSet.contains(Flag.ATTACHED) &&
@@ -261,17 +405,33 @@ public class BIRGen extends BLangNodeVisitor {
 
         Name workerName = names.fromIdNode(astFunc.defaultWorkerName);
 
+        this.env.unlockVars.push(new Stack<>());
         BIRFunction birFunc;
+
+        TaintTable taintTable = populateTaintTable(astFunc.symbol.taintTable);
 
         if (isTypeAttachedFunction) {
             Name funcName = names.fromString(astFunc.symbol.name.value);
-            birFunc = new BIRFunction(astFunc.pos, funcName, visibility, type, astFunc.receiver.type, workerName,
-                    astFunc.sendsToThis.size());
+            birFunc = new BIRFunction(astFunc.pos, funcName, astFunc.symbol.flags, type, workerName,
+                    astFunc.sendsToThis.size(), taintTable);
         } else {
             Name funcName = getFuncName(astFunc.symbol);
-            birFunc = new BIRFunction(astFunc.pos, funcName, visibility, type, workerName,
-                    astFunc.sendsToThis.size());
+            birFunc = new BIRFunction(astFunc.pos, funcName, astFunc.symbol.flags, type, workerName,
+                    astFunc.sendsToThis.size(), taintTable);
         }
+        if (astFunc.receiver != null) {
+            BIRFunctionParameter birVarDcl = new BIRFunctionParameter(astFunc.pos, astFunc.receiver.type,
+                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG,
+                    astFunc.receiver.name.value, false);
+            this.env.symbolVarMap.put(astFunc.receiver.symbol, birVarDcl);
+        }
+
+        if (astFunc.receiver != null) {
+            birFunc.receiver = new BIRVariableDcl(astFunc.pos, astFunc.receiver.type, astFunc.receiver.symbol.name,
+                    VarScope.FUNCTION, VarKind.SELF, null);
+        }
+
+        birFunc.setMarkdownDocAttachment(astFunc.symbol.markdownDocumentation);
 
         //create channelDetails array
         int i = 0;
@@ -281,9 +441,12 @@ public class BIRGen extends BLangNodeVisitor {
             i++;
         }
 
-        birFunc.isDeclaration = Symbols.isNative(astFunc.symbol);
-        birFunc.isInterface = astFunc.interfaceFunction;
-        birFunc.argsCount = astFunc.requiredParams.size() + astFunc.defaultableParams.size()
+        // Populate annotation attachments on external in BIRFunction node
+        populateBIRAnnotAttachments(astFunc.externalAnnAttachments, birFunc.annotAttachments, this.env);
+        // Populate annotation attachments on function in BIRFunction node
+        populateBIRAnnotAttachments(astFunc.annAttachments, birFunc.annotAttachments, this.env);
+
+        birFunc.argsCount = astFunc.requiredParams.size()
                 + (astFunc.restParam != null ? 1 : 0) + astFunc.paramClosureMap.size();
         if (astFunc.flagSet.contains(Flag.ATTACHED) && typeDefs.containsKey(astFunc.receiver.type.tsymbol)) {
             typeDefs.get(astFunc.receiver.type.tsymbol).attachedFuncs.add(birFunc);
@@ -293,52 +456,191 @@ public class BIRGen extends BLangNodeVisitor {
 
         this.env.enclFunc = birFunc;
 
-        if (astFunc.symbol.retType != null && astFunc.symbol.retType.tag != TypeTags.NIL) {
-            // Special %0 location for storing return values
-            BIRVariableDcl retVarDcl = new BIRVariableDcl(astFunc.pos, astFunc.symbol.retType,
-                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.RETURN);
-            birFunc.localVars.add(retVarDcl);
-        }
+        // TODO: Return variable with NIL type should be written to BIR
+        // Special %0 location for storing return values
+        birFunc.returnVariable = new BIRVariableDcl(astFunc.pos, astFunc.symbol.type.getReturnType(),
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.RETURN, null);
 
         //add closure vars
         astFunc.paramClosureMap.forEach((k, v) -> addRequiredParam(birFunc, v, astFunc.pos));
 
         // Create variable declaration for function params
-        astFunc.requiredParams.forEach(requiredParam -> addParam(birFunc, requiredParam, true));
-        astFunc.defaultableParams.forEach(defaultableParam -> addParam(birFunc, defaultableParam.var, false));
+        astFunc.requiredParams.forEach(requiredParam -> addParam(birFunc, requiredParam));
         if (astFunc.restParam != null) {
-            addRestParam(birFunc, astFunc.restParam);
+            addRestParam(birFunc, astFunc.restParam.symbol, astFunc.restParam.pos);
         }
 
-        if (birFunc.isInterface || birFunc.isDeclaration) {
+        if (astFunc.interfaceFunction || Symbols.isNative(astFunc.symbol)) {
             this.env.clear();
             return;
         }
 
         // Create the entry basic block
         BIRBasicBlock entryBB = new BIRBasicBlock(this.env.nextBBId(names));
+        this.env.enclBasicBlocks = birFunc.basicBlocks;
         birFunc.basicBlocks.add(entryBB);
         this.env.enclBB = entryBB;
+        addToTrapStack(entryBB);
 
         astFunc.body.accept(this);
         birFunc.basicBlocks.add(this.env.returnBB);
+
+        // Due to the current algorithm, some basic blocks will not contain any instructions or a terminator.
+        // These basic blocks will be remove by the optimizer, but for now just add a return terminator
+        BIRBasicBlock enclBB = this.env.enclBB;
+        if (enclBB.instructions.size() == 0 && enclBB.terminator == null && this.env.returnBB != null) {
+            enclBB.terminator = new BIRTerminator.GOTO(null, this.env.returnBB);
+        }
+
         this.env.clear();
 
+        this.env.unlockVars.clear();
+
         // Rearrange basic block ids.
+        birFunc.parameters.values().forEach(basicBlocks -> basicBlocks.forEach(bb -> bb.id = this.env.nextBBId(names)));
         birFunc.basicBlocks.forEach(bb -> bb.id = this.env.nextBBId(names));
         // Rearrange error entries.
-        birFunc.errorTable.sort(Comparator.comparing(o -> o.trapBB.id.value));
+        birFunc.errorTable.sort(Comparator.comparingInt(o -> Integer.parseInt(o.trapBB.id.value.replace("bb", ""))));
         this.env.clear();
+    }
+
+    @Override
+    public void visit(BLangAnnotationAttachment astAnnotAttach) {
+        // ------------------------------------------------------
+        // In the current implementation of the compiler, there two possible values for `astAnnotAttach.expr`
+        //  1) null
+        //  2) BLangRecordLiteral
+        // In this implementation, we support only the BLangRecordLiteral expressions
+        //   which have only key:BLangLiteral key/value pairs
+        // ------------------------------------------------------
+        BIRAnnotationValue annotationValue;
+        if (astAnnotAttach.expr == null) {
+            annotationValue = new BIRNode.BIRAnnotationLiteralValue(symTable.booleanType, true);
+        } else {
+            if (!isCompileTimeAnnotationValue(astAnnotAttach.expr)) {
+                return;
+            }
+            annotationValue = createAnnotationValue(astAnnotAttach.expr);
+        }
+
+        Name annotTagRef = this.names.fromIdNode(astAnnotAttach.annotationName);
+        BIRAnnotationAttachment annotAttachment = new BIRAnnotationAttachment(astAnnotAttach.pos, annotTagRef);
+        annotAttachment.packageID = astAnnotAttach.annotationSymbol.pkgID;
+        annotAttachment.annotValues.add(annotationValue);
+        this.env.enclAnnotAttachments.add(annotAttachment);
+    }
+
+    private boolean isCompileTimeAnnotationValue(BLangExpression expr) {
+        // TODO Compile time literal constants
+        switch (expr.getKind()) {
+            case LITERAL:
+            case NUMERIC_LITERAL:
+                return true;
+            case RECORD_LITERAL_EXPR:
+                BLangRecordLiteral recordLiteral = (BLangRecordLiteral) expr;
+                for (BLangRecordKeyValue keyValuePair : recordLiteral.keyValuePairs) {
+                    if (!isCompileTimeAnnotationValue(keyValuePair.valueExpr)) {
+                        return false;
+                    }
+                }
+                return true;
+            case ARRAY_LITERAL_EXPR:
+                BLangArrayLiteral arrayLiteral = (BLangArrayLiteral) expr;
+                for (BLangExpression bLangExpr : arrayLiteral.exprs) {
+                    if (!isCompileTimeAnnotationValue(bLangExpr)) {
+                        return false;
+                    }
+                }
+                return true;
+            case TYPE_CONVERSION_EXPR:
+                return isCompileTimeAnnotationValue(((BLangTypeConversionExpr) expr).expr);
+            default:
+                return false;
+        }
+    }
+
+    private BIRAnnotationValue createAnnotationValue(BLangExpression expr) {
+        // TODO Compile time literal constants
+        switch (expr.getKind()) {
+            case LITERAL:
+            case NUMERIC_LITERAL:
+                return createAnnotationLiteralValue((BLangLiteral) expr);
+            case RECORD_LITERAL_EXPR:
+                return createAnnotationRecordValue((BLangRecordLiteral) expr);
+            case ARRAY_LITERAL_EXPR:
+                return createAnnotationArrayValue((BLangArrayLiteral) expr);
+            case TYPE_CONVERSION_EXPR:
+                return createAnnotationValue(((BLangTypeConversionExpr) expr).expr);
+            default:
+                // This following line will not be executed
+                throw new IllegalStateException("Invalid annotation value expression kind: " + expr.getKind());
+        }
+    }
+
+    private BIRNode.BIRAnnotationRecordValue createAnnotationRecordValue(BLangRecordLiteral recordLiteral) {
+        Map<String, BIRAnnotationValue> annotValueEntryMap = new HashMap<>();
+        for (BLangRecordKeyValue keyValuePair : recordLiteral.keyValuePairs) {
+            BLangLiteral keyLiteral = (BLangLiteral) keyValuePair.key.expr;
+            String entryKey = (String) keyLiteral.value;
+            BIRAnnotationValue annotationValue = createAnnotationValue(keyValuePair.valueExpr);
+            annotValueEntryMap.put(entryKey, annotationValue);
+        }
+        return new BIRNode.BIRAnnotationRecordValue(recordLiteral.type, annotValueEntryMap);
+    }
+
+    private BIRNode.BIRAnnotationArrayValue createAnnotationArrayValue(BLangArrayLiteral arrayLiteral) {
+        BIRAnnotationValue[] annotValues = new BIRAnnotationValue[arrayLiteral.exprs.size()];
+        for (int exprIndex = 0; exprIndex < arrayLiteral.exprs.size(); exprIndex++) {
+            annotValues[exprIndex] = createAnnotationValue(arrayLiteral.exprs.get(exprIndex));
+        }
+        return new BIRNode.BIRAnnotationArrayValue(arrayLiteral.type, annotValues);
+    }
+
+    private BIRNode.BIRAnnotationLiteralValue createAnnotationLiteralValue(BLangLiteral literalValue) {
+        return new BIRNode.BIRAnnotationLiteralValue(literalValue.type, literalValue.value);
+    }
+
+    private TaintTable populateTaintTable(Map<Integer, TaintRecord> taintRecords) {
+        TaintTable taintTable = new TaintTable();
+        if (taintRecords == null) {
+            return taintTable;
+        }
+        int rowCount = 0;
+        for (Integer paramIndex : taintRecords.keySet()) {
+            TaintRecord taintRecord = taintRecords.get(paramIndex);
+            boolean added = addTaintTableEntry(taintTable, paramIndex, taintRecord);
+            if (added) {
+                // Number of columns required is: One column per parameter and one column for return tainted status.
+                taintTable.columnCount = taintRecord.parameterTaintedStatusList.size() + 1;
+                rowCount++;
+            }
+        }
+        taintTable.rowCount = rowCount;
+        return taintTable;
+    }
+
+    private boolean addTaintTableEntry(TaintTable taintTable, int index,
+                                       TaintRecord taintRecord) {
+        // Add to attribute info only if the current record has tainted status of return, but not taint errors.
+        // It is not useful to preserve the propagated taint errors, since user will not be able to correct the compiled
+        // code and will not need to know internals of the already compiled code.
+        if (taintRecord.taintError == null || taintRecord.taintError.isEmpty()) {
+            List<Byte> storedTaintTableValue = new ArrayList<>();
+            storedTaintTableValue.add(taintRecord.returnTaintedStatus.getByteValue());
+            storedTaintTableValue.addAll(taintRecord.parameterTaintedStatusList.stream().map(taintedStatus ->
+                    taintedStatus.getByteValue()).collect(Collectors.toList()));
+            taintTable.taintTable.put(index, storedTaintTableValue);
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void visit(BLangAnnotation astAnnotation) {
         BAnnotationSymbol annSymbol = (BAnnotationSymbol) astAnnotation.symbol;
 
-        Visibility visibility = getVisibility(astAnnotation.symbol);
-        //TODO is it good to send nill type? fix
-        BIRAnnotation birAnn = new BIRAnnotation(astAnnotation.pos, annSymbol.name, visibility, annSymbol.attachPoints,
-                annSymbol.attachedType == null ? symTable.noType : annSymbol.attachedType.type);
+        BIRAnnotation birAnn = new BIRAnnotation(astAnnotation.pos, annSymbol.name, annSymbol.flags, annSymbol.points,
+                annSymbol.attachedType == null ? symTable.trueType : annSymbol.attachedType.type);
 
         this.env.enclPkg.annotations.add(birAnn);
     }
@@ -351,8 +653,8 @@ public class BIRGen extends BLangNodeVisitor {
     @Override
     public void visit(BLangLambdaFunction lambdaExpr) {
         //fpload instruction
-        BIRVariableDcl tempVarLambda = new BIRVariableDcl(lambdaExpr.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+        BIRVariableDcl tempVarLambda = new BIRVariableDcl(lambdaExpr.pos, lambdaExpr.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP, null);
         this.env.enclFunc.localVars.add(tempVarLambda);
         BIROperand lhsOp = new BIROperand(tempVarLambda);
         Name funcName = getFuncName(lambdaExpr.function.symbol);
@@ -360,25 +662,24 @@ public class BIRGen extends BLangNodeVisitor {
         List<BIRVariableDcl> params = new ArrayList<>();
 
         lambdaExpr.function.requiredParams.forEach(param -> {
+
+            // skip adding debug info for identifier literals FTM as they break java identifier rules
+            String metaVarName = param.name.isLiteral ? null : param.name.value;
+
             BIRVariableDcl birVarDcl = new BIRVariableDcl(param.pos, param.symbol.type,
-                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
+                    this.env.nextLambdaVarId(names), VarScope.FUNCTION, VarKind.ARG, metaVarName);
             params.add(birVarDcl);
         });
 
-        lambdaExpr.function.defaultableParams.forEach(param -> {
-            BIRVariableDcl birVarDcl = new BIRVariableDcl(param.pos, param.var.symbol.type,
-                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
-            params.add(birVarDcl);
-        });
         BLangSimpleVariable restParam = lambdaExpr.function.restParam;
         if (restParam != null) {
             BIRVariableDcl birVarDcl = new BIRVariableDcl(restParam.pos, restParam.symbol.type,
-                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
+                    this.env.nextLambdaVarId(names), VarScope.FUNCTION, VarKind.ARG, null);
             params.add(birVarDcl);
         }
 
         emit(new BIRNonTerminator.FPLoad(lambdaExpr.pos, lambdaExpr.function.symbol.pkgID, funcName, lhsOp, params,
-                getClosureMapOperands(lambdaExpr)));
+                getClosureMapOperands(lambdaExpr), lambdaExpr.type));
         this.env.targetOperand = lhsOp;
     }
 
@@ -407,42 +708,62 @@ public class BIRGen extends BLangNodeVisitor {
         return names.fromString(attachedFuncName.substring(offset, attachedFuncName.length()));
     }
 
-    private void addParam(BIRFunction birFunc, BLangVariable requiredParam, boolean required) {
-        BIRVariableDcl birVarDcl = new BIRVariableDcl(requiredParam.pos, requiredParam.symbol.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
-        birFunc.localVars.add(birVarDcl);
-
-        BIRParameter parameter = new BIRParameter(requiredParam.pos, requiredParam.symbol.name);
-        if (required) {
-            birFunc.requiredParams.add(parameter);
-        } else {
-            birFunc.defaultParams.add(parameter);
-        }
-
-        // We maintain a mapping from variable symbol to the bir_variable declaration.
-        // This is required to pull the correct bir_variable declaration for variable references.
-        this.env.symbolVarMap.put(requiredParam.symbol, birVarDcl);
+    private void addParam(BIRFunction birFunc, BLangVariable functionParam) {
+        addParam(birFunc, functionParam.symbol, functionParam.expr, functionParam.pos);
     }
 
-    private void addRestParam(BIRFunction birFunc, BLangVariable requiredParam) {
-        BIRVariableDcl birVarDcl = new BIRVariableDcl(requiredParam.pos, requiredParam.symbol.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
-        birFunc.localVars.add(birVarDcl);
+    private void addParam(BIRFunction birFunc, BVarSymbol paramSymbol, DiagnosticPos pos) {
+        addParam(birFunc, paramSymbol, null, pos);
+    }
 
-        BIRParameter parameter = new BIRParameter(requiredParam.pos, requiredParam.symbol.name);
-        birFunc.restParam = parameter;
+    private void addParam(BIRFunction birFunc, BVarSymbol paramSymbol, BLangExpression defaultValExpr,
+                          DiagnosticPos pos) {
+        BIRFunctionParameter birVarDcl = new BIRFunctionParameter(pos, paramSymbol.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG,
+                paramSymbol.name.value, defaultValExpr != null);
+
+        List<BIRBasicBlock> bbsOfDefaultValueExpr = new ArrayList<>();
+        if (defaultValExpr != null) {
+            // Parameter has a default value expression.
+            BIRBasicBlock defaultExprBB = new BIRBasicBlock(this.env.nextBBId(names));
+            bbsOfDefaultValueExpr.add(defaultExprBB);
+            this.env.enclBB = defaultExprBB;
+            this.env.enclBasicBlocks = bbsOfDefaultValueExpr;
+            defaultValExpr.accept(this);
+
+            // Create a variable reference for the function param and emit move instruction.
+            BIROperand varRef = new BIROperand(birVarDcl);
+            emit(new Move(birFunc.pos, this.env.targetOperand, varRef));
+
+            this.env.enclBB.terminator = new BIRTerminator.Return(birFunc.pos);
+        }
+        BIRParameter parameter = new BIRParameter(pos, paramSymbol.name, paramSymbol.flags);
+        birFunc.requiredParams.add(parameter);
+        birFunc.parameters.put(birVarDcl, bbsOfDefaultValueExpr);
 
         // We maintain a mapping from variable symbol to the bir_variable declaration.
         // This is required to pull the correct bir_variable declaration for variable references.
-        this.env.symbolVarMap.put(requiredParam.symbol, birVarDcl);
+        this.env.symbolVarMap.put(paramSymbol, birVarDcl);
+    }
+
+    private void addRestParam(BIRFunction birFunc, BVarSymbol paramSymbol, DiagnosticPos pos) {
+        BIRFunctionParameter birVarDcl = new BIRFunctionParameter(pos, paramSymbol.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG, paramSymbol.name.value, false);
+        birFunc.parameters.put(birVarDcl, new ArrayList<>());
+
+        birFunc.restParam = new BIRParameter(pos, paramSymbol.name, paramSymbol.flags);
+
+        // We maintain a mapping from variable symbol to the bir_variable declaration.
+        // This is required to pull the correct bir_variable declaration for variable references.
+        this.env.symbolVarMap.put(paramSymbol, birVarDcl);
     }
 
     private void addRequiredParam(BIRFunction birFunc, BVarSymbol paramSymbol, DiagnosticPos pos) {
-        BIRVariableDcl birVarDcl = new BIRVariableDcl(pos, paramSymbol.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG);
-        birFunc.localVars.add(birVarDcl);
+        BIRFunctionParameter birVarDcl = new BIRFunctionParameter(pos, paramSymbol.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.ARG, paramSymbol.name.value, false);
+        birFunc.parameters.put(birVarDcl, new ArrayList<>());
 
-        BIRParameter parameter = new BIRParameter(pos, paramSymbol.name);
+        BIRParameter parameter = new BIRParameter(pos, paramSymbol.name, paramSymbol.flags);
         birFunc.requiredParams.add(parameter);
 
         // We maintain a mapping from variable symbol to the bir_variable declaration.
@@ -450,29 +771,33 @@ public class BIRGen extends BLangNodeVisitor {
         this.env.symbolVarMap.put(paramSymbol, birVarDcl);
     }
 
-
     // Statements
 
     @Override
     public void visit(BLangBlockStmt astBlockStmt) {
+        BLangBlockStmt prevBlock = this.currentBlock;
+        this.currentBlock = astBlockStmt;
+        this.varDclsByBlock.computeIfAbsent(astBlockStmt, k -> new ArrayList<>());
         for (BLangStatement astStmt : astBlockStmt.stmts) {
             astStmt.accept(this);
         }
-
-        // Due to the current algorithm, some basic blocks will not contain any instructions or a terminator.
-        // These basic blocks will be remove by the optimizer, but for now just add a return terminator
-        BIRBasicBlock enclBB = this.env.enclBB;
-        if (enclBB.instructions.size() == 0 && enclBB.terminator == null && this.env.returnBB != null) {
-            enclBB.terminator = new BIRTerminator.GOTO(null, this.env.returnBB);
-        }
+        this.varDclsByBlock.get(astBlockStmt).forEach(birVariableDcl ->
+            birVariableDcl.endBB = this.env.enclBasicBlocks.get(this.env.enclBasicBlocks.size() - 1)
+        );
+        this.currentBlock = prevBlock;
     }
 
     @Override
     public void visit(BLangSimpleVariableDef astVarDefStmt) {
-        BIRVariableDcl birVarDcl = new BIRVariableDcl(astVarDefStmt.pos, astVarDefStmt.var.symbol.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.LOCAL);
-        this.env.enclFunc.localVars.add(birVarDcl);
 
+        // skip adding debug info for identifier literals FTM as they break java identifier rules
+        String metaVarName = astVarDefStmt.var.name.isLiteral ? null : astVarDefStmt.var.name.value;
+
+        BIRVariableDcl birVarDcl = new BIRVariableDcl(astVarDefStmt.pos, astVarDefStmt.var.symbol.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.LOCAL, metaVarName);
+        birVarDcl.startBB = this.env.enclBB;
+        this.varDclsByBlock.get(this.currentBlock).add(birVarDcl);
+        this.env.enclFunc.localVars.add(birVarDcl);
         // We maintain a mapping from variable symbol to the bir_variable declaration.
         // This is required to pull the correct bir_variable declaration for variable references.
         this.env.symbolVarMap.put(astVarDefStmt.var.symbol, birVarDcl);
@@ -487,17 +812,22 @@ public class BIRGen extends BLangNodeVisitor {
         // Create a variable reference and
         BIROperand varRef = new BIROperand(birVarDcl);
         emit(new Move(astVarDefStmt.pos, this.env.targetOperand, varRef));
+        birVarDcl.insOffset = this.env.enclBB.instructions.size() - 1;
     }
 
     @Override
     public void visit(BLangSimpleVariable varNode) {
-        Visibility visibility = getVisibility(varNode.symbol);
-
-        BIRGlobalVariableDcl birVarDcl = new BIRGlobalVariableDcl(varNode.pos, visibility, varNode.symbol.type,
-                this.env.nextGlobalVarId(names), VarScope.GLOBAL, VarKind.GLOBAL);
+        Name name = ANNOTATION_DATA.equals(varNode.symbol.name.value) ? new Name(ANNOTATION_DATA) :
+                this.env.nextGlobalVarId(names);
+        BIRGlobalVariableDcl birVarDcl = new BIRGlobalVariableDcl(varNode.pos, varNode.symbol.flags,
+                                                                  varNode.symbol.type, varNode.symbol.pkgID, name,
+                                                                  VarScope.GLOBAL, VarKind.GLOBAL,
+                                                                    varNode.name.value);
+        birVarDcl.setMarkdownDocAttachment(varNode.symbol.markdownDocumentation);
+        
         this.env.enclPkg.globalVars.add(birVarDcl);
 
-        this.env.globalVarMap.put(varNode.symbol, birVarDcl);
+        this.globalVarMap.put(varNode.symbol, birVarDcl);
     }
 
     @Override
@@ -517,6 +847,10 @@ public class BIRGen extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangInvocation invocationExpr) {
+        if (invocationExpr.symbol.kind == SymbolKind.ERROR_CONSTRUCTOR) {
+            createErrorConstructorInvocation(invocationExpr);
+            return;
+        }
         createCall(invocationExpr, false);
     }
 
@@ -543,6 +877,7 @@ public class BIRGen extends BLangNodeVisitor {
 
     public void visit(BLangWorkerReceive workerReceive) {
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(thenBB);
         String channel = workerReceive.workerIdentifier.value + "->" + env.enclFunc.workerName.value;
 
         BIRVariableDcl tempVarDcl = new BIRVariableDcl(workerReceive.type, this.env.nextLocalVarId(names),
@@ -556,13 +891,14 @@ public class BIRGen extends BLangNodeVisitor {
         this.env.enclBB.terminator = new BIRTerminator.WorkerReceive(workerReceive.pos,
                 names.fromString(channel), lhsOp, isOnSameStrand, thenBB);
 
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
         this.env.enclBB = thenBB;
     }
 
     public void visit(BLangWorkerSend workerSend) {
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        addToTrapStack(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
         workerSend.expr.accept(this);
 
         String channelName = this.env.enclFunc.workerName.value + "->" + workerSend.workerIdentifier.value;
@@ -576,6 +912,7 @@ public class BIRGen extends BLangNodeVisitor {
 
     public void visit(BLangWorkerSyncSendExpr syncSend) {
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(thenBB);
         syncSend.expr.accept(this);
         BIROperand dataOp = this.env.targetOperand;
 
@@ -591,13 +928,39 @@ public class BIRGen extends BLangNodeVisitor {
         this.env.enclBB.terminator = new BIRTerminator.WorkerSend(syncSend.pos, names.fromString(channelName),
                 dataOp, isOnSameStrand, true, lhsOp, thenBB);
 
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
+        this.env.enclBB = thenBB;
+    }
+
+    public void visit(BLangWorkerFlushExpr flushExpr) {
+        BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(thenBB);
+
+        //create channelDetails array
+        BIRNode.ChannelDetails[] channels = new BIRNode.ChannelDetails[flushExpr.workerIdentifierList.size()];
+        int i = 0;
+        for (BLangIdentifier workerIdentifier : flushExpr.workerIdentifierList) {
+            String channelName = this.env.enclFunc.workerName.value + "->" + workerIdentifier.value;
+            boolean isOnSameStrand = DEFAULT_WORKER_NAME.equals(this.env.enclFunc.workerName.value);
+            channels[i] = new BIRNode.ChannelDetails(channelName, isOnSameStrand, true);
+            i++;
+        }
+
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(flushExpr.type, this.env.nextLocalVarId(names),
+                VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand lhsOp = new BIROperand(tempVarDcl);
+        this.env.targetOperand = lhsOp;
+
+        this.env.enclBB.terminator = new BIRTerminator.Flush(flushExpr.pos, channels, lhsOp, thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
         this.env.enclBB = thenBB;
     }
 
     private void createWait(BLangWaitExpr waitExpr) {
 
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(thenBB);
         // This only supports wait for single future and alternate wait
         List<BIROperand> exprList = new ArrayList<>();
 
@@ -612,29 +975,54 @@ public class BIRGen extends BLangNodeVisitor {
         BIROperand lhsOp = new BIROperand(tempVarDcl);
         this.env.targetOperand = lhsOp;
 
-        this.env.enclBB.terminator = new BIRTerminator.Wait(waitExpr.pos, exprList, lhsOp);
+        this.env.enclBB.terminator = new BIRTerminator.Wait(waitExpr.pos, exprList, lhsOp, thenBB);
 
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
         this.env.enclBB = thenBB;
+    }
+
+    private void createErrorConstructorInvocation(BLangInvocation invocationExpr) {
+        // Create a temporary variable to store the error.
+        BIRVariableDcl tempVarError = new BIRVariableDcl(invocationExpr.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+
+        this.env.enclFunc.localVars.add(tempVarError);
+        BIROperand lhsOp = new BIROperand(tempVarError);
+
+        // visit reason and detail expressions
+        this.env.targetOperand = lhsOp;
+        invocationExpr.requiredArgs.get(0).accept(this);
+        BIROperand reasonOp = this.env.targetOperand;
+
+        invocationExpr.requiredArgs.get(1).accept(this);
+        BIROperand detailsOp = this.env.targetOperand;
+
+        BIRNonTerminator.NewError newError = new BIRNonTerminator.NewError(invocationExpr.pos, invocationExpr.type,
+                lhsOp, reasonOp, detailsOp);
+        emit(newError);
+        this.env.targetOperand = lhsOp;
     }
 
     private void createCall(BLangInvocation invocationExpr, boolean isVirtual) {
         // Lets create a block the jump after successful function return
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        addToTrapStack(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
 
         List<BLangExpression> requiredArgs = invocationExpr.requiredArgs;
         List<BLangExpression> restArgs = invocationExpr.restArgs;
         List<BIROperand> args = new ArrayList<>();
 
         for (BLangExpression requiredArg : requiredArgs) {
-            requiredArg.accept(this);
-            args.add(this.env.targetOperand);
-        }
-
-        for (BLangExpression namedArg : invocationExpr.namedArgs) {
-            namedArg.accept(this);
-            args.add(this.env.targetOperand);
+            if (requiredArg.getKind() != NodeKind.IGNORE_EXPR) {
+                requiredArg.accept(this);
+                args.add(this.env.targetOperand);
+            } else {
+                BIRVariableDcl birVariableDcl =
+                        new BIRVariableDcl(requiredArg.type, new Name("_"), VarScope.FUNCTION, VarKind.ARG);
+                birVariableDcl.ignoreVariable = true;
+                args.add(new BIROperand(birVariableDcl));
+            }
         }
 
         // seems like restArgs.size() is always 1 or 0, but lets iterate just in case
@@ -657,19 +1045,28 @@ public class BIRGen extends BLangNodeVisitor {
             this.env.enclFunc.localVars.add(tempVarDcl);
             lhsOp = new BIROperand(tempVarDcl);
             this.env.targetOperand = lhsOp;
+        } else {
+            BIRVariableDcl tempVarDcl = new BIRVariableDcl(symTable.nilType,
+                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+            this.env.enclFunc.localVars.add(tempVarDcl);
+            BIROperand toVarRef = new BIROperand(tempVarDcl);
+            emit(new BIRNonTerminator.ConstantLoad(null,
+                    null, symTable.nilType, toVarRef));
+            this.env.targetOperand = toVarRef;
         }
 
         // TODO: make vCall a new instruction to avoid package id in vCall
-        Name funcName = getFuncName((BInvokableSymbol) invocationExpr.symbol);
         if (invocationExpr.functionPointerInvocation) {
             this.env.enclBB.terminator = new BIRTerminator.FPCall(invocationExpr.pos, InstructionKind.FP_CALL,
                     fp, args, lhsOp, invocationExpr.async, thenBB);
         } else if (invocationExpr.async) {
             this.env.enclBB.terminator = new BIRTerminator.AsyncCall(invocationExpr.pos, InstructionKind.ASYNC_CALL,
-                    isVirtual, invocationExpr.symbol.pkgID, funcName, args, lhsOp, thenBB);
+                    isVirtual, invocationExpr.symbol.pkgID, getFuncName((BInvokableSymbol) invocationExpr.symbol),
+                    args, lhsOp, thenBB);
         } else {
             this.env.enclBB.terminator = new BIRTerminator.Call(invocationExpr.pos, InstructionKind.CALL, isVirtual,
-                    invocationExpr.symbol.pkgID, funcName, args, lhsOp, thenBB);
+                    invocationExpr.symbol.pkgID, getFuncName((BInvokableSymbol) invocationExpr.symbol), args, lhsOp,
+                    thenBB);
         }
 
         this.env.enclBB = thenBB;
@@ -677,22 +1074,35 @@ public class BIRGen extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangReturn astReturnStmt) {
-        if (astReturnStmt.expr.type.tag != TypeTags.NIL) {
-            astReturnStmt.expr.accept(this);
-            BIROperand retVarRef = new BIROperand(this.env.enclFunc.localVars.get(0));
-            emit(new Move(astReturnStmt.pos, this.env.targetOperand, retVarRef));
-        }
+        astReturnStmt.expr.accept(this);
+        BIROperand retVarRef = new BIROperand(this.env.enclFunc.returnVariable);
+        emit(new Move(astReturnStmt.pos, this.env.targetOperand, retVarRef));
 
         // Check whether this function already has a returnBB.
         // A given function can have only one BB that has a return instruction.
         if (this.env.returnBB == null) {
             // If not create one
             BIRBasicBlock returnBB = new BIRBasicBlock(this.env.nextBBId(names));
+            addToTrapStack(returnBB);
             returnBB.terminator = new BIRTerminator.Return(astReturnStmt.pos);
             this.env.returnBB = returnBB;
         }
         if (this.env.enclBB.terminator == null) {
+            this.env.unlockVars.forEach(s -> {
+                for (BIRLockDetailsHolder vars : s) {
+                    BIRBasicBlock unlockBB = new BIRBasicBlock(this.env.nextBBId(names));
+                    this.env.enclBasicBlocks.add(unlockBB);
+                    this.env.enclBB.terminator = new BIRTerminator.Unlock(null, vars.globalLocks,
+                            vars.fieldLocks, unlockBB);
+                    this.env.enclBB = unlockBB;
+                }
+            });
+
             this.env.enclBB.terminator = new BIRTerminator.GOTO(astReturnStmt.pos, this.env.returnBB);
+            BIRBasicBlock nextBB = new BIRBasicBlock(this.env.nextBBId(names));
+            this.env.enclBasicBlocks.add(nextBB);
+            this.env.enclBB = nextBB;
+            addToTrapStack(nextBB);
         }
     }
 
@@ -702,10 +1112,17 @@ public class BIRGen extends BLangNodeVisitor {
         // Some functions will only have panic but we need to add return for them to make current algorithm work.
         if (this.env.returnBB == null) {
             BIRBasicBlock returnBB = new BIRBasicBlock(this.env.nextBBId(names));
+            addToTrapStack(returnBB);
             returnBB.terminator = new BIRTerminator.Return(panicNode.pos);
             this.env.returnBB = returnBB;
         }
         this.env.enclBB.terminator = new BIRTerminator.Panic(panicNode.pos, this.env.targetOperand);
+
+        // This basic block will contain statement that comes right after this 'if' statement.
+        BIRBasicBlock unlockBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(unlockBB);
+        this.env.enclBasicBlocks.add(unlockBB);
+        this.env.enclBB = unlockBB;
     }
 
     @Override
@@ -715,10 +1132,12 @@ public class BIRGen extends BLangNodeVisitor {
 
         // Create the basic block for the if-then block.
         BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
-        this.env.enclFunc.basicBlocks.add(thenBB);
+        addToTrapStack(thenBB);
+        this.env.enclBasicBlocks.add(thenBB);
 
         // This basic block will contain statement that comes right after this 'if' statement.
         BIRBasicBlock nextBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(nextBB);
 
         // Add the branch instruction to the current basic block.
         // This is the end of the current basic block.
@@ -738,7 +1157,8 @@ public class BIRGen extends BLangNodeVisitor {
         if (astIfStmt.elseStmt != null) {
             // Create a basic block for the else block.
             BIRBasicBlock elseBB = new BIRBasicBlock(this.env.nextBBId(names));
-            this.env.enclFunc.basicBlocks.add(elseBB);
+            addToTrapStack(elseBB);
+            this.env.enclBasicBlocks.add(elseBB);
             branchIns.falseBB = elseBB;
 
             // Visit the else block. This could be an else-if block or an else block.
@@ -755,15 +1175,19 @@ public class BIRGen extends BLangNodeVisitor {
         }
 
         // Set the elseBB as the basic block for the rest of statements followed by this if.
-        this.env.enclFunc.basicBlocks.add(nextBB);
+        this.env.enclBasicBlocks.add(nextBB);
         this.env.enclBB = nextBB;
     }
 
     @Override
     public void visit(BLangWhile astWhileStmt) {
+        BIRBasicBlock currentEnclLoopBB = this.env.enclLoopBB;
+        BIRBasicBlock currentEnclLoopEndBB = this.env.enclLoopEndBB;
+
         // Create a basic block for the while expression.
         BIRBasicBlock whileExprBB = new BIRBasicBlock(this.env.nextBBId(names));
-        this.env.enclFunc.basicBlocks.add(whileExprBB);
+        addToTrapStack(whileExprBB);
+        this.env.enclBasicBlocks.add(whileExprBB);
 
         // Insert a GOTO instruction as the terminal instruction into current basic block.
         this.env.enclBB.terminator = new BIRTerminator.GOTO(astWhileStmt.pos, whileExprBB);
@@ -775,25 +1199,33 @@ public class BIRGen extends BLangNodeVisitor {
 
         // Create the basic block for the while-body block.
         BIRBasicBlock whileBodyBB = new BIRBasicBlock(this.env.nextBBId(names));
-        this.env.enclFunc.basicBlocks.add(whileBodyBB);
+        addToTrapStack(whileBodyBB);
+        this.env.enclBasicBlocks.add(whileBodyBB);
 
         // Create the basic block for the statements that comes after the while statement.
         BIRBasicBlock whileEndBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(whileEndBB);
 
         // Add the branch instruction to the while expression basic block.
-        whileExprBB.terminator = new BIRTerminator.Branch(astWhileStmt.pos, whileExprResult, whileBodyBB, whileEndBB);
+        this.env.enclBB.terminator =
+                new BIRTerminator.Branch(astWhileStmt.pos, whileExprResult, whileBodyBB, whileEndBB);
 
         // Visit while body
         this.env.enclBB = whileBodyBB;
         this.env.enclLoopBB = whileExprBB;
         this.env.enclLoopEndBB = whileEndBB;
+        this.env.unlockVars.push(new Stack<>());
         astWhileStmt.body.accept(this);
+        this.env.unlockVars.pop();
         if (this.env.enclBB.terminator == null) {
             this.env.enclBB.terminator = new BIRTerminator.GOTO(null, whileExprBB);
         }
 
-        this.env.enclFunc.basicBlocks.add(whileEndBB);
+        this.env.enclBasicBlocks.add(whileEndBB);
         this.env.enclBB = whileEndBB;
+
+        this.env.enclLoopBB = currentEnclLoopBB;
+        this.env.enclLoopEndBB = currentEnclLoopEndBB;
     }
 
 
@@ -830,7 +1262,8 @@ public class BIRGen extends BLangNodeVisitor {
         astTypeConversionExpr.expr.accept(this);
         BIROperand rhsOp = this.env.targetOperand;
 
-        emit(new BIRNonTerminator.TypeCast(astTypeConversionExpr.pos, toVarRef, rhsOp));
+        emit(new BIRNonTerminator.TypeCast(astTypeConversionExpr.pos, toVarRef, rhsOp, toVarRef.variableDcl.type,
+                astTypeConversionExpr.checkTypes));
         this.env.targetOperand = toVarRef;
     }
 
@@ -840,7 +1273,20 @@ public class BIRGen extends BLangNodeVisitor {
                 this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
         this.env.enclFunc.localVars.add(tempVarDcl);
         BIROperand toVarRef = new BIROperand(tempVarDcl);
-        emit(new BIRNonTerminator.NewStructure(astStructLiteralExpr.pos, astStructLiteralExpr.type, toVarRef));
+
+        BIRNonTerminator.NewStructure instruction;
+
+        BTypeSymbol structTypeSymbol = getRecordTypeSymbol(astStructLiteralExpr.type);
+        if (isInSamePackage(structTypeSymbol, this.env.enclPkg)) {
+            instruction = new BIRNonTerminator.NewStructure(astStructLiteralExpr.pos, astStructLiteralExpr.type,
+                    toVarRef);
+        } else {
+            String recordName = ((BRecordTypeSymbol) astStructLiteralExpr.type.tsymbol).name.value;
+            instruction = new BIRNonTerminator.NewStructure(astStructLiteralExpr.pos, structTypeSymbol.pkgID,
+                    recordName, astStructLiteralExpr.type, toVarRef);
+        }
+        emit(instruction);
+
         this.env.targetOperand = toVarRef;
 
         // Invoke the struct initializer here.
@@ -871,8 +1317,29 @@ public class BIRGen extends BLangNodeVisitor {
         BIROperand toVarRef = new BIROperand(tempVarDcl);
 
         BTypeSymbol objectTypeSymbol = getObjectTypeSymbol(connectorInitExpr.type);
-        emit(new BIRNonTerminator.NewInstance(connectorInitExpr.pos, typeDefs.get(objectTypeSymbol), toVarRef));
+        BIRNonTerminator.NewInstance instruction;
+        if (isInSamePackage(objectTypeSymbol, this.env.enclPkg)) {
+            BIRTypeDefinition def = typeDefs.get(objectTypeSymbol);
+            instruction = new BIRNonTerminator.NewInstance(connectorInitExpr.pos, def, toVarRef);
+        } else {
+            BType objectType = connectorInitExpr.type.tag != TypeTags.UNION ? connectorInitExpr.type  :
+                    ((BUnionType) connectorInitExpr.type).getMemberTypes().stream()
+                            .filter(bType -> bType.tag != TypeTags.ERROR)
+                            .findFirst()
+                            .get();
+
+            String objectName = objectType.tsymbol.name.value;
+            instruction = new BIRNonTerminator.NewInstance(connectorInitExpr.pos, objectTypeSymbol.pkgID,
+                                                           objectName, toVarRef);
+        }
+        emit(instruction);
         this.env.targetOperand = toVarRef;
+    }
+
+    private boolean isInSamePackage(BTypeSymbol objectTypeSymbol, BIRPackage enclPkg) {
+        return objectTypeSymbol.pkgID.orgName.equals(enclPkg.org) &&
+                objectTypeSymbol.pkgID.name.equals(enclPkg.name) &&
+                objectTypeSymbol.pkgID.version.equals(enclPkg.version);
     }
 
     @Override
@@ -891,27 +1358,55 @@ public class BIRGen extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangArrayLiteral astArrayLiteralExpr) {
-        generateArrayLiteral(astArrayLiteralExpr);
+        generateListConstructorExpr(astArrayLiteralExpr);
+    }
+
+    @Override
+    public void visit(BLangTupleLiteral tupleLiteral) {
+        generateListConstructorExpr(tupleLiteral);
+    }
+
+    @Override
+    public void visit(BLangGroupExpr groupExpr) {
+        groupExpr.expression.accept(this);
     }
 
     @Override
     public void visit(BLangJSONArrayLiteral jsonArrayLiteralExpr) {
-        generateArrayLiteral(jsonArrayLiteralExpr);
+        generateListConstructorExpr(jsonArrayLiteralExpr);
     }
 
     @Override
     public void visit(BLangMapAccessExpr astMapAccessExpr) {
-        generateMappingAccess(astMapAccessExpr);
+        boolean variableStore = this.varAssignment;
+        this.varAssignment = false;
+        BIROperand rhsOp = this.env.targetOperand;
+
+        astMapAccessExpr.expr.accept(this);
+        BIROperand varRefRegIndex = this.env.targetOperand;
+
+        astMapAccessExpr.indexExpr.accept(this);
+        BIROperand keyRegIndex = this.env.targetOperand;
+        if (variableStore) {
+            emit(new BIRNonTerminator.FieldAccess(astMapAccessExpr.pos, InstructionKind.MAP_STORE, varRefRegIndex,
+                    keyRegIndex, rhsOp));
+            return;
+        }
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(astMapAccessExpr.type, this.env.nextLocalVarId(names),
+                VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand tempVarRef = new BIROperand(tempVarDcl);
+
+        emit(new BIRNonTerminator.FieldAccess(astMapAccessExpr.pos, InstructionKind.MAP_LOAD, tempVarRef,
+                keyRegIndex, varRefRegIndex, astMapAccessExpr.optionalFieldAccess,
+                                              astMapAccessExpr.lhsVar && !astMapAccessExpr.leafNode));
+        this.env.targetOperand = tempVarRef;
+        this.varAssignment = variableStore;
     }
 
     @Override
     public void visit(BLangStructFieldAccessExpr astStructFieldAccessExpr) {
-        generateMappingAccess(astStructFieldAccessExpr);
-    }
-
-    @Override
-    public void visit(BLangTupleAccessExpr tupleAccessExpr) {
-        generateArrayAccess(tupleAccessExpr);
+        generateMappingAccess(astStructFieldAccessExpr, astStructFieldAccessExpr.optionalFieldAccess);
     }
 
     @Override
@@ -921,7 +1416,25 @@ public class BIRGen extends BLangNodeVisitor {
             return;
         }
 
-        generateMappingAccess(astJSONFieldAccessExpr);
+        generateMappingAccess(astJSONFieldAccessExpr, astJSONFieldAccessExpr.optionalFieldAccess);
+    }
+
+    @Override
+    public void visit(BLangStringAccessExpr stringAccessExpr) {
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(stringAccessExpr.type, this.env.nextLocalVarId(names),
+                                                       VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand tempVarRef = new BIROperand(tempVarDcl);
+
+        stringAccessExpr.expr.accept(this);
+        BIROperand varRefRegIndex = this.env.targetOperand;
+
+        stringAccessExpr.indexExpr.accept(this);
+        BIROperand keyRegIndex = this.env.targetOperand;
+
+        emit(new BIRNonTerminator.FieldAccess(stringAccessExpr.pos, InstructionKind.STRING_LOAD, tempVarRef,
+                                              keyRegIndex, varRefRegIndex));
+        this.env.targetOperand = tempVarRef;
     }
 
     @Override
@@ -930,41 +1443,8 @@ public class BIRGen extends BLangNodeVisitor {
     }
 
     @Override
-    public void visit(BLangBracedOrTupleExpr bracedOrTupleExpr) {
-        // Emit create array instruction
-        BIRVariableDcl tempVarDcl = new BIRVariableDcl(bracedOrTupleExpr.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
-        this.env.enclFunc.localVars.add(tempVarDcl);
-        BIROperand toVarRef = new BIROperand(tempVarDcl);
-
-        long size = bracedOrTupleExpr.expressions.size();
-
-        BLangLiteral literal = new BLangLiteral();
-        literal.pos = bracedOrTupleExpr.pos;
-        literal.value = size;
-        literal.type = symTable.intType;
-        literal.accept(this);
-        BIROperand sizeOp = this.env.targetOperand;
-
-        emit(new BIRNonTerminator.NewArray(bracedOrTupleExpr.pos, bracedOrTupleExpr.type, toVarRef, sizeOp));
-
-        // Emit instructions populate initial array values;
-        for (int i = 0; i < bracedOrTupleExpr.expressions.size(); i++) {
-            BLangExpression argExpr = bracedOrTupleExpr.expressions.get(i);
-            argExpr.accept(this);
-            BIROperand exprIndex = this.env.targetOperand;
-
-            BLangLiteral indexLiteral = new BLangLiteral();
-            indexLiteral.pos = bracedOrTupleExpr.pos;
-            indexLiteral.value = (long) i;
-            indexLiteral.type = symTable.intType;
-            indexLiteral.accept(this);
-            BIROperand arrayIndex = this.env.targetOperand;
-
-            emit(new BIRNonTerminator.FieldAccess(bracedOrTupleExpr.pos,
-                    InstructionKind.ARRAY_STORE, toVarRef, arrayIndex, exprIndex));
-        }
-        this.env.targetOperand = toVarRef;
+    public void visit(BLangIndexBasedAccess.BLangTupleAccessExpr tupleAccessExpr) {
+        generateArrayAccess(tupleAccessExpr);
     }
 
     @Override
@@ -1004,8 +1484,10 @@ public class BIRGen extends BLangNodeVisitor {
         BSymbol varSymbol = astVarRefExpr.symbol;
 
         if (variableStore) {
-            BIROperand varRef = new BIROperand(this.env.symbolVarMap.get(varSymbol));
-            emit(new Move(astVarRefExpr.pos, this.env.targetOperand, varRef));
+            if (astVarRefExpr.symbol.name != Names.IGNORE) {
+                BIROperand varRef = new BIROperand(this.env.symbolVarMap.get(varSymbol));
+                emit(new Move(astVarRefExpr.pos, this.env.targetOperand, varRef));
+            }
         } else {
             BIRVariableDcl tempVarDcl = new BIRVariableDcl(varSymbol.type,
                     this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
@@ -1036,18 +1518,30 @@ public class BIRGen extends BLangNodeVisitor {
         this.varAssignment = false;
 
         if (variableStore) {
-            BIROperand varRef = new BIROperand(this.env.globalVarMap.get(astPackageVarRefExpr.symbol));
-            emit(new Move(astPackageVarRefExpr.pos, this.env.targetOperand, varRef));
+            if (astPackageVarRefExpr.symbol.name != Names.IGNORE) {
+                BIROperand varRef = new BIROperand(getVarRef(astPackageVarRefExpr));
+                emit(new Move(astPackageVarRefExpr.pos, this.env.targetOperand, varRef));
+            }
         } else {
-            BIRVariableDcl tempVarDcl = new BIRVariableDcl(astPackageVarRefExpr.type,
-                    this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+            BIRVariableDcl tempVarDcl = new BIRVariableDcl(astPackageVarRefExpr.type, this.env.nextLocalVarId(names),
+                    VarScope.FUNCTION, VarKind.TEMP);
             this.env.enclFunc.localVars.add(tempVarDcl);
             BIROperand tempVarRef = new BIROperand(tempVarDcl);
-            BIROperand fromVarRef = new BIROperand(this.env.globalVarMap.get(astPackageVarRefExpr.symbol));
+            BIROperand fromVarRef = new BIROperand(getVarRef(astPackageVarRefExpr));
             emit(new Move(astPackageVarRefExpr.pos, fromVarRef, tempVarRef));
             this.env.targetOperand = tempVarRef;
         }
         this.varAssignment = variableStore;
+    }
+
+    private BIRGlobalVariableDcl getVarRef(BLangPackageVarRef astPackageVarRefExpr) {
+        BSymbol symbol = astPackageVarRefExpr.symbol;
+        if ((symbol.tag & SymTag.CONSTANT) == SymTag.CONSTANT) {
+            return new BIRGlobalVariableDcl(astPackageVarRefExpr.pos, symbol.flags, symbol.type, symbol.pkgID,
+                    symbol.name, VarScope.GLOBAL, VarKind.CONSTANT, symbol.name.value);
+        }
+
+        return this.globalVarMap.get(symbol);
     }
 
     @Override
@@ -1081,7 +1575,12 @@ public class BIRGen extends BLangNodeVisitor {
                 this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
         this.env.enclFunc.localVars.add(tempVarDcl);
         BIROperand lhsOp = new BIROperand(tempVarDcl);
-        this.env.targetOperand = lhsOp;
+
+        if (OperatorKind.ADD.equals(unaryExpr.operator) || OperatorKind.UNTAINT.equals(unaryExpr.operator)) {
+            emit(new Move(unaryExpr.pos, rhsOp, lhsOp));
+            this.env.targetOperand = lhsOp;
+            return;
+        }
 
         UnaryOP unaryIns = new UnaryOP(unaryExpr.pos, getUnaryInstructionKind(unaryExpr.operator), lhsOp, rhsOp);
         emit(unaryIns);
@@ -1089,54 +1588,69 @@ public class BIRGen extends BLangNodeVisitor {
     }
 
     @Override
-    public void visit(BLangErrorConstructorExpr errorExpr) {
-        // Create a temporary variable to store the error.
-        BIRVariableDcl tempVarError = new BIRVariableDcl(errorExpr.type,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
-        this.env.enclFunc.localVars.add(tempVarError);
-        BIROperand lhsOp = new BIROperand(tempVarError);
-        // visit reason and detail expressions
-        this.env.targetOperand = lhsOp;
-        errorExpr.reasonExpr.accept(this);
-        BIROperand reasonOp = this.env.targetOperand;
-        errorExpr.detailsExpr.accept(this);
-        BIROperand detailsOp = this.env.targetOperand;
-        BIRNonTerminator.NewError newError = new BIRNonTerminator.NewError(errorExpr.pos, InstructionKind.NEW_ERROR,
-                                                                           lhsOp, reasonOp, detailsOp);
-        emit(newError);
-        this.env.targetOperand = lhsOp;
-    }
-
-    @Override
     public void visit(BLangTrapExpr trapExpr) {
-        // This will move instructions inside trap expression for a new basic block unless current block does not have 
-        // any instructions or already in the current trap block.
-        if (!this.env.enclBB.instructions.isEmpty() && this.env.trapBB != this.env.enclBB) {
-            this.env.trapBB = new BIRBasicBlock(this.env.nextBBId(names));
-            env.enclFunc.basicBlocks.add(this.env.trapBB);
-            this.env.enclBB.terminator = new BIRTerminator.GOTO(trapExpr.pos, this.env.trapBB);
-            this.env.enclBB = this.env.trapBB;
-        } else {
-            this.env.trapBB = this.env.enclBB;
-        }
+        BIRBasicBlock trapBB = new BIRBasicBlock(this.env.nextBBId(names));
+        this.env.enclBasicBlocks.add(trapBB);
+        this.env.enclBB.terminator = new BIRTerminator.GOTO(trapExpr.pos, trapBB);
+        this.env.enclBB = trapBB;
+        this.env.trapBlocks.push(new ArrayList<>());
+        addToTrapStack(trapBB);
+
         trapExpr.expr.accept(this);
-        if (this.env.trapBB.terminator != null) {
-            // Once trap expression is visited,  we need to back track all basic blocks which is covered by the trap 
-            // and add error entry for each and every basic block.
-            genIntermediateErrorEntries(this.env.trapBB);
-        } else {
-            // Create new block for instructions after trap.
-            this.env.enclFunc.errorTable.add(new BIRNode.BIRErrorEntry(this.env.trapBB, this.env.targetOperand));
-            this.env.trapBB = new BIRBasicBlock(this.env.nextBBId(names));
-            env.enclFunc.basicBlocks.add(this.env.trapBB);
-            this.env.enclBB.terminator = new BIRTerminator.GOTO(trapExpr.pos, this.env.trapBB);
-            this.env.enclBB = this.env.trapBB;
+
+        List<BIRBasicBlock> trappedBlocks = this.env.trapBlocks.pop();
+        // Create new block for instructions after trap.
+        BIRBasicBlock nextBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(nextBB);
+        env.enclBasicBlocks.add(nextBB);
+        this.env.enclBB.terminator = new BIRTerminator.GOTO(trapExpr.pos, nextBB);
+
+        if (trapExpr.expr.type.tag == TypeTags.NIL) {
+            BIRVariableDcl tempVarDcl = new BIRVariableDcl(trapExpr.type, this.env.nextLocalVarId(names),
+                                                           VarScope.FUNCTION, VarKind.TEMP);
+            this.env.enclFunc.localVars.add(tempVarDcl);
+            this.env.targetOperand = new BIROperand(tempVarDcl);
         }
+
+        for (BIRBasicBlock bb : trappedBlocks) {
+            env.enclFunc.errorTable.add(new BIRNode.BIRErrorEntry(bb, env.targetOperand, nextBB));
+        }
+
+        this.env.enclBB = nextBB;
+        // Once trap expression is visited,  we need to back track all basic blocks which is covered by the trap
+        // and add error entry for each and every basic block.
+//        genIntermediateErrorEntries(birTerminatorVisitor, trapBB);
     }
 
     @Override
     public void visit(BLangWaitExpr waitExpr) {
         createWait(waitExpr);
+    }
+
+    @Override
+    public void visit(BLangWaitForAllExpr.BLangWaitLiteral waitLiteral) {
+        BIRBasicBlock thenBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(thenBB);
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(waitLiteral.type,
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand toVarRef = new BIROperand(tempVarDcl);
+        emit(new BIRNonTerminator.NewStructure(waitLiteral.pos, waitLiteral.type, toVarRef));
+        this.env.targetOperand = toVarRef;
+
+        List<String> keys = new ArrayList<>();
+        List<BIROperand> valueExprs = new ArrayList<>();
+        for (BLangWaitForAllExpr.BLangWaitKeyValue keyValue : waitLiteral.keyValuePairs) {
+            keys.add(keyValue.key.value);
+            BLangExpression expr = keyValue.valueExpr != null ? keyValue.valueExpr : keyValue.keyExpr;
+            expr.accept(this);
+            BIROperand valueRegIndex = this.env.targetOperand;
+            valueExprs.add(valueRegIndex);
+        }
+        this.env.enclBB.terminator = new BIRTerminator.WaitAll(waitLiteral.pos, toVarRef, keys, valueExprs, thenBB);
+        this.env.targetOperand = toVarRef;
+        this.env.enclFunc.basicBlocks.add(thenBB);
+        this.env.enclBB = thenBB;
     }
 
     @Override
@@ -1311,13 +1825,13 @@ public class BIRGen extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangXMLAccessExpr xmlAccessExpr) {
-        generateMappingAccess(xmlAccessExpr);
+        generateMappingAccess(xmlAccessExpr, false);
     }
 
     @Override
     public void visit(BLangXMLAttributeAccess xmlAttributeAccessExpr) {
         if (xmlAttributeAccessExpr.indexExpr != null) {
-            generateMappingAccess(xmlAttributeAccessExpr);
+            generateMappingAccess(xmlAttributeAccessExpr, false);
             return;
         }
 
@@ -1330,7 +1844,8 @@ public class BIRGen extends BLangNodeVisitor {
 
         xmlAttributeAccessExpr.expr.accept(this);
         BIROperand xmlVarOp = this.env.targetOperand;
-        emit(new BIRNonTerminator.TypeCast(xmlAttributeAccessExpr.pos, toVarRef, xmlVarOp));
+        emit(new BIRNonTerminator.TypeCast(xmlAttributeAccessExpr.pos, toVarRef, xmlVarOp, symTable.mapStringType,
+                true));
         this.env.targetOperand = toVarRef;
     }
 
@@ -1345,56 +1860,106 @@ public class BIRGen extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangSimpleVarRef.BLangTypeLoad typeLoad) {
+        BIRVariableDcl tempVarDcl =
+                new BIRVariableDcl(symTable.typeDesc, this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind
+                        .TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand toVarRef = new BIROperand(tempVarDcl);
+        emit(new BIRNonTerminator.NewTypeDesc(typeLoad.pos, toVarRef, typeLoad.symbol.type));
+        this.env.targetOperand = toVarRef;
+    }
+
+    @Override
     public void visit(BLangBreak breakStmt) {
+        Stack<BIRLockDetailsHolder> toUnlock = this.env.unlockVars.peek();
+        if (!toUnlock.isEmpty()) {
+            BIRBasicBlock goToBB = new BIRBasicBlock(this.env.nextBBId(names));
+            this.env.enclBasicBlocks.add(goToBB);
+            this.env.enclBB.terminator = new BIRTerminator.GOTO(breakStmt.pos, goToBB);
+            this.env.enclBB = goToBB;
+        }
+        for (BIRLockDetailsHolder vars : toUnlock) {
+            BIRBasicBlock unlockBB = new BIRBasicBlock(this.env.nextBBId(names));
+            this.env.enclBasicBlocks.add(unlockBB);
+            this.env.enclBB.terminator = new BIRTerminator.Unlock(null, vars.globalLocks,
+                    vars.fieldLocks, unlockBB);
+            this.env.enclBB = unlockBB;
+        }
         this.env.enclBB.terminator = new BIRTerminator.GOTO(breakStmt.pos, this.env.enclLoopEndBB);
     }
 
     @Override
     public void visit(BLangContinue continueStmt) {
+        Stack<BIRLockDetailsHolder> toUnlock = this.env.unlockVars.peek();
+        if (!toUnlock.isEmpty()) {
+            BIRBasicBlock goToBB = new BIRBasicBlock(this.env.nextBBId(names));
+            this.env.enclBasicBlocks.add(goToBB);
+            this.env.enclBB.terminator = new BIRTerminator.GOTO(continueStmt.pos, goToBB);
+            this.env.enclBB = goToBB;
+        }
+        for (BIRLockDetailsHolder vars : toUnlock) {
+            BIRBasicBlock unlockBB = new BIRBasicBlock(this.env.nextBBId(names));
+            this.env.enclBasicBlocks.add(unlockBB);
+            this.env.enclBB.terminator = new BIRTerminator.Unlock(null, vars.globalLocks,
+                    vars.fieldLocks, unlockBB);
+            this.env.enclBB = unlockBB;
+        }
+
         this.env.enclBB.terminator = new BIRTerminator.GOTO(continueStmt.pos, this.env.enclLoopBB);
     }
 
     @Override
-    public void visit(BLangTernaryExpr ternaryExpr) {
-        ternaryExpr.expr.accept(this);
-        BIROperand conditionOp = this.env.targetOperand;
-
-        ternaryExpr.elseExpr.accept(this);
-        BIROperand thenOp = this.env.targetOperand;
-
-        ternaryExpr.thenExpr.accept(this);
-        BIROperand elseOp = this.env.targetOperand;
-
-        // Create a temporary variable to store the result.
-        BIRVariableDcl tempVarDcl =
-                new BIRVariableDcl(ternaryExpr.type, this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
-        this.env.enclFunc.localVars.add(tempVarDcl);
-        BIROperand lhsOp = new BIROperand(tempVarDcl);
-        this.env.targetOperand = lhsOp;
-
-        // Create ternary instruction
-        TernaryOp binaryIns = new TernaryOp(ternaryExpr.pos, lhsOp, conditionOp, thenOp, elseOp);
-        emit(binaryIns);
+    public void visit(BLangFunctionVarRef fpVarRef) {
+        generateFPVarRef(fpVarRef, (BInvokableSymbol) fpVarRef.symbol);
     }
 
-    // private methods
-
-    private void genIntermediateErrorEntries(BIRBasicBlock thenBB) {
-        if (thenBB != this.env.enclBB) {
-            this.env.enclFunc.errorTable.add(new BIRNode.BIRErrorEntry(thenBB, this.env.targetOperand));
-            this.env.trapBB = ((BIRTerminator.Call) thenBB.terminator).thenBB;
-            genIntermediateErrorEntries(this.env.trapBB);
-        }
+    @Override
+    public void visit(BLangStructFunctionVarRef structFpVarRef) {
+        generateFPVarRef(structFpVarRef, (BInvokableSymbol) structFpVarRef.symbol);
     }
 
-    private Visibility getVisibility(BSymbol symbol) {
-        if (Symbols.isPublic(symbol)) {
-            return Visibility.PUBLIC;
-        } else if (Symbols.isPrivate(symbol)) {
-            return Visibility.PRIVATE;
-        } else {
-            return Visibility.PACKAGE_PRIVATE;
+    @Override
+    public void visit(BLangLockStmt lockStmt) {
+        Supplier<TreeSet<BIRGlobalVariableDcl>> supplier = () -> new TreeSet<>(Comparator.comparing(v -> v.name.value));
+        Set<BIRGlobalVariableDcl> lockedOn = lockStmt.lockVariables.stream()
+                .map(e -> this.globalVarMap.get(e))
+                .collect(Collectors.toCollection(supplier));
+        for (BIRGlobalVariableDcl globalVar : lockedOn) {
+            BIRBasicBlock lockedBB = new BIRBasicBlock(this.env.nextBBId(names));
+            addToTrapStack(lockedBB);
+            this.env.enclBasicBlocks.add(lockedBB);
+            this.env.enclBB.terminator = new BIRTerminator.Lock(null, globalVar, lockedBB);
+            this.env.enclBB = lockedBB;
         }
+
+        for (Map.Entry<BVarSymbol, Set<String>> entry : lockStmt.fieldVariables.entrySet()) {
+            BIRVariableDcl variableDcl = this.env.symbolVarMap.get(entry.getKey());
+            for (String field : entry.getValue()) {
+                BIRBasicBlock lockedBB = new BIRBasicBlock(this.env.nextBBId(names));
+                addToTrapStack(lockedBB);
+                this.env.enclBasicBlocks.add(lockedBB);
+                this.env.enclBB.terminator = new BIRTerminator.FieldLock(null, variableDcl, field, lockedBB);
+                this.env.enclBB = lockedBB;
+            }
+        }
+        Map<BIRVariableDcl, Set<String>> fieldLocks = new TreeMap<>((o1, o2) -> o2.name.value
+                .compareTo(o1.name.value));
+        fieldLocks.putAll(lockStmt.fieldVariables.entrySet().stream()
+                .collect(Collectors.toMap(x -> this.env.symbolVarMap.get(x.getKey()), Map.Entry::getValue)));
+        this.env.unlockVars.peek().push(new BIRLockDetailsHolder(lockedOn, fieldLocks));
+    }
+
+    @Override
+    public void visit(BLangUnLockStmt unLockStmt) {
+        BIRBasicBlock unLockedBB = new BIRBasicBlock(this.env.nextBBId(names));
+        addToTrapStack(unLockedBB);
+        this.env.enclBasicBlocks.add(unLockedBB);
+
+        BIRLockDetailsHolder lockDetailsHolder = this.env.unlockVars.peek().pop();
+        this.env.enclBB.terminator = new BIRTerminator.Unlock(null, lockDetailsHolder.globalLocks,
+                lockDetailsHolder.fieldLocks, unLockedBB);
+        this.env.enclBB = unLockedBB;
     }
 
     private void emit(BIRInstruction instruction) {
@@ -1433,6 +1998,24 @@ public class BIRGen extends BLangNodeVisitor {
                 return InstructionKind.REF_EQUAL;
             case REF_NOT_EQUAL:
                 return InstructionKind.REF_NOT_EQUAL;
+            case CLOSED_RANGE:
+                return InstructionKind.CLOSED_RANGE;
+            case HALF_OPEN_RANGE:
+                return InstructionKind.HALF_OPEN_RANGE;
+            case ANNOT_ACCESS:
+                return InstructionKind.ANNOT_ACCESS;
+            case BITWISE_AND:
+                return InstructionKind.BITWISE_AND;
+            case BITWISE_OR:
+                return InstructionKind.BITWISE_OR;
+            case BITWISE_XOR:
+                return InstructionKind.BITWISE_XOR;
+            case BITWISE_LEFT_SHIFT:
+                return InstructionKind.BITWISE_LEFT_SHIFT;
+            case BITWISE_RIGHT_SHIFT:
+                return InstructionKind.BITWISE_RIGHT_SHIFT;
+            case BITWISE_UNSIGNED_RIGHT_SHIFT:
+                return InstructionKind.BITWISE_UNSIGNED_RIGHT_SHIFT;
             default:
                 throw new IllegalStateException("unsupported binary operation: " + opKind.value());
         }
@@ -1444,6 +2027,10 @@ public class BIRGen extends BLangNodeVisitor {
                 return InstructionKind.TYPEOF;
             case NOT:
                 return InstructionKind.NOT;
+            case SUB:
+                return InstructionKind.NEGATE;
+            case ADD:
+                return InstructionKind.MOVE;
             default:
                 throw new IllegalStateException("unsupported unary operator: " + opKind.value());
         }
@@ -1474,41 +2061,44 @@ public class BIRGen extends BLangNodeVisitor {
         this.env.targetOperand = toVarRef;
     }
 
-    private void generateArrayLiteral(BLangArrayLiteral astArrayLiteralExpr) {
+    private void generateListConstructorExpr(BLangListConstructorExpr listConstructorExpr) {
         // Emit create array instruction
-        BIRVariableDcl tempVarDcl = new BIRVariableDcl(astArrayLiteralExpr.type, this.env.nextLocalVarId(names),
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(listConstructorExpr.type, this.env.nextLocalVarId(names),
                 VarScope.FUNCTION, VarKind.TEMP);
         this.env.enclFunc.localVars.add(tempVarDcl);
         BIROperand toVarRef = new BIROperand(tempVarDcl);
 
-        long size = astArrayLiteralExpr.type.tag == TypeTags.ARRAY &&
-                ((BArrayType) astArrayLiteralExpr.type).state != BArrayState.UNSEALED
-                        ? (long) ((BArrayType) astArrayLiteralExpr.type).size
-                        : -1L;
+        long size = -1L;
+        if (listConstructorExpr.type.tag == TypeTags.ARRAY &&
+                ((BArrayType) listConstructorExpr.type).state != BArrayState.UNSEALED) {
+            size = (long) ((BArrayType) listConstructorExpr.type).size;
+        } else if (listConstructorExpr.type.tag == TypeTags.TUPLE) {
+            size = listConstructorExpr.exprs.size();
+        }
 
         BLangLiteral literal = new BLangLiteral();
-        literal.pos = astArrayLiteralExpr.pos;
+        literal.pos = listConstructorExpr.pos;
         literal.value = size;
         literal.type = symTable.intType;
         literal.accept(this);
         BIROperand sizeOp = this.env.targetOperand;
 
-        emit(new BIRNonTerminator.NewArray(astArrayLiteralExpr.pos, astArrayLiteralExpr.type, toVarRef, sizeOp));
+        emit(new BIRNonTerminator.NewArray(listConstructorExpr.pos, listConstructorExpr.type, toVarRef, sizeOp));
 
         // Emit instructions populate initial array values;
-        for (int i = 0; i < astArrayLiteralExpr.exprs.size(); i++) {
-            BLangExpression argExpr = astArrayLiteralExpr.exprs.get(i);
+        for (int i = 0; i < listConstructorExpr.exprs.size(); i++) {
+            BLangExpression argExpr = listConstructorExpr.exprs.get(i);
             argExpr.accept(this);
             BIROperand exprIndex = this.env.targetOperand;
 
             BLangLiteral indexLiteral = new BLangLiteral();
-            indexLiteral.pos = astArrayLiteralExpr.pos;
+            indexLiteral.pos = listConstructorExpr.pos;
             indexLiteral.value = (long) i;
             indexLiteral.type = symTable.intType;
             indexLiteral.accept(this);
             BIROperand arrayIndex = this.env.targetOperand;
 
-            emit(new BIRNonTerminator.FieldAccess(astArrayLiteralExpr.pos, InstructionKind.ARRAY_STORE, toVarRef,
+            emit(new BIRNonTerminator.FieldAccess(listConstructorExpr.pos, InstructionKind.ARRAY_STORE, toVarRef,
                     arrayIndex, exprIndex));
         }
         this.env.targetOperand = toVarRef;
@@ -1542,13 +2132,12 @@ public class BIRGen extends BLangNodeVisitor {
         BIROperand dataOp = this.env.targetOperand;
 
         tableLiteral.indexColumnsArrayLiteral.accept(this);
-        BIROperand indexColOp = this.env.targetOperand;
 
         tableLiteral.keyColumnsArrayLiteral.accept(this);
         BIROperand keyColOp = this.env.targetOperand;
 
         emit(new BIRNonTerminator.NewTable(tableLiteral.pos, tableLiteral.type, toVarRef, columnsOp, dataOp,
-                indexColOp, keyColOp));
+                keyColOp));
 
         this.env.targetOperand = toVarRef;
     }
@@ -1558,16 +2147,7 @@ public class BIRGen extends BLangNodeVisitor {
                                                        VarScope.FUNCTION, VarKind.TEMP);
         this.env.enclFunc.localVars.add(tempVarDcl);
         BIROperand toVarRef = new BIROperand(tempVarDcl);
-
-        BLangLiteral nameLiteral = new BLangLiteral();
-        nameLiteral.pos = streamLiteral.pos;
-        nameLiteral.type = symTable.stringType;
-        nameLiteral.value = streamLiteral.streamName;
-        nameLiteral.accept(this);
-        BIROperand columnsOp = this.env.targetOperand;
-
-        emit(new BIRNonTerminator.NewStream(streamLiteral.pos, streamLiteral.type, toVarRef, columnsOp));
-
+        emit(new BIRNonTerminator.NewStream(streamLiteral.pos, streamLiteral.type, toVarRef));
         this.env.targetOperand = toVarRef;
     }
 
@@ -1575,41 +2155,36 @@ public class BIRGen extends BLangNodeVisitor {
         boolean variableStore = this.varAssignment;
         this.varAssignment = false;
 
+        BIROperand rhsOp = this.env.targetOperand;
+
+        astArrayAccessExpr.expr.accept(this);
+        BIROperand varRefRegIndex = this.env.targetOperand;
+
+        astArrayAccessExpr.indexExpr.accept(this);
+        BIROperand keyRegIndex = this.env.targetOperand;
+
         if (variableStore) {
-            BIROperand rhsOp = this.env.targetOperand;
-
-            astArrayAccessExpr.expr.accept(this);
-            BIROperand varRefRegIndex = this.env.targetOperand;
-
-            astArrayAccessExpr.indexExpr.accept(this);
-            BIROperand keyRegIndex = this.env.targetOperand;
-
             emit(new BIRNonTerminator.FieldAccess(astArrayAccessExpr.pos, InstructionKind.ARRAY_STORE, varRefRegIndex,
                     keyRegIndex, rhsOp));
-        } else {
-            BIRVariableDcl tempVarDcl = new BIRVariableDcl(astArrayAccessExpr.type, this.env.nextLocalVarId(names),
-                    VarScope.FUNCTION, VarKind.TEMP);
-            this.env.enclFunc.localVars.add(tempVarDcl);
-            BIROperand tempVarRef = new BIROperand(tempVarDcl);
-
-            astArrayAccessExpr.expr.accept(this);
-            BIROperand varRefRegIndex = this.env.targetOperand;
-
-            astArrayAccessExpr.indexExpr.accept(this);
-            BIROperand keyRegIndex = this.env.targetOperand;
-
-            emit(new BIRNonTerminator.FieldAccess(astArrayAccessExpr.pos, InstructionKind.ARRAY_LOAD, tempVarRef,
-                    keyRegIndex, varRefRegIndex));
-            this.env.targetOperand = tempVarRef;
+            return;
         }
+        BIRVariableDcl tempVarDcl = new BIRVariableDcl(astArrayAccessExpr.type, this.env.nextLocalVarId(names),
+                VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarDcl);
+        BIROperand tempVarRef = new BIROperand(tempVarDcl);
+
+        emit(new BIRNonTerminator.FieldAccess(astArrayAccessExpr.pos, InstructionKind.ARRAY_LOAD, tempVarRef,
+                keyRegIndex, varRefRegIndex));
+        this.env.targetOperand = tempVarRef;
 
         this.varAssignment = variableStore;
     }
 
-    private void generateMappingAccess(BLangIndexBasedAccess astIndexBasedAccessExpr) {
+    private void generateMappingAccess(BLangIndexBasedAccess astIndexBasedAccessExpr, boolean except) {
         boolean variableStore = this.varAssignment;
         this.varAssignment = false;
         InstructionKind insKind;
+        BType astAccessExprExprType = astIndexBasedAccessExpr.expr.type;
         if (variableStore) {
             BIROperand rhsOp = this.env.targetOperand;
 
@@ -1622,7 +2197,10 @@ public class BIRGen extends BLangNodeVisitor {
             if (astIndexBasedAccessExpr.getKind() == NodeKind.XML_ATTRIBUTE_ACCESS_EXPR) {
                 insKind = InstructionKind.XML_ATTRIBUTE_STORE;
                 keyRegIndex = getQNameOP(astIndexBasedAccessExpr.indexExpr, keyRegIndex);
-            } else if (astIndexBasedAccessExpr.expr.type.tag == TypeTags.OBJECT) {
+            } else if (astAccessExprExprType.tag == TypeTags.OBJECT ||
+                    (astAccessExprExprType.tag == TypeTags.UNION &&
+                             ((BUnionType) astAccessExprExprType).getMemberTypes().iterator()
+                                     .next().tag == TypeTags.OBJECT)) {
                 insKind = InstructionKind.OBJECT_STORE;
             } else {
                 insKind = InstructionKind.MAP_STORE;
@@ -1644,18 +2222,21 @@ public class BIRGen extends BLangNodeVisitor {
             if (astIndexBasedAccessExpr.getKind() == NodeKind.XML_ATTRIBUTE_ACCESS_EXPR) {
                 insKind = InstructionKind.XML_ATTRIBUTE_LOAD;
                 keyRegIndex = getQNameOP(astIndexBasedAccessExpr.indexExpr, keyRegIndex);
-            } else if (astIndexBasedAccessExpr.expr.type.tag == TypeTags.XML) {
+            } else if (astAccessExprExprType.tag == TypeTags.XML) {
                 generateXMLAccess((BLangXMLAccessExpr) astIndexBasedAccessExpr, tempVarRef, varRefRegIndex,
                         keyRegIndex);
                 this.varAssignment = variableStore;
                 return;
-            } else if (astIndexBasedAccessExpr.expr.type.tag == TypeTags.OBJECT) {
+            } else if (astAccessExprExprType.tag == TypeTags.OBJECT ||
+                    (astAccessExprExprType.tag == TypeTags.UNION &&
+                             ((BUnionType) astAccessExprExprType).getMemberTypes().iterator()
+                                     .next().tag == TypeTags.OBJECT)) {
                 insKind = InstructionKind.OBJECT_LOAD;
             } else {
                 insKind = InstructionKind.MAP_LOAD;
             }
             emit(new BIRNonTerminator.FieldAccess(astIndexBasedAccessExpr.pos, insKind, tempVarRef, keyRegIndex,
-                    varRefRegIndex));
+                    varRefRegIndex, except, astIndexBasedAccessExpr.lhsVar && !astIndexBasedAccessExpr.leafNode));
             this.env.targetOperand = tempVarRef;
         }
         this.varAssignment = variableStore;
@@ -1665,6 +2246,16 @@ public class BIRGen extends BLangNodeVisitor {
         if (type.tag == TypeTags.UNION) {
             return ((BUnionType) type).getMemberTypes().stream()
                     .filter(t -> t.tag == TypeTags.OBJECT)
+                    .findFirst()
+                    .orElse(symTable.noType).tsymbol;
+        }
+        return type.tsymbol;
+    }
+
+    private BTypeSymbol getRecordTypeSymbol(BType type) {
+        if (type.tag == TypeTags.UNION) {
+            return ((BUnionType) type).getMemberTypes().stream()
+                    .filter(t -> t.tag == TypeTags.RECORD)
                     .findFirst()
                     .orElse(symTable.noType).tsymbol;
         }
@@ -1687,7 +2278,7 @@ public class BIRGen extends BLangNodeVisitor {
 
     private void generateXMLNamespace(BLangXMLNS xmlnsNode) {
         BIRVariableDcl birVarDcl = new BIRVariableDcl(xmlnsNode.pos, symTable.stringType,
-                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.LOCAL);
+                this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.LOCAL, null);
         this.env.enclFunc.localVars.add(birVarDcl);
         this.env.symbolVarMap.put(xmlnsNode.symbol, birVarDcl);
 
@@ -1755,7 +2346,7 @@ public class BIRGen extends BLangNodeVisitor {
             return keyRegIndex;
         }
 
-        BIRVariableDcl tempQNameVarDcl = new BIRVariableDcl(qnameExpr.type,
+        BIRVariableDcl tempQNameVarDcl = new BIRVariableDcl(symTable.anyType,
                 this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
         this.env.enclFunc.localVars.add(tempQNameVarDcl);
         BIROperand qnameVarRef = new BIROperand(tempQNameVarDcl);
@@ -1778,5 +2369,48 @@ public class BIRGen extends BLangNodeVisitor {
         }
 
         emit(new BIRNonTerminator.FieldAccess(xmlAccessExpr.pos, insKind, tempVarRef, keyRegIndex, varRefRegIndex));
+    }
+
+    private void generateFPVarRef(BLangExpression fpVarRef, BInvokableSymbol funcSymbol) {
+        // fpload instruction
+        BIRVariableDcl tempVarLambda =
+                new BIRVariableDcl(fpVarRef.type, this.env.nextLocalVarId(names), VarScope.FUNCTION, VarKind.TEMP);
+        this.env.enclFunc.localVars.add(tempVarLambda);
+        BIROperand lhsOp = new BIROperand(tempVarLambda);
+        Name funcName = getFuncName(funcSymbol);
+
+        List<BIRVariableDcl> params = new ArrayList<>();
+
+        funcSymbol.params.forEach(param -> {
+            BIRVariableDcl birVarDcl = new BIRVariableDcl(fpVarRef.pos, param.type, this.env.nextLambdaVarId(names),
+                    VarScope.FUNCTION, VarKind.ARG, null);
+            params.add(birVarDcl);
+        });
+
+        BVarSymbol restParam = funcSymbol.restParam;
+        if (restParam != null) {
+            BIRVariableDcl birVarDcl = new BIRVariableDcl(fpVarRef.pos, restParam.type, this.env.nextLambdaVarId(names),
+                    VarScope.FUNCTION, VarKind.ARG, null);
+            params.add(birVarDcl);
+        }
+
+        emit(new BIRNonTerminator.FPLoad(fpVarRef.pos, funcSymbol.pkgID, funcName, lhsOp, params, new ArrayList<>(),
+                funcSymbol.retType));
+        this.env.targetOperand = lhsOp;
+    }
+
+    private void populateBIRAnnotAttachments(List<BLangAnnotationAttachment> astAnnotAttachments,
+                                             List<BIRAnnotationAttachment> birAnnotAttachments,
+                                             BIRGenEnv currentEnv) {
+        currentEnv.enclAnnotAttachments = birAnnotAttachments;
+        astAnnotAttachments.forEach(annotAttach -> annotAttach.accept(this));
+        currentEnv.enclAnnotAttachments = null;
+    }
+
+    private void addToTrapStack(BIRBasicBlock birBasicBlock) {
+        if (this.env.trapBlocks.isEmpty()) {
+            return;
+        }
+        this.env.trapBlocks.peek().add(birBasicBlock);
     }
 }

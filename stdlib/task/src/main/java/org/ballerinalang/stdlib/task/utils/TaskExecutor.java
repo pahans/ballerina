@@ -17,14 +17,15 @@
 */
 package org.ballerinalang.stdlib.task.utils;
 
-import org.ballerinalang.bre.bvm.BVMExecutor;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.stdlib.task.objects.ServiceWithParameters;
-import org.ballerinalang.util.codegen.FunctionInfo;
+import org.ballerinalang.jvm.types.AttachedFunction;
+import org.ballerinalang.jvm.values.ErrorValue;
+import org.ballerinalang.jvm.values.connector.CallableUnitCallback;
+import org.ballerinalang.jvm.values.connector.Executor;
+import org.ballerinalang.stdlib.task.objects.ServiceInformation;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+
+import static org.ballerinalang.stdlib.task.utils.TaskConstants.RESOURCE_ON_TRIGGER;
 
 /**
  * This class invokes the Ballerina onTrigger function, and if an error occurs while invoking that function, it invokes
@@ -32,24 +33,36 @@ import java.util.Objects;
  */
 public class TaskExecutor {
 
-    public static void execute(ServiceWithParameters serviceWithParameters) {
-        // Get resource functions from service
-        ResourceFunctionHolder resourceFunctionHolder = new ResourceFunctionHolder(serviceWithParameters.getService());
-        FunctionInfo onTriggerFunction = resourceFunctionHolder.getOnTriggerFunction();
+    public static void executeFunction(ServiceInformation serviceInformation) {
+        AttachedFunction onTriggerFunction = serviceInformation.getOnTriggerFunction();
+        Object[] onTriggerFunctionArgs = getParameterList(onTriggerFunction, serviceInformation);
 
-        List<BValue> onTriggerFunctionArgs = getParameterList(onTriggerFunction, serviceWithParameters);
-        BVMExecutor.executeFunction(
-                onTriggerFunction.getPackageInfo().getProgramFile(),
-                onTriggerFunction,
-                onTriggerFunctionArgs.toArray(new BValue[0]));
+        TaskNonBlockingCallback nonBlockingCallback = new TaskNonBlockingCallback();
+        Executor.submit(serviceInformation.getScheduler(),
+                serviceInformation.getService(),
+                RESOURCE_ON_TRIGGER,
+                nonBlockingCallback,
+                null,
+                onTriggerFunctionArgs);
     }
 
-    private static List<BValue> getParameterList(FunctionInfo function, ServiceWithParameters serviceWithParameters) {
-        List<BValue> functionParameters = new ArrayList<>();
-        functionParameters.add(serviceWithParameters.getService().getBValue());
-        if (function.getParamTypes().length > 1 && Objects.nonNull(serviceWithParameters.getAttachment())) {
-            functionParameters.add(serviceWithParameters.getAttachment());
+    private static Object[] getParameterList(AttachedFunction function, ServiceInformation serviceInformation) {
+        if (function.type.paramTypes.length > 0 && Objects.nonNull(serviceInformation.getAttachment())) {
+            return new Object[]{serviceInformation.getAttachment(), Boolean.TRUE};
         }
-        return functionParameters;
+        return new Object[]{};
+    }
+
+    private static class TaskNonBlockingCallback implements CallableUnitCallback {
+
+        @Override
+        public void notifySuccess() {
+            // Do nothing
+        }
+
+        @Override
+        public void notifyFailure(ErrorValue error) {
+            // Do nothing
+        }
     }
 }

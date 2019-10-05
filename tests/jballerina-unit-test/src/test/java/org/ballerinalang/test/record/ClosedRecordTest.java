@@ -17,6 +17,7 @@
 */
 package org.ballerinalang.test.record;
 
+import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.model.values.BFloat;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
@@ -164,9 +165,8 @@ public class ClosedRecordTest {
     public void testStructLiteralAttachedFunc() {
         CompileResult result = BCompileUtil.compile(
                 "test-src/record/sealed_record_literal_with_attached_functions_negative.bal");
-        Assert.assertEquals(result.getErrorCount(), 2);
-        BAssertUtil.validateError(result, 0, "cannot attach function 'getName' to record type 'Person'", 7, 1);
-        BAssertUtil.validateError(result, 1, "undefined symbol 'self'", 8, 12);
+        Assert.assertEquals(result.getErrorCount(), 5);
+        BAssertUtil.validateError(result, 0, "mismatched input '.'. expecting '('", 7, 16);
     }
 
     @Test(description = "Test for records defined using the 'record' keyword")
@@ -182,18 +182,6 @@ public class ClosedRecordTest {
     public void testFuncPtrAsAField() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testFuncPtrAsRecordField");
         Assert.assertEquals(returns[0].stringValue(), "Doe, John");
-    }
-
-    @Test(description = "Test nil-able function pointer invocation")
-    public void testNilableFuncPtrInvocation() {
-        BValue[] returns = BRunUtil.invoke(compileResult, "testNilableFuncPtrInvocation");
-        Assert.assertEquals(returns[0].stringValue(), "Bob White");
-    }
-
-    @Test(description = "Test nil-able function pointer invocation")
-    public void testNilableFuncPtrInvocation2() {
-        BValue[] returns = BRunUtil.invoke(compileResult, "testNilableFuncPtrInvocation2");
-        Assert.assertNull(returns[0]);
     }
 
     @Test
@@ -234,13 +222,15 @@ public class ClosedRecordTest {
                                   "mismatched input '|'. expecting {'service', 'function', 'object', 'record', " +
                                           "'abstract', 'client', 'int', 'byte', 'float', 'decimal', 'boolean', " +
                                           "'string', 'error', 'map', 'json', 'xml', 'table', 'stream', 'any', " +
-                                          "'typedesc', 'future', 'anydata', '(', '|}', '*', '@', Identifier}",
+                                          "'typedesc', 'future', 'anydata', " +
+                                          "'handle', '(', '[', '|}', '*', '@', Identifier}",
                                   19, 25);
         BAssertUtil.validateError(result, 5,
                                   "mismatched input '}'. expecting {'service', 'function', 'object', 'record', " +
                                           "'abstract', 'client', 'int', 'byte', 'float', 'decimal', 'boolean', " +
                                           "'string', 'error', 'map', 'json', 'xml', 'table', 'stream', 'any', " +
-                                          "'typedesc', 'future', 'anydata', '(', '-', DecimalIntegerLiteral, " +
+                                          "'typedesc', 'future', 'anydata', " +
+                                          "'handle', '(', '[', '-', DecimalIntegerLiteral, " +
                                           "HexIntegerLiteral, HexadecimalFloatingPointLiteral, " +
                                           "DecimalFloatingPointNumber, BooleanLiteral, QuotedStringLiteral, " +
                                           "Base16BlobLiteral, Base64BlobLiteral, 'null', Identifier}",
@@ -251,13 +241,15 @@ public class ClosedRecordTest {
                                   "mismatched input '|'. expecting {'service', 'function', 'object', 'record', " +
                                           "'abstract', 'client', 'int', 'byte', 'float', 'decimal', 'boolean', " +
                                           "'string', 'error', 'map', 'json', 'xml', 'table', 'stream', 'any', " +
-                                          "'typedesc', 'future', 'anydata', '}', '(', '*', '@', Identifier}",
+                                          "'typedesc', 'future', 'anydata', " +
+                                          "'handle', '}', '(', '[', '*', '@', Identifier}",
                                   25, 25);
         BAssertUtil.validateError(result, 9,
                                   "mismatched input '|'. expecting {'service', 'function', 'object', 'record', " +
                                           "'abstract', 'client', 'int', 'byte', 'float', 'decimal', 'boolean', " +
                                           "'string', 'error', 'map', 'json', 'xml', 'table', 'stream', 'any', " +
-                                          "'typedesc', 'future', 'anydata', '(', '-', DecimalIntegerLiteral, " +
+                                          "'typedesc', 'future', 'anydata', " +
+                                          "'handle', '(', '[', '-', DecimalIntegerLiteral, " +
                                           "HexIntegerLiteral, HexadecimalFloatingPointLiteral, " +
                                           "DecimalFloatingPointNumber, BooleanLiteral, QuotedStringLiteral, " +
                                           "Base16BlobLiteral, Base64BlobLiteral, 'null', Identifier}",
@@ -266,7 +258,8 @@ public class ClosedRecordTest {
                                   "mismatched input '}'. expecting {'service', 'function', 'object', 'record', " +
                                           "'abstract', 'client', 'int', 'byte', 'float', 'decimal', 'boolean', " +
                                           "'string', 'error', 'map', 'json', 'xml', 'table', 'stream', 'any', " +
-                                          "'typedesc', 'future', 'anydata', '(', '-', DecimalIntegerLiteral, " +
+                                          "'typedesc', 'future', 'anydata', " +
+                                          "'handle', '(', '[', '-', DecimalIntegerLiteral, " +
                                           "HexIntegerLiteral, HexadecimalFloatingPointLiteral, " +
                                           "DecimalFloatingPointNumber, BooleanLiteral, QuotedStringLiteral, " +
                                           "Base16BlobLiteral, Base64BlobLiteral, 'null', Identifier}",
@@ -277,15 +270,50 @@ public class ClosedRecordTest {
     @Test(description = "Test ambiguous type resolution negative cases")
     public void testAmbiguityResolutionNegative() {
         CompileResult result = BCompileUtil.compile("test-src/record/closed_record_ambiguous_types_negative.bal");
-        BAssertUtil.validateError(result, 0, "ambiguous type 'InMemoryModeConfig|ServerModeConfig|EmbeddedModeConfig'",
-                                  36, 22);
+        BAssertUtil.validateError(result, 0, "ambiguous type '(InMemoryModeConfig|ServerModeConfig" +
+                        "|EmbeddedModeConfig)'", 36, 22);
     }
 
     @Test(description = "Test invocation of nil-able function pointer fields in a closed record")
     public void testNilableFunctionPtrInvocation() {
         CompileResult result = BCompileUtil.compile("test-src/record/negative/closed_record_nil-able_fn_ptr.bal");
+        String errMsg1 = "function invocation on type 'function (string,string) returns (string)?' is not supported";
+        String errMsg2 = "incompatible types: expected 'string?', found 'other'";
+        int indx = 0;
+        BAssertUtil.validateError(result, indx++, errMsg1, 28, 17);
+        BAssertUtil.validateError(result, indx++, errMsg2, 28, 17);
+        BAssertUtil.validateError(result, indx++, errMsg1, 33, 17);
+        BAssertUtil.validateError(result, indx++, errMsg2, 33, 17);
+        BAssertUtil.validateError(result, indx++, errMsg1, 47, 17);
+        BAssertUtil.validateError(result, indx++, errMsg2, 47, 17);
+        BAssertUtil.validateError(result, indx++, errMsg1, 52, 17);
+        BAssertUtil.validateError(result, indx, errMsg2, 52, 17);
+    }
 
-        BAssertUtil.validateError(result, 0, "incompatible types: expected 'string', found 'string?'", 28, 16);
-        BAssertUtil.validateError(result, 1, "incompatible types: expected 'string', found 'string?'", 33, 16);
+    @Test
+    public void testLiteralsAsMappingConstructorKeys() {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testLiteralsAsMappingConstructorKeys");
+        Assert.assertTrue(((BBoolean) returns[0]).booleanValue());
+    }
+
+    @Test
+    public void testExpressionsAsKeys() {
+        BValue[] returns = BRunUtil.invoke(compileResult, "testExpressionAsKeys");
+        Assert.assertTrue(((BBoolean) returns[0]).booleanValue());
+
+        returns = BRunUtil.invoke(compileResult, "testExpressionAsKeysWithSameKeysDefinedAsLiteralsOrFieldNames");
+        Assert.assertTrue(((BBoolean) returns[0]).booleanValue());
+    }
+
+    @Test
+    public void testInvalidExprsAsRecordLiteralKeys() {
+        CompileResult result = BCompileUtil.compile("test-src/record/closed_record_invalid_key_expr_negative.bal");
+        Assert.assertEquals(result.getErrorCount(), 6);
+        BAssertUtil.validateError(result, 0, "incompatible types: expected 'string', found 'float'", 34, 27);
+        BAssertUtil.validateError(result, 1, "missing non-defaultable required record field 's'", 35, 14);
+        BAssertUtil.validateError(result, 2, "incompatible types: expected 'string', found 'int'", 36, 27);
+        BAssertUtil.validateError(result, 3, "incompatible types: expected 'string', found 'boolean'", 37, 37);
+        BAssertUtil.validateError(result, 4, "missing non-defaultable required record field 's'", 38, 14);
+        BAssertUtil.validateError(result, 5, "incompatible types: expected '(string|int)', found 'error'", 41, 44);
     }
 }

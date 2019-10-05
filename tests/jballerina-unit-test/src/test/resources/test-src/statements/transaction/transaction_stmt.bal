@@ -1,6 +1,6 @@
 public type TrxErrorData record {|
     string message = "";
-    error? cause = ();
+    error cause?;
     string data = "";
 |};
 
@@ -20,7 +20,7 @@ function testTransactionStmt(int i) returns (string) {
     } else {
         a = a + <string>result.reason();
     }
-    a = a + " rc:" + attemptCount + " end";
+    a = a + " rc:" + attemptCount.toString() + " end";
     return a;
 }
 
@@ -30,7 +30,7 @@ function testTransactionStmtHelper1(string status, int i) returns string {
         error err = error(" err" );
         panic err;
     } else if (i < -1) {
-        TrxError err = error(" trxErr", { data: "test" });
+        TrxError err = error(" trxErr", data = "test");
         panic err;
     }
     return a;
@@ -90,7 +90,7 @@ function testOptionalFailedHelper1(int i, string status) returns string {
         error err = error(" err" );
         panic err;
     } else if (i < -1) {
-        TrxError err = error(" trxErr", { data: "test" });
+        TrxError err = error(" trxErr", data = "test");
         panic err;
     }
     return a;
@@ -125,7 +125,7 @@ function testTransactionStmtWithFailedAndNonDefaultRetries(int i) returns (strin
     } else {
         a = a + result.reason();
     }
-    a = a + " rc:" + attemptCount + " end";
+    a = a + " rc:" + attemptCount.toString() + " end";
     return a;
 }
 
@@ -154,7 +154,7 @@ function testTransactionStmtWithFailedAndNonDefaultRetriesHelper2(int i, string 
         error err = error(" err" );
         panic err;
     } else if (i < -1) {
-        TrxError err = error(" trxErr", { data: "test" });
+        TrxError err = error(" trxErr", data = "test");
         panic err;
     } else {
         a = a + " success";
@@ -205,7 +205,7 @@ function testTransactionStmtWithConstRetryFailed() returns (string) {
     } else {
         a += result.reason();
     }
-    a = a + " rc:" + attemptCount + " end";
+    a = a + " rc:" + attemptCount.toString() + " end";
     return a;
 }
 
@@ -231,7 +231,7 @@ function testTransactionStmtWithConstRetryFailed2() returns (string) {
     if (result is string) {
         a = result;
     } else {
-        a = a + <string>result.detail().message;
+        a = a + <string>result.detail()["message"];
     }
     a = a + " end";
     return a;

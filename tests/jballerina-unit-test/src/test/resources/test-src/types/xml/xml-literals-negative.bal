@@ -34,7 +34,7 @@ function testRedeclareNamespaces() {
     xmlns "http://sample.com/wso2/d2" as ns3;
     
     if (true) {
-        xmlns "http://sample.com/wso2/a3" as ns0; // Valid scenario since xmlns can be shadowed
+        xmlns "http://sample.com/wso2/a3" as ns0;
     }
 }
 
@@ -44,7 +44,7 @@ function foo() {
 
 function getAttributesFromNonXml() {
     map<any> m = {};
-    string s = m@["foo"];
+    string? s = m@["foo"];
 }
 
 function updateAttributesMap() {
@@ -62,7 +62,7 @@ function undefinedNamespace() {
     if (true) {
         xmlns "http://wso2.com/" as ns0;
     }
-    string s = x@[ns0:foo];
+    string? s = x@[ns0:foo];
 }
 
 function defineEmptyNamespace() {
@@ -71,4 +71,8 @@ function defineEmptyNamespace() {
 
 function testMismatchingElementTags() {
     var x = xml `<book></book12>`;
+}
+
+function dummyFunctionToUseMath() {
+    float f = x:random();
 }

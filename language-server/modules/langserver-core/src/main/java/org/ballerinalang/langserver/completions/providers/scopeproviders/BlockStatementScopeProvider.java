@@ -21,6 +21,8 @@ import org.antlr.v4.runtime.Token;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.compiler.LSContext;
 import org.ballerinalang.langserver.completions.CompletionKeys;
+import org.ballerinalang.langserver.completions.providers.contextproviders.IfWhileConditionContextProvider;
+import org.ballerinalang.langserver.completions.providers.contextproviders.InvocationArgsContextProvider;
 import org.ballerinalang.langserver.completions.providers.contextproviders.StatementContextProvider;
 import org.ballerinalang.langserver.completions.spi.LSCompletionProvider;
 import org.eclipse.lsp4j.CompletionItem;
@@ -28,6 +30,7 @@ import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Resolves all items that can appear within the block statement.
@@ -47,22 +50,20 @@ public class BlockStatementScopeProvider extends LSCompletionProvider {
 
     @Override
     public Optional<LSCompletionProvider> getContextProvider(LSContext ctx) {
-        List<CommonToken> lhsTokens = ctx.get(CompletionKeys.LHS_TOKENS_KEY);
-        if (lhsTokens == null || lhsTokens.isEmpty()) {
+        List<CommonToken> lhsDefaultTokens = ctx.get(CompletionKeys.LHS_TOKENS_KEY).stream()
+                .filter(commonToken -> commonToken.getChannel() == Token.DEFAULT_CHANNEL)
+                .collect(Collectors.toList());
+        if (ctx.get(CompletionKeys.IN_INVOCATION_PARAM_CONTEXT_KEY) != null
+                && ctx.get(CompletionKeys.IN_INVOCATION_PARAM_CONTEXT_KEY)) {
+            return Optional.ofNullable(this.getProvider(InvocationArgsContextProvider.class));
+        }
+        if (ctx.get(CompletionKeys.IN_CONDITION_CONTEXT_KEY) != null
+                && ctx.get(CompletionKeys.IN_CONDITION_CONTEXT_KEY)) {
+            return Optional.ofNullable(this.getProvider(IfWhileConditionContextProvider.class));
+        }
+        if (lhsDefaultTokens.isEmpty()) {
             // Within the block statement and no syntax error
             return Optional.ofNullable(this.getProvider(StatementContextProvider.class));
-        }
-        int lastLHSTokenIndex = -1;
-
-        for (int i = lhsTokens.size() - 1; i >= 0; i--) {
-            if (lhsTokens.get(i).getChannel() == Token.DEFAULT_CHANNEL) {
-                lastLHSTokenIndex = i;
-                break;
-            }
-        }
-
-        if (lastLHSTokenIndex == -1) {
-            return Optional.empty();
         }
         /*
         Statement context, since the assign token has been handled from the previous condition

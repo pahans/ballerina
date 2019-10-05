@@ -17,29 +17,82 @@
  */
 package org.ballerinalang.jvm.values;
 
+import org.ballerinalang.jvm.commons.TypeValuePair;
+import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.util.exceptions.BLangFreezeException;
+import org.ballerinalang.jvm.util.exceptions.BLangRuntimeException;
 import org.ballerinalang.jvm.util.exceptions.BallerinaException;
 import org.ballerinalang.jvm.values.freeze.State;
 import org.ballerinalang.jvm.values.freeze.Status;
+import org.ballerinalang.jvm.values.utils.StringUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 
 /**
+ * <p>
  * Interface to be implemented by all the reference types.
+ * </p>
+ * <p>
+ * <i>Note: This is an internal API and may change in future versions.</i>
+ * </p>
  * 
  * @since 0.995.0
  */
 public interface RefValue {
 
+    default String stringValue() {
+        return stringValue(null);
+    }
+
+    /**
+     * Returns the string presentation of the value on which the method is called. This is used only by ArrayValue
+     * and MapValueImpl.
+     * @param strand The strand on which the stringValue method is called
+     * @return String representation of value
+     */
+    default String stringValue(Strand strand) {
+        throw new BallerinaException("'stringValue(Strand strand)' not allowed on '" + getType() + "'");
+    }
+
     BType getType();
 
-    void stamp(BType type);
+    default void stamp(BType type, List<TypeValuePair> unresolvedValues) {
+        throw new BLangRuntimeException("'constructFrom()' not allowed on '" + getType() + "'");
+    }
 
+    /**
+     * Method to perform a deep copy, recursively copying all structural values and their members.
+     *
+     * @param refs The map which keep track of the references of already cloned values in cycles
+     *
+     * @return  A new copy of the value
+     */
     Object copy(Map<Object, Object> refs);
+
+    /**
+     * Method to performs a deep copy, recursively copying all structural values and their members but the created
+     * clone is a read-only value.
+     *
+     * @param refs The map which keep track of the references of already cloned values in cycles
+     *
+     * @return  A new copy of the value
+     */
+    Object frozenCopy(Map<Object, Object> refs);
+
+    /**
+     * Method to returns an integer representing the number of items that a value contains, where the meaning of item
+     * depends on the basic type of value.
+     *
+     * @return  Length of the given value
+     */
+    default int size() {
+        return -1;
+    }
 
     /**
      * Method to retrieve if the {@link RefValue} is frozen, if applicable. Compile time checks ensure
@@ -58,7 +111,15 @@ public interface RefValue {
      *            freeze result of this attempt
      */
     default void attemptFreeze(Status freezeStatus) {
-        throw new BLangFreezeException("freeze not allowed on '" + getType() + "'");
+        throw new BLangFreezeException("'freeze()' not allowed on '" + getType() + "'");
+    }
+
+    /**
+     * Sets the freeze status of {@link RefValue}, to disallow further modification. This method does not check if
+     * the {@link RefValue} is in the middle of freezing by another process.
+     */
+     default void freezeDirect() {
+        throw new BLangFreezeException("'freezeDirect()' not allowed on '" + getType() + "'");
     }
 
     /**
@@ -97,7 +158,7 @@ public interface RefValue {
      */
     default void serialize(OutputStream outputStream) {
         try {
-            outputStream.write(this.toString().getBytes(Charset.defaultCharset()));
+            outputStream.write(StringUtils.getJsonString(this).getBytes(Charset.defaultCharset()));
         } catch (IOException e) {
             throw new BallerinaException("error occurred while serializing data", e);
         }

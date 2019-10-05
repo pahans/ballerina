@@ -18,9 +18,7 @@
 
 package org.ballerinalang.stdlib.filepath.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.model.values.BBoolean;
+import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.stdlib.filepath.Constants;
 import org.ballerinalang.stdlib.filepath.Utils;
@@ -42,14 +40,11 @@ import java.util.regex.PatternSyntaxException;
         functionName = "matches",
         isPublic = true
 )
-public class Matches extends BlockingNativeCallableUnit {
+public class Matches {
 
     private static final String GLOB_SYNTAX_FLAVOR = "glob:";
 
-    @Override
-    public void execute(Context context) {
-        String inputPath = context.getStringArgument(0);
-        String pattern = context.getStringArgument(1);
+    public static Object matches(Strand strand, String inputPath, String pattern) {
         FileSystem fs = FileSystems.getDefault();
         PathMatcher matcher;
         try {
@@ -59,13 +54,11 @@ public class Matches extends BlockingNativeCallableUnit {
                 matcher = fs.getPathMatcher(pattern);
             }
         } catch (PatternSyntaxException ex) {
-            context.setReturnValues(Utils.getPathError("INVALID_PATTERN", ex));
-            return;
+            return Utils.getPathError(Constants.INVALID_PATTERN_ERROR, "Invalid pattern " + pattern);
         }
         if (inputPath == null) {
-            context.setReturnValues(new BBoolean(Boolean.FALSE));
-            return;
+            return false;
         }
-        context.setReturnValues(new BBoolean(matcher.matches(Paths.get(inputPath))));
+        return matcher.matches(Paths.get(inputPath));
     }
 }

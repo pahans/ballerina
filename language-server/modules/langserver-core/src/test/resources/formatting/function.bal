@@ -20,31 +20,45 @@ function name4(   string s,float i) {}
 # test annotation
 function name5() {}
 
-     public       function main(   string... args){}
+     public       function    main(   string... args){}
 
-function name6(int a,string... i){}
+function   name6(int a,string... i){}
 
-function name7()returns int{
+function   name7()returns int{
 return 0;
 }
 
-function name8()returns (int,string){
-return ( 0,"");
+function     name8()returns [int,string]{
+return [ 0,""];
 }
 
-function name9() returns ( Person ) {
+function   name9() returns ( Person ) {
     return { name:"" };
 }
 
-   private      function name10() {
+         function name10() {
 
 }
 
-          function name11()=external   ;
+function name14(   int i,   string name="john" ,  string...  rest){
 
-      public       function name12()     =    external ;
+}
 
-    private      function name13()
-    =
-    external
-    ;
+function name15(  int i , string name = "john",  string...  rest ) {
+
+}
+
+function name16(  int i, string name = "john",int id=0 ,    string ...    rest) {
+
+}
+
+function name17(int i,string name = "john",
+                   int id = 0, string... rest) {
+
+}
+
+   function name18()=    @ java : Method    {name: "dfadfa",
+class: "a.b.Foo"
+   }    external  ;
+
+    function name19() =  @ java : Method  {   name :  "dfadfa",class:"a.b.Foo"   }   external;

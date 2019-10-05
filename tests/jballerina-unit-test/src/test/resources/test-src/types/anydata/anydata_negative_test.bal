@@ -36,7 +36,6 @@ function testInvalidAssignmentsWithLiterals() {
     anydata adrl = {a: 15};
     anydata adcrl = {ca: 30};
     anydata adjl = { name: "apple", color: "red", price: 40 };
-    anydata adtupl = (123, 23.45, "hello world!");
     // TODO: Enable the below scenario after https://github.com/ballerina-platform/ballerina-lang/issues/10914 is fixed
     // anydata adtl = table {
     //                        { primarykey id, name, salary },
@@ -63,10 +62,10 @@ function testInvalidMapAssignments() {
     map<function (string) returns boolean> mfp = {};
     ad = mfp;
 
-    map<typedesc> mtd = {};
+    map<typedesc<any>> mtd = {};
     ad = mtd;
 
-    map<stream<any>> mst = {};
+    map<stream<anydata>> mst = {};
     ad = mst;
 
     map<any[]> mar = {};
@@ -78,10 +77,10 @@ function testInvalidMapAssignments() {
     map<Foo> mr = {};
     ad = mr;
 
-    map<(DataType, string)> mtup = {};
+    map<[DataType, string]> mtup = {};
     ad = mtup;
 
-    map<((DataType, string), Bar)> mtup2 = {};
+    map<[[DataType, string], Bar]> mtup2 = {};
     ad = mtup2;
 
     map<DataType> mu = {};
@@ -100,10 +99,10 @@ function testInvalidArrayAssignments() {
     any[] aa = [];
     ad = aa;
 
-    typedesc[] atd = [];
+    typedesc<any>[] atd = [];
     ad = atd;
 
-    stream<any>?[] ast = [];
+    stream<anydata>?[] ast = [];
     ad = ast;
 
     any[][] a2a = [];
@@ -121,7 +120,7 @@ function testInvalidArrayAssignments() {
     DataType[] au = [];
     ad = au;
 
-    ((DataType, string), int, float)[] atup = [];
+    [[DataType, string], int, float][] atup = [];
     ad = atup;
 }
 
@@ -131,13 +130,13 @@ function testInvalidUnionAssignments() {
 }
 
 function testInvalidTupleAssignments() {
-    (int, float, Bar) t1 = (10, 23.45, new Bar());
+    [int, float, Bar] t1 = [10, 23.45, new Bar()];
     anydata ad = t1;
 
-    (DataType, int) t2 = ("hello world!", 10);
+    [DataType, int] t2 = ["hello world!", 10];
     ad = t2;
 
-    ((DataType, int), string, int) t3 = (("hello world!", 10), "foo", 20);
+    [[DataType, int], string, int] t3 = [["hello world!", 10], "foo", 20];
     ad = t3;
 }
 
@@ -146,7 +145,7 @@ function testInvalidMapInsertions() {
     m["bar"] = new Bar();
 
     DataType dt = "hello world!";
-    m.datatype = dt;
+    m["datatype"] = dt;
 }
 
 function testErrorAsAnydata() {

@@ -17,8 +17,6 @@
 package io.ballerina.plugins.idea.preloading;
 
 import org.apache.commons.compress.utils.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -27,9 +25,7 @@ import java.nio.charset.Charset;
 /**
  * Launcher Terminator Implementation for Unix.
  */
-public class TerminatorUnix implements Terminator {
-    private final String processIdentifier = "org.ballerinalang.langserver.launchers.stdio.Main";
-    private static final Logger LOGGER = LoggerFactory.getLogger(TerminatorUnix.class);
+public class TerminatorUnix extends Terminator {
 
     /**
      * Get find process command.
@@ -45,12 +41,16 @@ public class TerminatorUnix implements Terminator {
         return cmd;
     }
 
-    /**
-     * Terminate running ballerina program.
-     */
     public void terminate() {
-        int processID;
-        String[] findProcessCommand = getFindProcessCommand(processIdentifier);
+        terminate(LS_PROCESS_ID);
+        terminate(DEBUG_PROCESS_ID);
+    }
+
+    /**
+     * Terminates a given ballerina process.
+     */
+    private void terminate(String processName) {
+        String[] findProcessCommand = getFindProcessCommand(processName);
         BufferedReader reader = null;
         try {
             Process findProcess = Runtime.getRuntime().exec(findProcessCommand);
@@ -60,7 +60,7 @@ public class TerminatorUnix implements Terminator {
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
-                    processID = Integer.parseInt(line);
+                    int processID = Integer.parseInt(line);
                     killChildProcesses(processID);
                     kill(processID);
                 } catch (Throwable e) {
@@ -68,7 +68,7 @@ public class TerminatorUnix implements Terminator {
                 }
             }
         } catch (Throwable e) {
-            LOGGER.error("Launcher was unable to find the process ID for " + processIdentifier + ".");
+            LOGGER.error("Launcher was unable to find the process ID for " + processName + ".");
         } finally {
             if (reader != null) {
                 IOUtils.closeQuietly(reader);
@@ -81,8 +81,8 @@ public class TerminatorUnix implements Terminator {
      *
      * @param pid - process id
      */
-    public void kill(int pid) {
-        //todo need to put aditional validation
+    void kill(int pid) {
+        //Todo - need to put additional validation
         if (pid < 0) {
             return;
         }

@@ -18,13 +18,10 @@
 
 package org.ballerinalang.stdlib.socket.endpoint.tcp.client;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BInteger;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.stdlib.socket.SocketConstants;
@@ -53,33 +50,30 @@ import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_PACKAGE;
         receiver = @Receiver(type = TypeKind.OBJECT, structType = CLIENT, structPackage = SOCKET_PACKAGE),
         isPublic = true
 )
-public class Write extends BlockingNativeCallableUnit {
+public class Write {
     private static final Logger log = LoggerFactory.getLogger(Write.class);
 
-    @Override
-    public void execute(Context context) {
-        BMap<String, BValue> clientEndpoint = (BMap<String, BValue>) context.getRefArgument(0);
-        final SocketChannel socketChannel = (SocketChannel) clientEndpoint.getNativeData(SocketConstants.SOCKET_KEY);
-        BValueArray content = (BValueArray) context.getRefArgument(1);
+    public static Object write(Strand strand, ObjectValue client, ArrayValue content) {
+        final SocketChannel socketChannel = (SocketChannel) client.getNativeData(SocketConstants.SOCKET_KEY);
         byte[] byteContent = content.getBytes();
         if (log.isDebugEnabled()) {
-            log.debug("No of byte going to write[" + socketChannel.hashCode() + "]: " + byteContent.length);
+            log.debug(String.format("No of byte going to write[%d]: %d", socketChannel.hashCode(), byteContent.length));
         }
         ByteBuffer buffer = ByteBuffer.wrap(byteContent);
         int write;
         try {
             write = socketChannel.write(buffer);
             if (log.isDebugEnabled()) {
-                log.debug("No of byte written for the client[" + socketChannel.hashCode() + "]: " + write);
+                log.debug(String.format("No of byte written for the client[%d]: %d", socketChannel.hashCode(), write));
             }
-            context.setReturnValues(new BInteger(write));
+            return (long) write;
         } catch (ClosedChannelException e) {
-            context.setReturnValues(SocketUtils.createSocketError(context, "Client socket close already."));
+            return SocketUtils.createSocketError("client socket close already.");
         } catch (IOException e) {
-            context.setReturnValues(SocketUtils.createSocketError(context, "Write failed."));
             log.error("Unable to perform write[" + socketChannel.hashCode() + "]", e);
+            return SocketUtils.createSocketError("write failed. " + e.getMessage());
         } catch (NotYetConnectedException e) {
-            context.setReturnValues(SocketUtils.createSocketError(context, "Client socket not connected yet."));
+            return SocketUtils.createSocketError("client socket not connected yet.");
         }
     }
 }

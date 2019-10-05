@@ -23,6 +23,7 @@ function singleFlush () returns string {
     return append;
 }
 
+string append1 = "";
 function flushReturn() returns error? {
     worker w1 returns error? {
             int a = 10;
@@ -30,14 +31,14 @@ function flushReturn() returns error? {
             a -> w2;
             error? result = flush w2;
             foreach var i in 1 ... 5 {
-                append = append + "w1";
+                append1 = append1 + "w1";
             }
             return result;
         }
 
         worker w2 {
             foreach var i in 1 ... 5 {
-                append = append + "w2";
+                append1 = append1 + "w2";
             }
             int b;
             b = <- w1;
@@ -64,7 +65,7 @@ function flushAll() returns string {
 
         worker w2 returns error?{
             if(false){
-                 error err = error("err", { message: "err msg" });
+                 error err = error("err", message = "err msg");
                  return err;
             }
             runtime:sleep(5);
@@ -106,7 +107,7 @@ function errorTest() returns error? {
 
         worker w2 returns error?{
             if(false){
-                 error err = error("err", { message: "err msg" });
+                 error err = error("err", message = "err msg");
                  return err;
             }
             runtime:sleep(5);
@@ -128,8 +129,7 @@ function errorTest() returns error? {
             }
             if(k>3) {
                 map<string> reason = { k1: "error3" };
-                map<string> details = { message: "msg3" };
-                    error er3 = error(reason.k1, details);
+                    error er3 = error(reason.get("k1"),  message = "msg3");
                     return er3;
                 }
 
@@ -158,7 +158,7 @@ function panicTest() returns error? {
 
         worker w2 returns error?{
             if(false){
-                 error err = error("err", { message: "err msg" });
+                 error err = error("err", message = "err msg");
                  return err;
             }
             runtime:sleep(5);
@@ -180,8 +180,7 @@ function panicTest() returns error? {
             }
             if(k>3) {
                 map<string> reason = { k1: "error3" };
-                map<string> details = { message: "msg3" };
-                    error er3 = error(reason.k1, details);
+                    error er3 = error(reason.get("k1"), message = "msg3");
                     panic er3;
                 }
 
@@ -199,7 +198,7 @@ function flushInDefaultError() returns error? {
      int a = 0;
      int b = 15;
      if (true) {
-       error err = error("err", { message: "err msg" });
+       error err = error("err", message = "err msg");
               return err;
      }
      a = <- default;

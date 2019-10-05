@@ -18,8 +18,10 @@
 
 package org.ballerinalang.stdlib.task.utils;
 
-import static org.ballerinalang.util.BLangConstants.BALLERINA_BUILTIN_PKG_PREFIX;
-import static org.ballerinalang.util.BLangConstants.BALLERINA_PACKAGE_PREFIX;
+import org.ballerinalang.jvm.types.BPackage;
+
+import static org.ballerinalang.jvm.util.BLangConstants.BALLERINA_BUILTIN_PKG_PREFIX;
+import static org.ballerinalang.jvm.util.BLangConstants.BALLERINA_PACKAGE_PREFIX;
 
 /**
  * Task related constants.
@@ -30,11 +32,12 @@ public class TaskConstants {
     public static final String ORGANIZATION_NAME = BALLERINA_BUILTIN_PKG_PREFIX;
     public static final String PACKAGE_NAME = "task";
     public static final String OBJECT_NAME_LISTENER = "Listener";
-    public static final String PACKAGE_STRUCK_NAME = BALLERINA_PACKAGE_PREFIX + PACKAGE_NAME;
+    public static final String TASK_PACKAGE_NAME = BALLERINA_PACKAGE_PREFIX + PACKAGE_NAME;
+    public static final BPackage TASK_PACKAGE_ID = new BPackage(BALLERINA_BUILTIN_PKG_PREFIX, PACKAGE_NAME);
 
     // Record types used
     public static final String RECORD_TIMER_CONFIGURATION = "TimerConfiguration";
-    public static final String RECORD_APPOINTMENT_DATA = "AppointmentData";
+    static final String RECORD_APPOINTMENT_DATA = "AppointmentData";
 
     // Member names used in records
     public static final String MEMBER_LISTENER_CONFIGURATION = "listenerConfiguration";
@@ -50,26 +53,22 @@ public class TaskConstants {
     public static final String FIELD_NO_OF_RUNS = "noOfRecurrences";
 
     // Fields used in TimerConfiguration
-    public static final String FIELD_INTERVAL = "interval";
-    public static final String FIELD_DELAY = "initialDelay";
+    public static final String FIELD_INTERVAL = "intervalInMillis";
+    public static final String FIELD_DELAY = "initialDelayInMillis";
 
     // Fields used in AppointmentData
-    public static final String FIELD_SECONDS = "seconds";
-    public static final String FIELD_MINUTES = "minutes";
-    public static final String FIELD_HOURS = "hours";
-    public static final String FIELD_DAYS_OF_MONTH = "daysOfMonth";
-    public static final String FIELD_MONTHS = "months";
-    public static final String FIELD_DAYS_OF_WEEK = "daysOfWeek";
-    public static final String FIELD_YEAR = "year";
+    static final String FIELD_SECONDS = "seconds";
+    static final String FIELD_MINUTES = "minutes";
+    static final String FIELD_HOURS = "hours";
+    static final String FIELD_DAYS_OF_MONTH = "daysOfMonth";
+    static final String FIELD_MONTHS = "months";
+    static final String FIELD_DAYS_OF_WEEK = "daysOfWeek";
+    static final String FIELD_YEAR = "year";
 
     // Fields related to TaskError record
-    public static final String TASK_ERROR_CODE = "{ballerina/task}TaskError";
-    public static final String TASK_ERROR_RECORD = "TaskError";
-    public static final String TASK_ERROR_MESSAGE = "message";
-
-    // Indexes for different fields in the context.
-    public static final int REF_ARG_INDEX_TASK_RECORD = 0;
-    public static final int REF_ARG_INDEX_TASK_SERVICE = 2;
+    public static final String SCHEDULER_ERROR_REASON = "{ballerina/task}SchedulerError";
+    static final String LISTENER_ERROR_REASON = "{ballerina/task}ListenerError";
+    static final String DETAIL_RECORD_NAME = "Detail";
 
     // Fields used in Appointment job map
     public static final String TASK_OBJECT = "ballerina.task";
@@ -83,9 +82,12 @@ public class TaskConstants {
     public static final String QUARTZ_THREAD_COUNT = "org.quartz.threadPool.threadCount";
     public static final String QUARTZ_THREAD_POOL_CLASS = "org.quartz.threadPool.class";
     public static final String QUARTZ_JOB_STORE_CLASS = "org.quartz.jobStore.class";
+    public static final String QUARTZ_MISFIRE_THRESHOLD = "org.quartz.jobStore.misfireThreshold";
 
     // Quartz property values
-    public static final String QUARTZ_THREAD_COUNT_VALUE = "1";
+    public static final String QUARTZ_THREAD_COUNT_VALUE = "10";
+    // Defines how late the trigger should be to be considered misfired
+    public static final String QUARTZ_MISFIRE_THRESHOLD_VALUE = "5000";
     public static final String QUARTZ_THREAD_POOL_CLASS_VALUE = "org.quartz.simpl.SimpleThreadPool";
     public static final String QUARTZ_JOB_STORE_CLASS_VALUE = "org.quartz.simpl.RAMJobStore";
 }

@@ -23,27 +23,27 @@ package org.ballerinalang.jvm.types;
  *
  * @since 0.995.0
  */
-class BByteType extends BType {
+public class BByteType extends BType {
 
     /**
      * Create a {@code BByteType} which represents the byte type.
      *
      * @param typeName string name of the type
      */
-    BByteType(String typeName, String pkgPath) {
-        super(typeName, pkgPath, Byte.class);
+    BByteType(String typeName, BPackage pkg) {
+        super(typeName, pkg, Integer.class);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <V extends Object> V getZeroValue() {
-        return (V) new Byte((byte) 0);
+        return (V) new Integer(0);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <V extends Object> V getEmptyValue() {
-        return (V) new Byte((byte) 0);
+        return (V) new Integer(0);
     }
 
     @Override

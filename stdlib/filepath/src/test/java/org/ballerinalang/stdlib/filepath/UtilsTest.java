@@ -18,15 +18,11 @@
 
 package org.ballerinalang.stdlib.filepath;
 
-import org.ballerinalang.model.values.BError;
+import org.ballerinalang.jvm.values.ErrorValue;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.nio.file.InvalidPathException;
-
-import static org.ballerinalang.stdlib.filepath.Constants.ERROR_REASON_PREFIX;
-import static org.ballerinalang.stdlib.filepath.Utils.UNKNOWN_MESSAGE;
-import static org.ballerinalang.stdlib.filepath.Utils.UNKNOWN_REASON;
 
 /**
  * Test utility functions in path module.
@@ -38,34 +34,33 @@ public class UtilsTest {
     @Test
     public void testGetPathError() {
         InvalidPathException exp = new InvalidPathException("/User/ballerina/path\\test", "Invalid path format");
-        String reason = "INVALID_PATH";
 
         // Get Path error with reason and throwable.
-        BError error1 = Utils.getPathError(reason, exp);
-        Assert.assertEquals(error1.getReason(), ERROR_REASON_PREFIX + reason);
-        Assert.assertEquals(error1.getDetails().stringValue(), "{\"message\":\"Invalid path format: " +
-                "/User/ballerina/path\\test\"}");
+        ErrorValue error1 = Utils.getPathError(Constants.INVALID_PATH_ERROR, exp.getMessage());
+        Assert.assertEquals(error1.getReason(), Constants.INVALID_PATH_ERROR);
+        Assert.assertEquals(error1.getDetails().toString(),
+                "message=Invalid path format: /User/ballerina/path\\test");
 
         // Get Path error without reason.
-        BError error2 = Utils.getPathError(null, exp);
-        Assert.assertEquals(error2.getReason(), ERROR_REASON_PREFIX + UNKNOWN_REASON);
-        Assert.assertEquals(error2.getDetails().stringValue(), "{\"message\":\"Invalid path format: " +
-                "/User/ballerina/path\\test\"}");
+        ErrorValue error2 = Utils.getPathError(null, exp.getMessage());
+        Assert.assertEquals(error2.getReason(), Constants.GENERIC_ERROR);
+        Assert.assertEquals(error2.getDetails().toString(),
+                "message=Invalid path format: /User/ballerina/path\\test");
 
         // Get Path error without throwable.
-        BError error3 = Utils.getPathError(reason, (Throwable) null);
-        Assert.assertEquals(error3.getReason(), ERROR_REASON_PREFIX + reason);
-        Assert.assertEquals(error3.getDetails().stringValue(), "{\"message\":\"" + UNKNOWN_MESSAGE + "\"}");
+        ErrorValue error3 = Utils.getPathError(Constants.INVALID_PATH_ERROR, null);
+        Assert.assertEquals(error3.getReason(), Constants.INVALID_PATH_ERROR);
+        Assert.assertEquals(error3.getDetails().toString(), "message=Unknown Error");
 
         // Get Path error without both reason and throwable.
-        BError error4 = Utils.getPathError(null, (Throwable) null);
-        Assert.assertEquals(error4.getReason(), ERROR_REASON_PREFIX + UNKNOWN_REASON);
-        Assert.assertEquals(error4.getDetails().stringValue(), "{\"message\":\"" + UNKNOWN_MESSAGE + "\"}");
+        ErrorValue error4 = Utils.getPathError(null, null);
+        Assert.assertEquals(error4.getReason(), Constants.GENERIC_ERROR);
+        Assert.assertEquals(error4.getDetails().toString(), "message=Unknown Error");
 
         // Get Path error without throwable message.
         Exception exp2 = new Exception();
-        BError error5 = Utils.getPathError(reason, exp2);
-        Assert.assertEquals(error5.getReason(), ERROR_REASON_PREFIX + reason);
-        Assert.assertEquals(error5.getDetails().stringValue(), "{\"message\":\"" + UNKNOWN_MESSAGE + "\"}");
+        ErrorValue error5 = Utils.getPathError(Constants.INVALID_PATH_ERROR, exp2.getMessage());
+        Assert.assertEquals(error5.getReason(), Constants.INVALID_PATH_ERROR);
+        Assert.assertEquals(error5.getDetails().toString(), "message=Unknown Error");
     }
 }

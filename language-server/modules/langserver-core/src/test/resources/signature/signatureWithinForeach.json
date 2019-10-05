@@ -1,26 +1,44 @@
 {
   "position": {
     "line": 4,
-    "character": 28
+    "character": 27
   },
   "expected": {
     "result": {
       "signatures": [
         {
-          "label": "contains(string substring)",
+          "label": "indexOf(string str, string substr, int startIndex)",
           "documentation": {
             "right": {
               "kind": "markdown",
-              "value": "Returns a Boolean value indicating whether a string contains the specified substring."
+              "value": "Searches for one string in another string."
             }
           },
           "parameters": [
             {
-              "label": "substring",
+              "label": "str",
               "documentation": {
                 "right": {
                   "kind": "markdown",
-                  "value": "The substring to be compared"
+                  "value": "the string in which to search"
+                }
+              }
+            },
+            {
+              "label": "substr",
+              "documentation": {
+                "right": {
+                  "kind": "markdown",
+                  "value": "the string to search for"
+                }
+              }
+            },
+            {
+              "label": "startIndex",
+              "documentation": {
+                "right": {
+                  "kind": "markdown",
+                  "value": "index to start searching from"
                 }
               }
             }
@@ -29,6 +47,9 @@
       ],
       "activeSignature": 0,
       "activeParameter": 0
+    },
+    "id": {
+      "left": "324"
     },
     "jsonrpc": "2.0"
   }

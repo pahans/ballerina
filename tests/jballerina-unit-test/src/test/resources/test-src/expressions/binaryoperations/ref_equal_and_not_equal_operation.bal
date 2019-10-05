@@ -32,7 +32,7 @@ type ClosedEmployee record {|
 type Abc object {
     public string name;
     float salary;
-    private int id;
+    int id;
 
     public function __init (string name, float salary, int id) {
         self.name = name;
@@ -44,7 +44,7 @@ type Abc object {
 type Def object {
     public string name;
     float salary;
-    private int id;
+    int id;
     private int idTwo = 0;
 
     public function __init(string name, float salary, int id) {
@@ -85,7 +85,7 @@ function testOpenRecordRefEqualityPositive() returns boolean {
     OpenEmployee e3 = { name: "Em" };
     OpenEmployee e4 = e3;
 
-    OpenEmployee e5 = { name: "Em", id: 4000, dept: "finance" };
+    OpenEmployee e5 = { name: "Em", id: 4000, "dept": "finance" };
     OpenPerson e6 = e5;
 
     OpenEmployee e7 = {};
@@ -99,8 +99,8 @@ function testOpenRecordRefEqualityNegative() returns boolean {
     OpenEmployee e1 = { name: "Em", id: 4000 };
     OpenEmployee e2 = {};
 
-    OpenEmployee e3 = { name: "Em", area: 51 };
-    OpenEmployee e4 = { name: "Em", area: 51 };
+    OpenEmployee e3 = { name: "Em", "area": 51 };
+    OpenEmployee e4 = { name: "Em", "area": 51 };
 
     OpenEmployee e5 = { name: "Em", id: 4100 };
     OpenEmployee e6 = { name: "Em", id: 4100 };
@@ -185,7 +185,7 @@ function checkMapRefEqualityPositive() returns boolean {
     m1["three"] = 3.0;
     m2 = m1;
 
-    m3.last = "last";
+    m3["last"] = "last";
     m3["a"] = "a";
     m4 = m3;
 
@@ -198,36 +198,36 @@ function checkMapRefEqualityNegative() returns boolean {
 
     boolean equals = m1 === m2 || !(m1 !== m2);
 
-    m1.one = "hi";
-    m2.one = "hi";
+    m1["one"] = "hi";
+    m2["one"] = "hi";
 
     equals = equals && m1 === m2 || !(m1 !== m2);
 
     map<int> m3 = {};
     map<int> m4 = {};
 
-    m3.one = 1;
-    m4.one = 1;
+    m3["one"] = 1;
+    m4["one"] = 1;
 
     return equals || m3 === m4 || !(m4 !== m3);
 }
 
 function checkTupleRefEqualityPositive() returns boolean {
-    (string, int) t1 = ("", 0);
-    (string, int) t2 = t1;
+    [string, int] t1 = ["", 0];
+    [string, int] t2 = t1;
 
-    (string, int, OpenEmployee) t3 = ("hi", 0, { name: "Em" });
-    (string, int, OpenEmployee) t4 = t3;
+    [string, int, OpenEmployee] t3 = ["hi", 0, { name: "Em" }];
+    [string, int, OpenEmployee] t4 = t3;
 
     return t1 === t2 && t3 === t4 && !(t1 !== t2) && !(t3 !== t4);
 }
 
 function checkTupleRefEqualityNegative() returns boolean {
-    (boolean, int) t1 = (false, 0);
-    (boolean, int) t2 = (false, 0);
+    [boolean, int] t1 = [false, 0];
+    [boolean, int] t2 = [false, 0];
 
-    (string, ClosedEmployee) t3 = ("hi", { name: "EmZee" });
-    (string, ClosedEmployee) t4 = ("hi", { name: "Em" });
+    [string, ClosedEmployee] t3 = ["hi", { name: "EmZee" }];
+    [string, ClosedEmployee] t4 = ["hi", { name: "Em" }];
 
     return t1 === t2 || t3 === t4 && !(t1 !== t2) && !(t3 !== t4);
 }
@@ -251,9 +251,9 @@ function checkJsonRefEqualityPositive() returns boolean {
     string[] strArrTwo = strArr;
     equals = equals && isRefEqual(strArrTwo, jArr);
 
-    (string, int) tup = ("hi", 1);
-    (string, int) tup1 = tup;
-    (json, int) jTup = tup;
+    [string, int] tup = ["hi", 1];
+    [string, int] tup1 = tup;
+    [json, int] jTup = tup;
     return equals && isRefEqual(jTup, tup1);
 }
 

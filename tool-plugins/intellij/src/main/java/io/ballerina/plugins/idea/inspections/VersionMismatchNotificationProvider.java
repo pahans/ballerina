@@ -16,9 +16,7 @@
 
 package io.ballerina.plugins.idea.inspections;
 
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManager;
-import com.intellij.openapi.extensions.PluginId;
+import com.google.common.base.Strings;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
@@ -28,10 +26,11 @@ import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.EditorNotificationPanel;
 import com.intellij.ui.EditorNotifications;
+import icons.BallerinaIcons;
 import io.ballerina.plugins.idea.BallerinaFileType;
 import io.ballerina.plugins.idea.sdk.BallerinaSdkService;
+import io.ballerina.plugins.idea.sdk.BallerinaSdkUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Provides wrong module type message if the ballerina file is not in a Ballerina module.
@@ -40,7 +39,6 @@ public class VersionMismatchNotificationProvider extends EditorNotifications.Pro
         implements DumbAware {
 
     private static final Key<EditorNotificationPanel> KEY = Key.create("Plugin Version Mismatch");
-    private static final String BALLERINA_PLUGIN_ID = "io.ballerina";
 
     private final Project myProject;
 
@@ -64,22 +62,32 @@ public class VersionMismatchNotificationProvider extends EditorNotifications.Pro
             return null;
         }
         String sdkVersion = BallerinaSdkService.getInstance(myProject).getSdkVersion(module);
-        String pluginVersion = getBallerinaPluginVersion();
-        if (sdkVersion != null && pluginVersion != null) {
-            if (!getMinorVersion(sdkVersion).equals(getMinorVersion(pluginVersion))) {
-                return createPanel(module, sdkVersion, pluginVersion);
+        String pluginVersion = BallerinaSdkUtils.getBallerinaPluginVersion();
+
+        if (!Strings.isNullOrEmpty(sdkVersion) && !Strings.isNullOrEmpty(pluginVersion)) {
+            // Compares the major and minor version numbers between the ballerina sdk and the plugin.
+            if (!sdkVersion.trim().equals(pluginVersion.trim())) {
+                return createPanel(module, sdkVersion, pluginVersion, false);
+            }
+        } else if (Strings.isNullOrEmpty(sdkVersion)) {
+            // Compares auto-detected ballerina version with the plugin version.
+            String autoDetectedBalHome = BallerinaSdkUtils.autoDetectSdk(myProject);
+            sdkVersion = BallerinaSdkUtils.retrieveBallerinaVersion(autoDetectedBalHome);
+            if (!Strings.isNullOrEmpty(sdkVersion) && !Strings.isNullOrEmpty(pluginVersion)) {
+                // Compares the major and minor version numbers between the auto detected ballerina version and
+                // the plugin.
+                if (!sdkVersion.trim().equals(pluginVersion.trim())) {
+                    return createPanel(module, sdkVersion, pluginVersion, true);
+                }
             }
         }
         return null;
     }
 
-    @Nullable
-    private static String getBallerinaPluginVersion() {
-        IdeaPluginDescriptor balPluginDescriptor = PluginManager.getPlugin(PluginId.getId(BALLERINA_PLUGIN_ID));
-        if (balPluginDescriptor != null) {
-            return balPluginDescriptor.getVersion();
-        }
-        return null;
+
+    @NotNull
+    private String getMajorVersion(@NotNull String version) {
+        return version.contains(".") ? version.replace('-', '.').split("[.]")[0] : "";
     }
 
     @NotNull
@@ -89,11 +97,18 @@ public class VersionMismatchNotificationProvider extends EditorNotifications.Pro
 
     @NotNull
     private static EditorNotificationPanel createPanel(@NotNull Module module, @NotNull String sdkVersion,
-            @NotNull String pluginVersion) {
+                                                       @NotNull String pluginVersion, boolean autoDetected) {
         EditorNotificationPanel panel = new EditorNotificationPanel();
-        panel.setText("Your Ballerina SDK version (" + sdkVersion + ") for the Module '" + module.getName()
-                + "' does not match your Ballerina plugin version (" + pluginVersion + "). Some features may "
-                + "not work properly.");
+        if (autoDetected) {
+            panel.setText(String.format("Auto-detected Ballerina version (%s) for the Module '%s' does not match " +
+                            "your Ballerina plugin version (%s). Some features may not work properly.",
+                    sdkVersion, module.getName(), pluginVersion));
+        } else {
+            panel.setText(String.format("Your Ballerina SDK version (%s) for the Module '%s' does not match " +
+                            "your Ballerina plugin version (%s). Some features may not work properly.",
+                    sdkVersion, module.getName(), pluginVersion));
+        }
+        panel.icon(BallerinaIcons.ICON);
         return panel;
     }
 }

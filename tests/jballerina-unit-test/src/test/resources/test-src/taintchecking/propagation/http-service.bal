@@ -1,4 +1,5 @@
 import ballerina/http;
+import ballerina/log;
 
 listener http:Listener helloWorldEP = new(9090);
 
@@ -8,15 +9,28 @@ service sample on helloWorldEP {
         path:"/path/{foo}"
     }
     resource function params (http:Caller caller, http:Request req, string foo) {
-        map<any> paramsMap = req.getQueryParams();
-        var bar = paramsMap.bar;
+        var bar = req.getQueryParamValue("bar");
 
         secureFunction(foo, foo);
         secureFunction(bar, bar);
     }
+
+    resource function hi(http:Caller caller, http:Request request) {
+        http:Response response = new;
+        var req = request.getJsonPayload();
+        if (req is json) {
+            response.setJsonPayload(req);
+        } else {
+             log:printError("Invalid JSON!");
+        }
+        var result = caller->respond(response);
+        if (result is error) {
+            log:printError("Error sending response", err = result);
+        }
+    }
 }
 
-public function secureFunction (@sensitive any secureIn, any insecureIn) {
+public function secureFunction (@untainted any secureIn, any insecureIn) {
 
 }
 

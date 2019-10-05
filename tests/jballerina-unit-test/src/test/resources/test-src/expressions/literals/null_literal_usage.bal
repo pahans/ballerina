@@ -31,7 +31,7 @@ function testNullInField() returns string? {
 
 function testNullStringRepresentation() returns string|error {
     json j = null;
-    return string.convert(j);
+    return j.toString();
 }
 
 function testNullStringRepresentation2() returns string {
@@ -41,12 +41,12 @@ function testNullStringRepresentation2() returns string {
 
 function testNullStringRepresentation3() returns string|error {
     json j = {name:"John Doe", age:25, location:null};
-    return string.convert(j);
+    return j.toString();
 }
 
 function testNullStringRepresentation4() returns string {
     json j = {name:"John Doe", age:25, location:null};
-    return io:sprintf("%s", j);
+    return io:sprintf("%s", j.toString());
 }
 
 function testNullReturn() returns json {
@@ -66,8 +66,8 @@ function utilFn(json j) returns json {
     return j;
 }
 
-function testNullInATuple() returns (int, json, string) {
-    (int, json, string) tup = (50, null, "foo");
+function testNullInATuple() returns [int, json, string] {
+    [int, json, string] tup = [50, null, "foo"];
     return tup;
 }
 
@@ -89,8 +89,8 @@ function testNullWithMatch() returns string {
     anydata ad = j;
 
     match j {
-        0 => return "0";
-        null => return "null";
+        0 => {return "0";}
+        null => {return "null";}
     }
 
     return "";

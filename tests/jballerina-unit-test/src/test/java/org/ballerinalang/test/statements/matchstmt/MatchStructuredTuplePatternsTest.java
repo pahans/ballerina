@@ -71,7 +71,7 @@ public class MatchStructuredTuplePatternsTest {
 
         BString bString = (BString) returns[0];
 
-        Assert.assertEquals(bString.stringValue(), "Matched Values : S, (23, 5.6)");
+        Assert.assertEquals(bString.stringValue(), "Matched Values : S, 23 5.6");
     }
 
     @Test(description = "Test basics of structured pattern match statement 5")
@@ -104,7 +104,7 @@ public class MatchStructuredTuplePatternsTest {
         Assert.assertEquals(results.getString(++i), msg + "two vars : Hello, 34");
         Assert.assertEquals(results.getString(++i), msg + "four vars : 66.6, Test, 456, true");
         Assert.assertEquals(results.getString(++i), msg + "three vars : 5.6, Ballerina, false");
-        Assert.assertEquals(results.getString(++i), msg + "single var : (\"Bal\", 543, 67.8)");
+        Assert.assertEquals(results.getString(++i), msg + "single var : Bal 543 67.8");
     }
 
     @Test(description = "Test structured pattern match statement complex 2")
@@ -119,7 +119,7 @@ public class MatchStructuredTuplePatternsTest {
         String msg = "Matched with ";
         Assert.assertEquals(results.getString(++i), "Default");
         Assert.assertEquals(results.getString(++i), msg + "two vars : Hello, 34");
-        Assert.assertEquals(results.getString(++i), msg + "three vars : 66.6, Test, (true, 456)");
+        Assert.assertEquals(results.getString(++i), msg + "three vars : 66.6, Test, true 456");
         Assert.assertEquals(results.getString(++i), msg + "three vars : 5.6, Ballerina, false");
     }
 
@@ -137,7 +137,7 @@ public class MatchStructuredTuplePatternsTest {
         Assert.assertEquals(results.getString(++i), msg + "two vars : Hello, 34");
         Assert.assertEquals(results.getString(++i), msg + "four vars : 66.6, Test, 456, true");
         Assert.assertEquals(results.getString(++i), msg + "three vars : 5.6, Ballerina, false");
-        Assert.assertEquals(results.getString(++i), msg + "single var : (\"Bal\", 543, 67.8)");
+        Assert.assertEquals(results.getString(++i), msg + "single var : Bal 543 67.8");
     }
 
 
@@ -153,7 +153,7 @@ public class MatchStructuredTuplePatternsTest {
         String msg = "Matched with ";
         Assert.assertEquals(results.getString(++i), "Default");
         Assert.assertEquals(results.getString(++i), msg + "two vars : Hello, 34");
-        Assert.assertEquals(results.getString(++i), msg + "three vars : 66.6, Test, (true, 456)");
+        Assert.assertEquals(results.getString(++i), msg + "three vars : 66.6, Test, true 456");
         Assert.assertEquals(results.getString(++i), msg + "three vars : 5.6, Ballerina, false");
     }
 
@@ -220,13 +220,13 @@ public class MatchStructuredTuplePatternsTest {
         int i = -1;
         String msg = "Matched with ";
         Assert.assertEquals(results.getString(++i), msg +
-                "FooRec and BarRec : {s:\"S\", i:23, f:5.6} , {b:12, f:{s:\"S\", i:23, f:5.6}}");
-        Assert.assertEquals(results.getString(++i), msg + "FooRec and float : {s:\"S\", i:23, f:5.6} , 4.5");
+                "FooRec and BarRec : s=S i=23 f=5.6 , b=12 f=s=S i=23 f=5.6");
+        Assert.assertEquals(results.getString(++i), msg + "FooRec and float : s=S i=23 f=5.6 , 4.5");
         Assert.assertEquals(results.getString(++i), msg +
-                "BarRec and FooRec : {b:12, f:{s:\"S\", i:23, f:5.6}} , {s:\"S\", i:23, f:5.6}");
-        Assert.assertEquals(results.getString(++i), msg + "BarRec and int : {b:12, f:{s:\"S\", i:23, f:5.6}} , 543");
-        Assert.assertEquals(results.getString(++i), msg + "float and FooRec : 5.2 , {s:\"S\", i:23, f:5.6}");
-        Assert.assertEquals(results.getString(++i), msg + "int and BarRec : 15 , {b:12, f:{s:\"S\", i:23, f:5.6}}");
+                "BarRec and FooRec : b=12 f=s=S i=23 f=5.6 , s=S i=23 f=5.6");
+        Assert.assertEquals(results.getString(++i), msg + "BarRec and int : b=12 f=s=S i=23 f=5.6 , 543");
+        Assert.assertEquals(results.getString(++i), msg + "float and FooRec : 5.2 , s=S i=23 f=5.6");
+        Assert.assertEquals(results.getString(++i), msg + "int and BarRec : 15 , b=12 f=s=S i=23 f=5.6");
         Assert.assertEquals(results.getString(++i), "Default");
         Assert.assertEquals(results.getString(++i), "Default");
     }
@@ -247,6 +247,22 @@ public class MatchStructuredTuplePatternsTest {
         Assert.assertEquals(results.getString(++i), msg + "boolean : 678, false");
         Assert.assertEquals(results.getString(++i), msg + "int : 876");
         Assert.assertEquals(results.getString(++i), "Default");
+    }
+
+    @Test(description = "Test structured pattern match with empty tuple")
+    public void testStructuredMatchPatternWithEmptyTuple() {
+        BValue[] returns = BRunUtil.invoke(result, "testStructuredMatchPatternWithEmptyTuple", new BValue[]{});
+        Assert.assertEquals(returns.length, 1);
+        Assert.assertSame(returns[0].getClass(), BValueArray.class);
+        BValueArray results = (BValueArray) returns[0];
+
+        int i = -1;
+        String msg = "Matched with ";
+        Assert.assertEquals(results.getString(++i), msg + "empty array");
+        Assert.assertEquals(results.getString(++i), msg + "i: 1");
+        Assert.assertEquals(results.getString(++i), msg + "i: 1, j: 2");
+        Assert.assertEquals(results.getString(++i), msg + "i: 1, j: 2, k: 3");
+        Assert.assertEquals(results.getString(++i), msg + "default");
     }
 
 }

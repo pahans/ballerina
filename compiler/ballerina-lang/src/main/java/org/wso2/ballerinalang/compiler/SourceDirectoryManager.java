@@ -17,16 +17,22 @@
  */
 package org.wso2.ballerinalang.compiler;
 
+import org.ballerinalang.compiler.BLangCompilerException;
 import org.ballerinalang.compiler.CompilerOptionName;
 import org.ballerinalang.model.elements.PackageID;
+import org.ballerinalang.toml.exceptions.TomlException;
 import org.ballerinalang.toml.model.Manifest;
 import org.ballerinalang.toml.parser.ManifestProcessor;
 import org.wso2.ballerinalang.compiler.util.CompilerContext;
 import org.wso2.ballerinalang.compiler.util.CompilerOptions;
 import org.wso2.ballerinalang.compiler.util.Name;
 import org.wso2.ballerinalang.compiler.util.Names;
+import org.wso2.ballerinalang.compiler.util.ProjectDirConstants;
 import org.wso2.ballerinalang.compiler.util.ProjectDirs;
+import org.wso2.ballerinalang.util.RepoUtils;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -66,19 +72,22 @@ public class SourceDirectoryManager {
         List<String> sourceFileNames = this.sourceDirectory.getSourceFileNames();
         List<String> packageNames = this.sourceDirectory.getSourcePackageNames();
         return Stream.concat(sourceFileNames.stream().map(this::getPackageID),
-                             packageNames.stream().map(this::getPackageID)
+                packageNames.stream().map(this::getPackageID)
         );
     }
 
     private Manifest getManifest() {
-        Manifest manifest;
-        if (sourceDirectory.getManifestContent() == null) {
-            manifest = new Manifest();
-        } else {
-            manifest = ManifestProcessor.parseTomlContentAsStream(sourceDirectory.getManifestContent());
+        Manifest manifest = new Manifest();
+        try {
+            if (sourceDirectory instanceof FileSystemProjectDirectory) {
+                manifest = ManifestProcessor.parseTomlContentAsStream(sourceDirectory.getManifestContent());
+            }
+        } catch (TomlException tomlException) {
+            throw new BLangCompilerException(tomlException.getMessage());
         }
-        if (manifest.getVersion().isEmpty()) {
-            manifest.setVersion(Names.DEFAULT_VERSION.getValue());
+        
+        if (manifest.getProject().getVersion().isEmpty()) {
+            manifest.getProject().setVersion(Names.DEFAULT_VERSION.getValue());
         }
         return manifest;
     }
@@ -87,7 +96,7 @@ public class SourceDirectoryManager {
         List<String> sourceFileNames = this.sourceDirectory.getSourceFileNames();
         Manifest manifest = getManifest();
         Name orgName = getOrgName(manifest);
-        Name version = new Name(manifest.getVersion());
+        Name version = new Name(manifest.getProject().getVersion());
 
         //Check for built-in packages
         if (orgName.equals(Names.BUILTIN_ORG)) {
@@ -96,9 +105,6 @@ public class SourceDirectoryManager {
 
         //Check for source files
         if (sourceFileNames.contains(sourcePackage)) {
-            if (manifest.getName() != null && !manifest.getName().isEmpty()) {
-                return new PackageID(orgName, sourcePackage, version);
-            }
             return new PackageID(sourcePackage);
         }
 
@@ -114,33 +120,81 @@ public class SourceDirectoryManager {
     // private methods
 
     private SourceDirectory initializeAndGetSourceDirectory(CompilerContext context) {
-        SourceDirectory srcDirectory = context.get(SourceDirectory.class);
-        if (srcDirectory != null) {
+        try {
+            SourceDirectory srcDirectory = context.get(SourceDirectory.class);
+            if (srcDirectory != null) {
+                return srcDirectory;
+            }
+        
+            String srcDirPathName = options.get(CompilerOptionName.PROJECT_DIR);
+            if (srcDirPathName == null || srcDirPathName.isEmpty()) {
+                throw new IllegalArgumentException("invalid project directory path");
+            }
+        
+            Path sourceRoot = Paths.get(srcDirPathName);
+        
+            if (Files.notExists(sourceRoot)) {
+                throw new BLangCompilerException("'" + sourceRoot + "' project directory does not exist.");
+            }
+        
+            if (!Files.isDirectory(sourceRoot)) {
+                throw new BLangCompilerException("'" + sourceRoot + "' project directory does not exist.");
+            }
+        
+            if (Files.isSymbolicLink(sourceRoot)) {
+                throw new BLangCompilerException("'" + sourceRoot + "' project directory is symlink.");
+            }
+        
+            if (!Files.isWritable(sourceRoot)) {
+                throw new BLangCompilerException("'" + sourceRoot + "' is not writable.");
+            }
+        
+            sourceRoot = sourceRoot.normalize().toAbsolutePath();
+        
+            String sourceType = options.get(CompilerOptionName.SOURCE_TYPE);
+            if (null != sourceType) {
+                switch (sourceType) {
+                    case "SINGLE_BAL_FILE":
+                        srcDirectory = new FileSystemProgramDirectory(sourceRoot);
+                        break;
+                    case "SINGLE_MODULE":
+                    case "ALL_MODULES":
+                        // if src folder is missing
+                        if (Files.notExists(sourceRoot.resolve(ProjectDirConstants.SOURCE_DIR_NAME))) {
+                            throw new BLangCompilerException("cannot find module(s) to build/compile as 'src' " +
+                                                             "directory is missing. modules should be placed inside " +
+                                                             "an 'src' directory of the project.");
+                        }
+                        srcDirectory = new FileSystemProjectDirectory(sourceRoot);
+                        break;
+                    default:
+                }
+            } else {
+                // resort to 'canHandle'
+                srcDirectory = new FileSystemProjectDirectory(sourceRoot);
+                if (!srcDirectory.canHandle(sourceRoot)) {
+                    srcDirectory = new FileSystemProgramDirectory(sourceRoot);
+                }
+            }
+        
+            // validate Ballerina.toml
+            if (srcDirectory instanceof FileSystemProjectDirectory) {
+                Path manifestPath = sourceRoot.resolve(ProjectDirConstants.MANIFEST_FILE_NAME);
+                ManifestProcessor.parseTomlContentFromFile(manifestPath);
+            }
+        
+            context.put(SourceDirectory.class, srcDirectory);
             return srcDirectory;
+        } catch (IOException e) {
+            throw new BLangCompilerException("error occurred in finding manifest");
+        } catch (TomlException tomlException) {
+            throw new BLangCompilerException(tomlException.getMessage());
         }
-
-        String srcDirPathName = options.get(CompilerOptionName.PROJECT_DIR);
-        if (srcDirPathName == null || srcDirPathName.isEmpty()) {
-            throw new IllegalArgumentException("invalid project directory path");
-        }
-
-        Path projectDirPath = Paths.get(srcDirPathName);
-        // TODO Validate projectDirPath, exists, get Absolute path etc. no simlinks
-        // TODO Validate the project directory
-        // TODO Check whether it is a directory and it exists.
-        // TODO to real path.. isReadable isWritable etc..
-        srcDirectory = new FileSystemProjectDirectory(projectDirPath);
-        if (!srcDirectory.canHandle(projectDirPath)) {
-            srcDirectory = new FileSystemProgramDirectory(projectDirPath);
-        }
-
-        context.put(SourceDirectory.class, srcDirectory);
-        return srcDirectory;
     }
 
     private Name getOrgName(Manifest manifest) {
-        return manifest.getName() == null || manifest.getName().isEmpty() ?
-                Names.ANON_ORG : names.fromString(manifest.getName());
+        return manifest.getProject().getOrgName() == null || manifest.getProject().getOrgName().isEmpty() ?
+                Names.ANON_ORG : names.fromString(manifest.getProject().getOrgName());
     }
 
     /**
@@ -150,6 +204,13 @@ public class SourceDirectoryManager {
      * @return true if ballerina sources exists, else false
      */
     boolean checkIfSourcesExists(String pkg) {
-        return ProjectDirs.containsSourceFiles(this.sourceDirectory.getPath().resolve(pkg));
+        // Check if it is a valid ballerina project.
+        if (ProjectDirs.isProject(this.sourceDirectory.getPath()) &&
+                !RepoUtils.isBallerinaStandaloneFile(this.sourceDirectory.getPath().resolve(pkg))) {
+            return ProjectDirs.containsSourceFiles(this.sourceDirectory.getPath()
+                    .resolve(ProjectDirConstants.SOURCE_DIR_NAME).resolve(pkg));
+        } else {
+            return ProjectDirs.containsSourceFiles(this.sourceDirectory.getPath().resolve(pkg));
+        }
     }
 }

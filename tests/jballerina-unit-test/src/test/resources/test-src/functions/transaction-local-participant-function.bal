@@ -16,9 +16,10 @@
 
 import ballerina/io;
 import ballerina/transactions;
+import ballerina/runtime;
 
 string S = "";
-
+boolean functionCommited = false;
 
 @transactions:Participant {
     oncommit:commitFunc,
@@ -31,6 +32,7 @@ public function participantFoo() {
 
 public function commitFunc(string trxId) {
     S = S + " commitFun";
+    functionCommited = true;
     io:println("commitFunc");
 }
 
@@ -56,6 +58,9 @@ boolean thrown1 = false;
 boolean thrown2 = false;
 
 function initiatorFunc(boolean error1, boolean error2) returns string {
+    thrown1 = false;
+    thrown2 = false;
+    S = "";
     transaction with retries=2 {
         S = S + " in-trx-block";
         participantFoo();
@@ -104,7 +109,7 @@ function initiatorWithLocalNonParticipantError() returns string {
         if (t is string) {
             s += t;
         } else {
-            s += " trapped:[" + <string>t.detail().message + "]";
+            s += " trapped:[" + <string>t.detail()["message"] + "]";
         }
         s += " last-line";
     } onretry {
@@ -127,7 +132,9 @@ function nonParticipantNestedTrxStmt(string s) returns string {
 
 function nonParticipantFunctionNesting(string failureCondition) returns string {
     string s = "";
+    boolean isAborted = false;
     S = "";
+    functionCommited = false;
     transaction {
         s = " in-trx";
         s = nonParticipant(failureCondition, s);
@@ -137,7 +144,15 @@ function nonParticipantFunctionNesting(string failureCondition) returns string {
     } committed {
         s += " committed";
     } aborted {
+        isAborted = true;
         s += " aborted";
+    }
+    if (!isAborted) {
+        boolean waitResult = waitForCondition(5000, 20, function () returns boolean { return functionCommited; });
+        if (!waitResult) {
+              error err = error("Participants failed to commit");
+              panic err;
+        }
     }
     return s + " |" + S;
 }
@@ -232,4 +247,18 @@ function failable(string failureCondition, string s) returns string {
         panic er;
     }
     return s;
+}
+
+function waitForCondition(int maxWaitInMillySeconds, int noOfRounds, function() returns boolean conditionFunc)
+             returns boolean {
+    int sleepTimePerEachRound = maxWaitInMillySeconds/noOfRounds;
+    int count = 0;
+    while (count < noOfRounds) {
+        if (conditionFunc()){
+            return true;
+        }
+        count = count + 1;
+        runtime:sleep(sleepTimePerEachRound);
+    }
+    return false;
 }

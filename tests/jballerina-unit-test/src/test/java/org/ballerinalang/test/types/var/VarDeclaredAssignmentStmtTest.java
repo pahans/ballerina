@@ -157,7 +157,11 @@ public class VarDeclaredAssignmentStmtTest {
     public void testVarTypeInServiceLevelVariableDefStatement() {
         //var type is not not allowed in service level variable def statements
         CompileResult res = BCompileUtil.compile("test-src/types/var/service-level-variable-def-with-var-negative.bal");
-        BAssertUtil.validateError(res, 0, "extraneous input 'var'", 5, 5);
+        BAssertUtil.validateError(res, 0,
+                                  "mismatched input 'var'. expecting {'public', 'private', 'resource', 'function', " +
+                                          "'remote', '}', '@', DocumentationLineStart}", 4, 5);
+        BAssertUtil.validateError(res, 1, "extraneous input 'resource'", 6, 5);
+        BAssertUtil.validateError(res, 2, "extraneous input '}'", 12, 1);
     }
 
     @Test
@@ -172,13 +176,6 @@ public class VarDeclaredAssignmentStmtTest {
         CompileResult res = BCompileUtil.compile("test-src/types/var/var-duplicate-variable-ref-lhs-negative.bal");
         Assert.assertEquals(res.getErrorCount(), 1);
         BAssertUtil.validateError(res, 0, "redeclared symbol 'age'", 2, 15);
-    }
-
-    @Test
-    public void testVarDeclarationWithArrayInit() {
-        CompileResult res = BCompileUtil.compile("test-src/types/var/var-declaration-with-array-negative.bal");
-        Assert.assertEquals(res.getErrorCount(), 1);
-        BAssertUtil.validateError(res, 0, "invalid variable definition; can not infer the assignment type.", 2, 17);
     }
 
     @Test
@@ -206,7 +203,7 @@ public class VarDeclaredAssignmentStmtTest {
         Assert.assertSame(returns[0].getClass(), BError.class);
 
         Assert.assertEquals(((BMap<String, BValue>) ((BError) returns[0]).getDetails()).get("message").stringValue(),
-                            "incompatible convert operation: 'json' value cannot be converted as 'Person'");
+                            "'map<json>' value cannot be converted to 'Person'");
     }
 
     @Test(description = "Test incompatible json to struct with errors.")
@@ -218,7 +215,7 @@ public class VarDeclaredAssignmentStmtTest {
         Assert.assertSame(returns[0].getClass(), BError.class);
 
         Assert.assertEquals(((BMap<String, BValue>) ((BError) returns[0]).getDetails()).get("message").stringValue(),
-                            "incompatible convert operation: 'json' value cannot be converted as 'PersonA'");
+                            "'map<json>' value cannot be converted to 'PersonA'");
     }
 
     @Test(description = "Test compatible struct with force casting.")

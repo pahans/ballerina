@@ -1,27 +1,21 @@
 import ballerina/config;
 import ballerina/http;
+import ballerina/jwt;
 import ballerina/test;
 import ballerina/runtime;
 
-@test:Config
-function testFunc() {
-    setJwtTokenToAuthContext();
-    testAuthSuccess();
-    clearTokenFromAuthContext();
-    setInvalidJwtTokenToAuthContext();
-    testAuthnFailure();
-    clearTokenFromAuthContext();
-    setJwtTokenWithNoScopesToAuthContext();
-    testAuthzFailure();
-    clearTokenFromAuthContext();
-}
-
+@test:Config {}
 function testAuthSuccess() {
-    // create client
-    http:Client httpEndpoint = new("https://localhost:9090", config = {
-        auth: { scheme: http:JWT_AUTH }
+    setJwtTokenToAuthContext();
+    // Creates a client.
+    jwt:OutboundJwtAuthProvider outboundJwtAuthProvider = new;
+    http:BearerAuthHandler outboundJwtAuthHandler = new(outboundJwtAuthProvider);
+    http:Client httpEndpoint = new("https://localhost:9090", {
+        auth: {
+            authHandler: outboundJwtAuthHandler
+        }
     });
-    // Send a GET request to the specified endpoint
+    // Sends a GET request to the specified endpoint.
     var response = httpEndpoint->get("/hello/sayHello");
     if (response is http:Response) {
         test:assertEquals(response.statusCode, 200,
@@ -29,14 +23,21 @@ function testAuthSuccess() {
     } else {
         test:assertFail(msg = "Failed to call the endpoint:");
     }
+    clearTokenFromAuthContext();
 }
 
+@test:Config {}
 function testAuthnFailure() {
-    // Create a client.
-    http:Client httpEndpoint = new("https://localhost:9090", config = {
-        auth: { scheme: http:JWT_AUTH }
+    setInvalidJwtTokenToAuthContext();
+    // Creates a client.
+    jwt:OutboundJwtAuthProvider outboundJwtAuthProvider = new;
+    http:BearerAuthHandler outboundJwtAuthHandler = new(outboundJwtAuthProvider);
+    http:Client httpEndpoint = new("https://localhost:9090", {
+        auth: {
+            authHandler: outboundJwtAuthHandler
+        }
     });
-    // Send a `GET` request to the specified endpoint
+    // Sends a `GET` request to the specified endpoint.
     var response = httpEndpoint->get("/hello/sayHello");
     if (response is http:Response) {
         test:assertEquals(response.statusCode, 401,
@@ -44,14 +45,21 @@ function testAuthnFailure() {
     } else {
         test:assertFail(msg = "Failed to call the endpoint:");
     }
+    clearTokenFromAuthContext();
 }
 
+@test:Config {}
 function testAuthzFailure() {
-    // Create a client.
-    http:Client httpEndpoint = new("https://localhost:9090", config = {
-        auth: { scheme: http:JWT_AUTH }
+    setJwtTokenWithNoScopesToAuthContext();
+    // Creates a client.
+    jwt:OutboundJwtAuthProvider outboundJwtAuthProvider = new;
+    http:BearerAuthHandler outboundJwtAuthHandler = new(outboundJwtAuthProvider);
+    http:Client httpEndpoint = new("https://localhost:9090", {
+        auth: {
+            authHandler: outboundJwtAuthHandler
+        }
     });
-    // Send a `GET` request to the specified endpoint
+    // Sends a `GET` request to the specified endpoint.
     var response = httpEndpoint->get("/hello/sayHello");
     if (response is http:Response) {
         test:assertEquals(response.statusCode, 403,
@@ -59,6 +67,7 @@ function testAuthzFailure() {
     } else {
         test:assertFail(msg = "Failed to call the endpoint:");
     }
+    clearTokenFromAuthContext();
 }
 
 function setJwtTokenToAuthContext () {

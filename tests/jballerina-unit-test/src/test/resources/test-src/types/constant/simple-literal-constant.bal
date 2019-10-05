@@ -1,3 +1,5 @@
+import ballerina/lang.'string as strings;
+
 const nameWithoutType = "Ballerina";
 const string nameWithType = "Ballerina";
 
@@ -229,11 +231,11 @@ function testStringWithoutType() returns string {
 
 type FiniteFloatType floatWithType|floatWithoutType;
 
-function testFloatAsFiniteType() returns (FiniteFloatType, FiniteFloatType) {
+function testFloatAsFiniteType() returns [FiniteFloatType, FiniteFloatType] {
     FiniteFloatType f1 = 2.0;
     FiniteFloatType f2 = 4.0;
 
-    return (f1, f2);
+    return [f1, f2];
 }
 
 // -----------------------------------------------------------
@@ -241,22 +243,22 @@ function testFloatAsFiniteType() returns (FiniteFloatType, FiniteFloatType) {
 const string key = "key";
 const string value = "value";
 
-function testConstInMapKey() returns string {
+function testConstInMapKey() returns string? {
     map<string> m = { key: "value" };
-    return m.key;
+    return m["key"];
 }
 
-function testConstInMapValue() returns string {
+function testConstInMapValue() returns string? {
     map<string> m = { "key": value };
-    return m.key;
+    return m["key"];
 }
 
-function testConstInJsonKey() returns json {
+function testConstInJsonKey() returns (json|error) {
     json j = { key: "value" };
     return j.key;
 }
 
-function testConstInJsonValue() returns json {
+function testConstInJsonValue() returns (json|error) {
     json j = { "key": value };
     return j.key;
 }
@@ -296,32 +298,32 @@ function testStringConstInUnion() returns any {
 // -----------------------------------------------------------
 
 function testBooleanConstInTuple() returns boolean {
-    (boolean, int) v = (booleanWithType, 1);
+    [boolean, int] v = [booleanWithType, 1];
     return v[0];
 }
 
 function testIntConstInTuple() returns int {
-    (int, boolean) v = (intWithType, true);
+    [int, boolean] v = [intWithType, true];
     return v[0];
 }
 
 function testByteConstInTuple() returns byte {
-    (byte, boolean) v = (byteWithType, true);
+    [byte, boolean] v = [byteWithType, true];
     return v[0];
 }
 
 function testFloatConstInTuple() returns float {
-    (float, boolean) v = (floatWithType, true);
+    [float, boolean] v = [floatWithType, true];
     return v[0];
 }
 
 function testDecimalConstInTuple() returns decimal {
-    (decimal, boolean) v = (decimalWithType, true);
+    [decimal, boolean] v = [decimalWithType, true];
     return v[0];
 }
 
 function testStringConstInTuple() returns string {
-    (string, boolean) v = (stringWithType, true);
+    [string, boolean] v = [stringWithType, true];
     return v[0];
 }
 
@@ -349,14 +351,14 @@ function testProperSubset() returns G {
 const string SHA1 = "SHA1";
 
 function testBuiltinFunctionInvocation() returns boolean {
-    return SHA1.equalsIgnoreCase("SHA1");
+    return strings:startsWith(SHA1, "SH");
 }
 
 // -----------------------------------------------------------
 
 function testBuiltinFunctionInvocationOnArrayElement() returns boolean {
     string[] arr = [SHA1];
-    return arr[0].equalsIgnoreCase("SHA1");
+    return strings:startsWith(arr[0], "SH");
 }
 
 // -----------------------------------------------------------
@@ -367,7 +369,7 @@ type TestRecord record {
 
 function testBuiltinFunctionInvocationOnField() returns boolean {
     TestRecord tr = { field: SHA1 };
-    return tr.field.equalsIgnoreCase("SHA1");
+    return strings:startsWith(tr.field, "SH");
 }
 // -----------------------------------------------------------
 
@@ -400,29 +402,29 @@ function testLabeling() returns string {
 const aBoolean = true;
 
 function testBooleanConcat() returns string {
-    return aBoolean + " rocks";
+    return aBoolean.toString() + " rocks";
 }
 
 const aInt = 24;
 
 function testIntConcat() returns string {
-    return aInt + " rocks";
+    return aInt.toString() + " rocks";
 }
 
 const aByte = 12;
 
 function testByteConcat() returns string {
-    return aByte + " rocks";
+    return aByte.toString() + " rocks";
 }
 
 const aFloat = 25.5;
 
 function testFloatConcat() returns string {
-    return aFloat + " rocks";
+    return aFloat.toString() + " rocks";
 }
 
 const decimal aDecimal = 25.5;
 
 function testDecimalConcat() returns string {
-    return aDecimal + " rocks";
+    return aDecimal.toString() + " rocks";
 }

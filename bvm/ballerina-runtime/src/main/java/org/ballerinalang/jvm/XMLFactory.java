@@ -18,7 +18,6 @@
 package org.ballerinalang.jvm;
 
 import org.apache.axiom.c14n.Canonicalizer;
-import org.apache.axiom.c14n.exceptions.AlgorithmAlreadyRegisteredException;
 import org.apache.axiom.c14n.exceptions.CanonicalizationException;
 import org.apache.axiom.c14n.exceptions.InvalidCanonicalizerException;
 import org.apache.axiom.om.DeferredParsingException;
@@ -35,12 +34,18 @@ import org.apache.axiom.om.OMProcessingInstruction;
 import org.apache.axiom.om.OMText;
 import org.apache.axiom.om.OMXMLBuilderFactory;
 import org.apache.axiom.om.impl.dom.TextImpl;
+import org.apache.axiom.om.impl.llom.OMSourcedElementImpl;
 import org.apache.axiom.om.util.StAXParserConfiguration;
 import org.ballerinalang.jvm.types.BArrayType;
+import org.ballerinalang.jvm.types.BMapType;
+import org.ballerinalang.jvm.types.BPackage;
+import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
-import org.ballerinalang.jvm.util.exceptions.BallerinaException;
+import org.ballerinalang.jvm.types.TypeConstants;
 import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ErrorValue;
 import org.ballerinalang.jvm.values.MapValueImpl;
+import org.ballerinalang.jvm.values.TableValue;
 import org.ballerinalang.jvm.values.XMLItem;
 import org.ballerinalang.jvm.values.XMLQName;
 import org.ballerinalang.jvm.values.XMLSequence;
@@ -77,7 +82,8 @@ public class XMLFactory {
     private static final String CANONICALIZER_EXCL_OMIT_COMMENTS = "http://www.w3.org/2001/10/xml-exc-c14n#";
     private static final String CANONICALIZER_EXCL_WITH_COMMENTS =
             "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
-
+    private static final BType jsonMapType =
+            new BMapType(TypeConstants.MAP_TNAME, BTypes.typeJSON, new BPackage(null, null, null));
     private static final OMFactory OM_FACTORY = OMAbstractFactory.getOMFactory();
     public static final StAXParserConfiguration STAX_PARSER_CONFIGURATION = StAXParserConfiguration.STANDALONE;
 
@@ -93,10 +99,10 @@ public class XMLFactory {
             Canonicalizer.register(CANONICALIZER_EXCL_WITH_COMMENTS,
                     "org.apache.axiom.c14n.impl.Canonicalizer20010315ExclWithComments");
             canonicalizer = Canonicalizer.getInstance(CANONICALIZER_WITH_COMMENTS);
-        } catch (AlgorithmAlreadyRegisteredException e) {
-            // ignore
         } catch (InvalidCanonicalizerException e) {
-            throw new BallerinaException("Error initializing canonicalizer: " + e.getMessage());
+            throw BallerinaErrors.createError("Error initializing canonicalizer: " + e.getMessage());
+        } catch (Exception ignore) {
+            // Ignore
         }
     }
 
@@ -130,7 +136,8 @@ public class XMLFactory {
             }
 
             if (children.hasNext()) {
-                throw new BallerinaException("xml item must be one of the types: 'element', 'comment', 'text', 'pi'");
+                throw BallerinaErrors
+                        .createError("xml item must be one of the types: 'element', 'comment', 'text', 'pi'");
             }
 
             // Here the node is detached from the dummy root, and added to a
@@ -139,13 +146,13 @@ public class XMLFactory {
             OMDocument doc = OM_FACTORY.createOMDocument();
             doc.addChild(omNode);
             return new XMLItem(omNode);
-        } catch (BallerinaException e) {
+        } catch (ErrorValue e) {
             throw e;
         } catch (OMException | XMLStreamException e) {
             Throwable cause = e.getCause() == null ? e : e.getCause();
-            throw new BallerinaException(cause.getMessage());
+            throw BallerinaErrors.createError(cause.getMessage());
         } catch (Throwable e) {
-            throw new BallerinaException("failed to parse xml: " + e.getMessage());
+            throw BallerinaErrors.createError("failed to parse xml: " + e.getMessage());
         }
     }
 
@@ -157,7 +164,7 @@ public class XMLFactory {
      */
     @SuppressWarnings("unchecked")
     public static XMLValue<?> parse(InputStream xmlStream) {
-        ArrayValue elementsSeq = new ArrayValue();
+        ArrayValue elementsSeq = new ArrayValue(new BArrayType(BTypes.typeXML));
         OMDocument doc;
         try {
             doc = OMXMLBuilderFactory.createOMBuilder(STAX_PARSER_CONFIGURATION, xmlStream).getDocument();
@@ -167,9 +174,9 @@ public class XMLFactory {
                 elementsSeq.add(i++, new XMLItem(docChildItr.next()));
             }
         } catch (DeferredParsingException e) {
-            throw new BallerinaException(e.getCause().getMessage());
+            throw BallerinaErrors.createError(e.getCause().getMessage());
         } catch (Throwable e) {
-            throw new BallerinaException("failed to create xml: " + e.getMessage());
+            throw BallerinaErrors.createError("failed to create xml: " + e.getMessage());
         }
         return new XMLSequence(elementsSeq);
     }
@@ -183,7 +190,7 @@ public class XMLFactory {
      */
     @SuppressWarnings("unchecked")
     public static XMLValue<?> parse(InputStream xmlStream, String charset) {
-        ArrayValue elementsSeq = new ArrayValue();
+        ArrayValue elementsSeq = new ArrayValue(new BArrayType(BTypes.typeXML));
         OMDocument doc;
         try {
             doc = OMXMLBuilderFactory.createOMBuilder(STAX_PARSER_CONFIGURATION, xmlStream, charset).getDocument();
@@ -193,9 +200,9 @@ public class XMLFactory {
                 elementsSeq.add(index++, new XMLItem(docChildItr.next()));
             }
         } catch (DeferredParsingException e) {
-            throw new BallerinaException(e.getCause().getMessage());
+            throw BallerinaErrors.createError(e.getCause().getMessage());
         } catch (Throwable e) {
-            throw new BallerinaException("failed to create xml: " + e.getMessage());
+            throw BallerinaErrors.createError("failed to create xml: " + e.getMessage());
         }
         return new XMLSequence(elementsSeq);
     }
@@ -208,7 +215,7 @@ public class XMLFactory {
      */
     @SuppressWarnings("unchecked")
     public static XMLValue<?> parse(Reader reader) {
-        ArrayValue elementsSeq = new ArrayValue();
+        ArrayValue elementsSeq = new ArrayValue(new BArrayType(BTypes.typeXML));
         OMDocument doc;
         try {
             doc = OMXMLBuilderFactory.createOMBuilder(STAX_PARSER_CONFIGURATION, reader).getDocument();
@@ -218,9 +225,9 @@ public class XMLFactory {
                 elementsSeq.add(i++, new XMLItem(docChildItr.next()));
             }
         } catch (DeferredParsingException e) {
-            throw new BallerinaException(e.getCause().getMessage());
+            throw BallerinaErrors.createError(e.getCause().getMessage());
         } catch (Throwable e) {
-            throw new BallerinaException("failed to create xml: " + e.getMessage());
+            throw BallerinaErrors.createError("failed to create xml: " + e.getMessage());
         }
         return new XMLSequence(elementsSeq);
     }
@@ -233,7 +240,7 @@ public class XMLFactory {
      * @return Concatenated XML sequence
      */
     public static XMLValue<?> concatenate(XMLValue<?> firstSeq, XMLValue<?> secondSeq) {
-        ArrayValue concatSeq = new ArrayValue();
+        ArrayValue concatSeq = new ArrayValue(new BArrayType(BTypes.typeXML));
         int j = 0;
 
         // Load the content fully before concat the two
@@ -264,17 +271,17 @@ public class XMLFactory {
     }
 
     /**
-     * Converts a {@link BTable} to {@link XMLValue}.
+     * Converts a {@link org.ballerinalang.jvm.values.TableValue} to {@link XMLValue}.
      *
-     * @param table {@link BTable} to convert
+     * @param table {@link org.ballerinalang.jvm.values.TableValue} to convert
      * @return converted {@link XMLValue}
      */
-    // @SuppressWarnings("rawtypes")
-    // public static XMLValue tableToXML(BTable table) {
-    // OMSourcedElementImpl omSourcedElement = new OMSourcedElementImpl();
-    // omSourcedElement.init(new TableOMDataSource(table, null, null));
-    // return new XMLItem(omSourcedElement);
-    // }
+    @SuppressWarnings("rawtypes")
+    public static XMLValue tableToXML(TableValue table) {
+        OMSourcedElementImpl omSourcedElement = new OMSourcedElementImpl();
+        omSourcedElement.init(new TableOMDataSource(table, null, null));
+        return new XMLItem(omSourcedElement);
+    }
 
     /**
      * Create an element type XMLValue.
@@ -288,8 +295,8 @@ public class XMLFactory {
         if (!StringUtils.isEqual(startTagName.getLocalName(), endTagName.getLocalName()) ||
                 !StringUtils.isEqual(startTagName.getUri(), endTagName.getUri()) ||
                 !StringUtils.isEqual(startTagName.getPrefix(), endTagName.getPrefix())) {
-            throw new BallerinaException(
-                    "start and end tag names mismatch: '" + startTagName + "' and '" + endTagName + "'");
+            throw BallerinaErrors
+                    .createError("start and end tag names mismatch: '" + startTagName + "' and '" + endTagName + "'");
         }
 
         // Validate whether the tag names are XML supported qualified names, according to the XML recommendation.
@@ -341,6 +348,12 @@ public class XMLFactory {
         // Remove carriage return on windows environments to eliminate additional &#xd; being added
         content = content.replace("\r\n", "\n");
 
+        // &gt; &lt; and &amp; in XML literal in Ballerina lang maps to >, <, and & in XML infoset.
+        content = content
+                .replace("&gt;", ">")
+                .replace("&lt;", "<")
+                .replace("&amp;", "&");
+
         OMText omText = OM_FACTORY.createOMText(content);
         return new XMLItem(omText);
     }
@@ -378,7 +391,7 @@ public class XMLFactory {
             } else if (OMNode.TEXT_NODE == omNode.getType()) {
                 json = JSONParser.parse("\"" + ((OMText) omNode).getText() + "\"");
             } else {
-                json = new MapValueImpl<String, Object>(BTypes.typeJSON);
+                json = new MapValueImpl<String, Object>(jsonMapType);
             }
         } else {
             // Process xml sequence
@@ -428,11 +441,11 @@ public class XMLFactory {
     }
 
     private static boolean isXmlSequenceEqual(XMLSequence xmlSequenceOne, XMLSequence xmlSequenceTwo) {
-        if (xmlSequenceOne.length() != xmlSequenceTwo.length()) {
+        if (xmlSequenceOne.size() != xmlSequenceTwo.size()) {
             return false;
         }
 
-        for (int i = 0; i < xmlSequenceOne.length(); i++) {
+        for (int i = 0; i < xmlSequenceOne.size(); i++) {
             if (!isEqual((XMLValue<?>) xmlSequenceOne.value().getRefValue(i),
                     (XMLValue<?>) xmlSequenceTwo.value().getRefValue(i))) {
                 return false;
@@ -475,12 +488,12 @@ public class XMLFactory {
     @SuppressWarnings("rawtypes")
     private static MapValueImpl<String, Object> traverseXMLElement(OMElement omElement, String attributePrefix,
                                                                    boolean preserveNamespaces) {
-        MapValueImpl<String, Object> rootNode = new MapValueImpl<>(BTypes.typeJSON);
+        MapValueImpl<String, Object> rootNode = new MapValueImpl<>(jsonMapType);
         LinkedHashMap<String, String> attributeMap = collectAttributesAndNamespaces(omElement, preserveNamespaces);
         Iterator iterator = omElement.getChildElements();
         String keyValue = getElementKey(omElement, preserveNamespaces);
         if (iterator.hasNext()) {
-            MapValueImpl<String, Object> currentRoot = new MapValueImpl<>(BTypes.typeJSON);
+            MapValueImpl<String, Object> currentRoot = new MapValueImpl<>(jsonMapType);
             ArrayList<OMElement> childArray = new ArrayList<>();
             LinkedHashMap<String, ArrayList<Object>> rootMap = new LinkedHashMap<>();
             while (iterator.hasNext()) {
@@ -560,7 +573,7 @@ public class XMLFactory {
             textArrayNode = processTextArray(textArray);
         }
 
-        MapValueImpl<String, Object> jsonNode = new MapValueImpl<>(BTypes.typeJSON);
+        MapValueImpl<String, Object> jsonNode = new MapValueImpl<>(jsonMapType);
         if (childArray.size() > 0) {
             processChildelements(jsonNode, childArray, attributePrefix, preserveNamespaces);
             if (textArrayNode != null) {
@@ -694,7 +707,7 @@ public class XMLFactory {
                                           String attributePrefix, String singleElementValue) {
         boolean singleElement = false;
         if (rootNode == null) {
-            rootNode = new MapValueImpl<>(BTypes.typeJSON);
+            rootNode = new MapValueImpl<>(jsonMapType);
             singleElement = true;
         }
         // All the attributes and namesapces are set as key value pairs with given prefix

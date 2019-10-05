@@ -114,15 +114,21 @@ public class WaitForAnyActionsTest {
         Assert.assertTrue(Arrays.asList("77", "hello foo", "hello bar", "hello xyz").contains(vals[0].stringValue()));
     }
 
-    @Test
+    @Test()
     public void waitTest11() {
-        BValue[] vals = BRunUtil.invoke(result, "waitTest11", new BValue[0]);
-        Assert.assertEquals(vals.length, 1);
-        Assert.assertEquals(vals[0].stringValue(), "hello foo");
+        // in this case it returns result of wait f1|f2|f3; where f1 and f2 panics. So the panic also one of
+        // possible results here
+        try {
+            BValue[] vals = BRunUtil.invoke(result, "waitTest11", new BValue[0]);
+            Assert.assertEquals(vals.length, 1);
+            Assert.assertEquals(vals[0].stringValue(), "hello foo");
+        } catch (RuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("err from panic"));
+        }
     }
 
     @Test (expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = "error: err from panic \\{\\}.*")
+            expectedExceptionsMessageRegExp = "error: err from panic .*")
     public void waitTest12() {
         BRunUtil.invoke(result, "waitTest12", new BValue[0]);
     }
@@ -152,7 +158,8 @@ public class WaitForAnyActionsTest {
     public void waitTest16() {
         BValue[] vals = BRunUtil.invoke(result, "waitTest16", new BValue[0]);
         Assert.assertEquals(vals.length, 1);
-        Assert.assertTrue(Arrays.asList("150", "hello foo").contains(vals[0].stringValue()));
+        Assert.assertTrue(Arrays.asList("150", "hello foo", "7", "60", "12", "hello bar").
+                contains(vals[0].stringValue()));
     }
 
     @Test
@@ -184,7 +191,7 @@ public class WaitForAnyActionsTest {
     }
 
     @Test(expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = "error: A hazardous error occurred!!! Panic!! \\{\\}.*")
+            expectedExceptionsMessageRegExp = "error: A hazardous error occurred!!! Panic!! .*")
     public void waitTest21() {
         BRunUtil.invoke(result, "waitTest21", new BValue[0]);
     }
@@ -208,6 +215,6 @@ public class WaitForAnyActionsTest {
         BValue[] vals = BRunUtil.invoke(result, "waitTest24", new BValue[0]);
         Assert.assertEquals(vals.length, 1);
         Assert.assertTrue(vals[0] instanceof BError);
-        Assert.assertEquals(((BError) vals[0]).getReason(), "A hazardous error occured!!! Abort immediately!!");
+        Assert.assertEquals(((BError) vals[0]).getReason(), "A hazardous error occurred!!! Abort immediately!!");
     }
 }

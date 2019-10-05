@@ -33,6 +33,8 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 
+import static org.ballerinalang.test.util.BAssertUtil.validateError;
+
 /**
  * Test function signatures and calling with optional and named params.
  * 
@@ -40,12 +42,15 @@ import java.io.IOException;
  */
 public class FunctionSignatureInBaloTest {
 
-    CompileResult result;
+    private CompileResult result;
+    private CompileResult resultNegative;
 
     @BeforeClass
     public void setup() throws IOException {
         BaloCreator.createAndSetupBalo("test-src/balo/test_projects/test_project", "testorg", "foo");
         result = BCompileUtil.compile("test-src/balo/test_balo/functions/test_different_function_signatures.bal");
+        resultNegative = BCompileUtil
+                .compile("test-src/balo/test_balo/functions/test_different_function_signatures_negative.bal");
     }
 
     @Test
@@ -65,9 +70,6 @@ public class FunctionSignatureInBaloTest {
 
         Assert.assertTrue(returns[4] instanceof BString);
         Assert.assertEquals(returns[4].stringValue(), "Bob");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[40, 50, 60]");
     }
 
     @Test
@@ -87,53 +89,6 @@ public class FunctionSignatureInBaloTest {
 
         Assert.assertTrue(returns[4] instanceof BString);
         Assert.assertEquals(returns[4].stringValue(), "Bob");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[40, 50, 60]");
-    }
-
-    @Test
-    public void testInvokeFunctionInMixOrder1() {
-        BValue[] returns = BRunUtil.invoke(result, "testInvokeFunctionInMixOrder1");
-        Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 10);
-
-        Assert.assertTrue(returns[1] instanceof BFloat);
-        Assert.assertEquals(((BFloat) returns[1]).floatValue(), 20.0);
-
-        Assert.assertTrue(returns[2] instanceof BString);
-        Assert.assertEquals(returns[2].stringValue(), "Alex");
-
-        Assert.assertTrue(returns[3] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[3]).intValue(), 30);
-
-        Assert.assertTrue(returns[4] instanceof BString);
-        Assert.assertEquals(returns[4].stringValue(), "Bob");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[40, 50, 60]");
-    }
-
-    @Test
-    public void testInvokeFunctionInMixOrder2() {
-        BValue[] returns = BRunUtil.invoke(result, "testInvokeFunctionInMixOrder2");
-        Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 10);
-
-        Assert.assertTrue(returns[1] instanceof BFloat);
-        Assert.assertEquals(((BFloat) returns[1]).floatValue(), 20.0);
-
-        Assert.assertTrue(returns[2] instanceof BString);
-        Assert.assertEquals(returns[2].stringValue(), "Alex");
-
-        Assert.assertTrue(returns[3] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[3]).intValue(), 30);
-
-        Assert.assertTrue(returns[4] instanceof BString);
-        Assert.assertEquals(returns[4].stringValue(), "Bob");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[40, 50, 60]");
     }
 
     @Test
@@ -200,28 +155,6 @@ public class FunctionSignatureInBaloTest {
 
         Assert.assertTrue(returns[5] instanceof BValueArray);
         Assert.assertEquals(returns[5].stringValue(), "[]");
-    }
-
-    @Test
-    public void testInvokeFunctionWithRequiredAndRestArgs() {
-        BValue[] returns = BRunUtil.invoke(result, "testInvokeFunctionWithRequiredAndRestArgs");
-        Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 10);
-
-        Assert.assertTrue(returns[1] instanceof BFloat);
-        Assert.assertEquals(((BFloat) returns[1]).floatValue(), 20.0);
-
-        Assert.assertTrue(returns[2] instanceof BString);
-        Assert.assertEquals(returns[2].stringValue(), "John");
-
-        Assert.assertTrue(returns[3] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[3]).intValue(), 5);
-
-        Assert.assertTrue(returns[4] instanceof BString);
-        Assert.assertEquals(returns[4].stringValue(), "Doe");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[40, 50, 60]");
     }
 
     @Test
@@ -345,9 +278,6 @@ public class FunctionSignatureInBaloTest {
 
         Assert.assertTrue(returns[4] instanceof BString);
         Assert.assertEquals(returns[4].stringValue(), "Bob");
-
-        Assert.assertTrue(returns[5] instanceof BValueArray);
-        Assert.assertEquals(returns[5].stringValue(), "[1, 2, 3, 4]");
     }
 
     @Test
@@ -392,6 +322,29 @@ public class FunctionSignatureInBaloTest {
 
         Assert.assertEquals(((BInteger) returns[0]).intValue(), 50);
         Assert.assertEquals(returns[1].stringValue(), "hello world");
+    }
+
+    @Test
+    public void testNegativeFunctionInvocations() {
+        int i = 0;
+        validateError(resultNegative, i++, "missing required parameter 'b' in call to 'functionWithAllTypesParams'()",
+                4, 12);
+        validateError(resultNegative, i++, "too many arguments in call to 'functionWithAllTypesParams()'", 4, 12);
+        validateError(resultNegative, i++, "incompatible types: expected 'string', found 'float'", 4, 56);
+        validateError(resultNegative, i++, "positional argument not allowed after named arguments", 4, 56);
+        validateError(resultNegative, i++, "redeclared argument 'c'", 4, 62);
+        validateError(resultNegative, i++, "incompatible types: expected 'string', found 'int'", 4, 72);
+        validateError(resultNegative, i++, "positional argument not allowed after named arguments", 4, 72);
+        validateError(resultNegative, i++, "positional argument not allowed after named arguments", 4, 76);
+        validateError(resultNegative, i++, "missing required parameter 'b' in call to 'functionWithAllTypesParams'()",
+                9, 12);
+        validateError(resultNegative, i++, "incompatible types: expected 'string', found 'float'", 9, 56);
+        validateError(resultNegative, i++, "positional argument not allowed after named arguments", 9, 56);
+        validateError(resultNegative, i++, "redeclared argument 'c'", 9, 62);
+        validateError(resultNegative, i++, "rest argument not allowed after named arguments", 9, 72);
+        validateError(resultNegative, i++, "rest argument not allowed after named arguments", 13, 78);
+        validateError(resultNegative, i++, "incompatible types: expected 'string', found 'int'", 17, 53);
+        validateError(resultNegative, i++, "incompatible types: expected 'string', found 'int'", 17, 61);
     }
 
     @AfterClass

@@ -18,11 +18,13 @@
 
 package org.ballerinalang.test.jvm;
 
-import org.ballerinalang.jvm.util.exceptions.BLangRuntimeException;
 import org.ballerinalang.model.types.BField;
 import org.ballerinalang.model.types.BRecordType;
 import org.ballerinalang.model.types.BTypes;
 import org.ballerinalang.model.values.BBoolean;
+import org.ballerinalang.model.values.BByte;
+import org.ballerinalang.model.values.BDecimal;
+import org.ballerinalang.model.values.BError;
 import org.ballerinalang.model.values.BFloat;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
@@ -35,10 +37,14 @@ import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
+import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -103,15 +109,15 @@ public class TypesTest {
     public void testByteValue() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testByteValue", new BValue[] {});
         Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-        BInteger byteValue = (BInteger) returns[0];
+        Assert.assertSame(returns[0].getClass(), BByte.class);
+        BByte byteValue = (BByte) returns[0];
         Assert.assertEquals(byteValue.byteValue(), 34, "Invalid byte value returned.");
     }
 
     @Test(description = "Test byte value space")
     public void testByteValueSpace() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testByteValueSpace", new BValue[] {});
-        BInteger byteValue = (BInteger) returns[0];
+        BByte byteValue = (BByte) returns[0];
         Assert.assertEquals(byteValue.byteValue(), 234, "Invalid byte value returned.");
     }
 
@@ -119,8 +125,8 @@ public class TypesTest {
     public void testByteDefaultValue() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testByteDefaultValue");
         Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-        BInteger byteValue = (BInteger) returns[0];
+        Assert.assertSame(returns[0].getClass(), BByte.class);
+        BByte byteValue = (BByte) returns[0];
         Assert.assertEquals(byteValue.byteValue(), 0, "Invalid byte value returned.");
     }
 
@@ -139,8 +145,8 @@ public class TypesTest {
         BValue[] args = { new BInteger(input) };
         BValue[] returns = BRunUtil.invoke(compileResult, functionName, args);
         Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-        BInteger byteValue = (BInteger) returns[0];
+        Assert.assertSame(returns[0].getClass(), BByte.class);
+        BByte byteValue = (BByte) returns[0];
         Assert.assertEquals(byteValue.byteValue(), input, "Invalid byte value returned.");
     }
 
@@ -161,8 +167,8 @@ public class TypesTest {
         BValue[] args = { new BInteger(input) };
         BValue[] returns = BRunUtil.invoke(compileResult, "testIntToByteExplicitCast", args);
         Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-        BInteger bByte = (BInteger) returns[0];
+        Assert.assertSame(returns[0].getClass(), BByte.class);
+        BByte bByte = (BByte) returns[0];
         Assert.assertEquals(bByte.byteValue(), input, "Invalid byte value returned.");
     }
 
@@ -172,8 +178,8 @@ public class TypesTest {
         BValue[] args = { new BInteger(input) };
         BValue[] returns = BRunUtil.invoke(compileResult, "testIntToByteCast", args);
         Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-        BInteger bByte = (BInteger) returns[0];
+        Assert.assertSame(returns[0].getClass(), BByte.class);
+        BByte bByte = (BByte) returns[0];
         Assert.assertEquals(bByte.byteValue(), input, "Invalid byte value returned.");
     }
 
@@ -335,7 +341,9 @@ public class TypesTest {
     @Test
     public void testGetNonExistingElement() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testGetNonExistingElement");
-        Assert.assertNull(returns[0]);
+        Assert.assertNotNull(returns[0]);
+        Assert.assertEquals(((BError) returns[0]).getReason(), "{ballerina/lang.map}KeyNotFound");
+
     }
 
     @Test
@@ -487,7 +495,9 @@ public class TypesTest {
         Assert.assertEquals(returns[0].stringValue(), "[1, 2, 3, null, null, null, null, 8]");
     }
 
-    @Test
+    @Test(expectedExceptions = BLangRuntimeException.class,
+            expectedExceptionsMessageRegExp = ".*TypeCastError message=incompatible types: 'map<json>' cannot be " +
+                                              "cast to 'json\\[\\]'.*")
     public void testSetToNonArrayWithIndex() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testSetToNonArrayWithIndex");
         Assert.assertTrue(returns[0] instanceof BMap);
@@ -498,7 +508,8 @@ public class TypesTest {
         Assert.assertEquals(returns[2].stringValue(), "true");
     }
 
-    @Test
+    @Test(expectedExceptions = BLangRuntimeException.class,
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'map<json>' cannot be cast to 'json\\[\\]'.*")
     public void testGetFromNonArrayWithIndex() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testGetFromNonArrayWithIndex");
         Assert.assertNull(returns[0]);
@@ -506,7 +517,9 @@ public class TypesTest {
         Assert.assertNull(returns[2]);
     }
 
-    @Test
+    @Test(expectedExceptions = BLangRuntimeException.class,
+            expectedExceptionsMessageRegExp = ".*TypeCastError message=incompatible types: 'json\\[\\]' cannot be " +
+                                              "cast to 'map<json>.*")
     public void testSetToNonObjectWithKey() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testSetToNonObjectWithKey");
         Assert.assertTrue(returns[0] instanceof BValueArray);
@@ -517,11 +530,18 @@ public class TypesTest {
         Assert.assertEquals(returns[2].stringValue(), "true");
     }
 
+    @Test
     public void testGetFromNonObjectWithKey() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testGetFromNonObjectWithKey");
-        Assert.assertNull(returns[0]);
-        Assert.assertNull(returns[1]);
-        Assert.assertNull(returns[2]);
+        Assert.assertNotNull(returns[0]);
+        Assert.assertNotNull(returns[1]);
+        Assert.assertNotNull(returns[2]);
+        Assert.assertEquals(((BError) returns[0]).getDetails().stringValue(),
+                            "{message:\"JSON value is not a mapping\"}");
+        Assert.assertEquals(((BError) returns[1]).getDetails().stringValue(),
+                            "{message:\"JSON value is not a mapping\"}");
+        Assert.assertEquals(((BError) returns[2]).getDetails().stringValue(),
+                            "{message:\"JSON value is not a mapping\"}");
     }
 
     @Test
@@ -532,8 +552,8 @@ public class TypesTest {
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = ".*failed to get element from json: array index out of " +
-                    "range: index: 5, size: 3.*")
+          expectedExceptionsMessageRegExp = ".*IndexOutOfRange message=array index out of range: " +
+                                            "index: 5, size: 3.*")
     public void testGetArrayOutofBoundElement() {
         BRunUtil.invoke(compileResult, "testGetArrayOutofBoundElement");
     }
@@ -541,7 +561,8 @@ public class TypesTest {
     @Test
     public void testGetElementFromPrimitive() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testGetElementFromPrimitive");
-        Assert.assertNull(returns[0]);
+        Assert.assertEquals(((BError) returns[0]).getDetails().stringValue(),
+                            "{message:\"JSON value is not a mapping\"}");
     }
 
     @Test
@@ -559,12 +580,14 @@ public class TypesTest {
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'string'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'error' cannot be cast to 'string'.*")
     public void testGetFromNull() {
         BRunUtil.invoke(compileResult, "testGetFromNull");
     }
 
-    @Test
+    @Test(expectedExceptions = BLangRuntimeException.class,
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)'" +
+                                              " cannot be cast to 'map<json>'.*")
     public void testAddToNull() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testAddToNull");
         Assert.assertEquals(returns[0].stringValue(), "{\"name\":\"Supun\", \"address\":{\"country\":\"SriLanka\"}}");
@@ -578,31 +601,31 @@ public class TypesTest {
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'int'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)' cannot be cast to 'int'.*")
     public void testNullJsonToInt() {
         BRunUtil.invoke(compileResult, "testNullJsonToInt");
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'float'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)' cannot be cast to 'float'.*")
     public void testNullJsonToFloat() {
         BRunUtil.invoke(compileResult, "testNullJsonToFloat");
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'string'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)' cannot be cast to 'string'.*")
     public void testNullJsonToString() {
         BRunUtil.invoke(compileResult, "testNullJsonToString");
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'boolean'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)' cannot be cast to 'boolean'.*")
     public void testNullJsonToBoolean() {
         BRunUtil.invoke(compileResult, "testNullJsonToBoolean");
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "incompatible types: '\\(\\)' cannot be cast to 'int\\[\\]'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(\\)' cannot be cast to 'int\\[\\]'.*")
     public void testNullJsonToArray() {
         BRunUtil.invoke(compileResult, "testNullJsonToArray");
     }
@@ -744,7 +767,6 @@ public class TypesTest {
         BValue[] result = BRunUtil.invoke(compileResult, "streamFunc");
         Assert.assertNotNull(result[0]);
         BStream stream = (BStream) result[0];
-        Assert.assertEquals(stream.getStreamId(), "gradesStream");
         BRecordType recordType = (BRecordType) stream.getConstraintType();
         Assert.assertEquals(recordType.getName(), "Grades");
         Map<String, BField> fields = recordType.getFields();
@@ -752,5 +774,41 @@ public class TypesTest {
         Assert.assertEquals(fields.get("name").getFieldType(), BTypes.typeString);
         Assert.assertEquals(fields.get("physics").getFieldType(), BTypes.typeInt);
         Assert.assertEquals(fields.get("chemistry").getFieldType(), BTypes.typeInt);
+    }
+
+    @Test
+    public void testDecimalWithoutArgs() {
+        BValue[] result = BRunUtil.invoke(compileResult, "testDecimalWithoutArgs", new BValue[] {});
+        Assert.assertEquals(((BDecimal) result[0]).intValue(), 7);
+    }
+
+    @Test
+    public void testDecimalWithArgs() {
+        BValue[] result = BRunUtil.invoke(compileResult, "testDecimalWithArgs",
+                                          new BValue[] {new BDecimal(BigDecimal.valueOf(5))});
+        Assert.assertEquals(((BDecimal) result[0]).intValue(), 10);
+    }
+
+    @Test
+    public void testObjectWithSameNameAsFileName() {
+        BValue[] result = BRunUtil.invoke(objectsResult, "testObjectWithSameNameAsFileName");
+        Assert.assertEquals((result[0]).stringValue(), "works!");
+    }
+
+    @Test(expectedExceptions = { BLangRuntimeException.class },
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'string\\[\\]' cannot be cast to " +
+                    "'\\[float\\]\\[\\]'.*")
+    public void testTupleArrayTypeToString() {
+        BRunUtil.invoke(compileResult, "testTupleArrayTypeToString");
+    }
+
+    @Test
+    public void testTypeDescValuePrint() {
+        PrintStream tempOut = System.out;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(baos));
+        BRunUtil.invoke(compileResult, "testTypeDescValuePrint");
+        Assert.assertEquals(new String(baos.toByteArray()), "typedesc map<int|string>");
+        System.setOut(tempOut);
     }
 }

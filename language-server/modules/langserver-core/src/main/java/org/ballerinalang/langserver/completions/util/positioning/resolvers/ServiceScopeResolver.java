@@ -55,10 +55,10 @@ public class ServiceScopeResolver extends CursorPositionResolver {
         if (line < nodeSLine
                 || (line == nodeSLine && col <= nodeSCol)
                 || this.isWithinScopeAfterLastChildNode(node, treeVisitor, line, col)) {
-            Map<Name, Scope.ScopeEntry> visibleSymbolEntries =
+            Map<Name, List<Scope.ScopeEntry>> visibleSymbolEntries =
                     treeVisitor.resolveAllVisibleSymbols(treeVisitor.getSymbolEnv());
             treeVisitor.populateSymbols(visibleSymbolEntries, treeVisitor.getSymbolEnv());
-            treeVisitor.setNextNode(bSymbol);
+            treeVisitor.setNextNode(bSymbol, node);
             treeVisitor.forceTerminateVisitor();
             return true;
         }
@@ -94,14 +94,8 @@ public class ServiceScopeResolver extends CursorPositionResolver {
 
         isLastChildNode = !serviceContent.isEmpty() && serviceContent.indexOf(node) == (serviceContent.size() - 1);
 
-        boolean isWithinScope =  (isLastChildNode
+        return (isLastChildNode
                 && (curLine < serviceEndLine || (curLine == serviceEndLine && curCol < serviceEndCol))
                 && (nodeEndLine < curLine || (nodeEndLine == curLine && nodeEndCol < curCol)));
-
-//        if (isWithinScope) {
-//            treeVisitor.setPreviousNode((BLangNode) node);
-//        }
-
-        return isWithinScope;
     }
 }

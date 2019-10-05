@@ -44,7 +44,6 @@ import org.wso2.ballerinalang.compiler.semantics.model.symbols.Symbols;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.TaintRecord;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BAnnotationType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BArrayType;
-import org.wso2.ballerinalang.compiler.semantics.model.types.BChannelType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BErrorType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BField;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFiniteType;
@@ -58,6 +57,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.types.BTableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BTupleType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
+import org.wso2.ballerinalang.compiler.tree.BLangConstantValue;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
@@ -159,7 +159,7 @@ public class CompiledPackageSymbolEnter {
         byte[] modifiedPkgBinaryContent = Arrays.copyOfRange(
                 packageBinaryContent, 6, packageBinaryContent.length);
         pkgSymbol.packageFile = new CompiledBinaryFile.PackageFile(modifiedPkgBinaryContent);
-        SymbolEnv builtinEnv = this.symTable.pkgEnvMap.get(symTable.builtInPackageSymbol);
+        SymbolEnv builtinEnv = this.symTable.pkgEnvMap.get(symTable.langAnnotationModuleSymbol);
         SymbolEnv pkgEnv = SymbolEnv.createPkgEnv(null, pkgSymbol.scope, builtinEnv);
         this.symTable.pkgEnvMap.put(pkgSymbol, pkgEnv);
         return pkgSymbol;
@@ -439,7 +439,7 @@ public class CompiledPackageSymbolEnter {
                         new BAttachedFunction(names.fromString(funcName), invokableSymbol, funcType);
                 BStructureTypeSymbol structureTypeSymbol = (BStructureTypeSymbol) attachedType.tsymbol;
                 structureTypeSymbol.attachedFuncs.add(attachedFunc);
-                if (Names.OBJECT_INIT_SUFFIX.value.equals(funcName)
+                if (Names.USER_DEFINED_INIT_SUFFIX.value.equals(funcName)
                         || funcName.equals(Names.INIT_FUNCTION_SUFFIX.value)) {
                     structureTypeSymbol.initializerFunc = attachedFunc;
                 }
@@ -730,11 +730,11 @@ public class CompiledPackageSymbolEnter {
 
         boolean isSimpleLiteral = dataInStream.readBoolean();
         if (isSimpleLiteral) {
-            // Get finite type.
-            String finiteTypeSig = getUTF8CPEntryValue(dataInStream);
-            BType finiteType = getBTypeFromDescriptor(finiteTypeSig);
+            // Get symbol's type.
+            String symbolTypeSig = getUTF8CPEntryValue(dataInStream);
+            BType symbolType = getBTypeFromDescriptor(symbolTypeSig);
 
-            // Get value type.
+            // Get value literal's type.
             String valueTypeSig = getUTF8CPEntryValue(dataInStream);
             BType valueType = getBTypeFromDescriptor(valueTypeSig);
 
@@ -743,9 +743,8 @@ public class CompiledPackageSymbolEnter {
 
             // Create the constant symbol.
             constantSymbol = new BConstantSymbol(flags, names.fromString(constantName), this.env.pkgSymbol.pkgID,
-                    finiteType, valueType, enclScope.owner);
-            constantSymbol.literalValue = object;
-            constantSymbol.literalValueTypeTag = valueType.tag;
+                    valueType, symbolType, enclScope.owner);
+            constantSymbol.value = new BLangConstantValue(object, valueType);
         } else {
             // Read value type. Don't need the finite type since the literal is not a simple literal.
             String valueTypeSig = getUTF8CPEntryValue(dataInStream);
@@ -772,16 +771,15 @@ public class CompiledPackageSymbolEnter {
             // first time. Then we update the constant symbol's literal value and the mapCPEntries literal value with
             // the map literal which we have read.
             if (mapCPEntry.literalValue == null) {
-                constantSymbol.literalValue = mapCPEntry.literalValue = mapLiteral;
+                // constantSymbol.value = mapCPEntry.literalValue = mapLiteral;
             } else {
                 // If the mapCPEntry's literal value is not null, that means we have encountered this value
                 // earlier. In such case, set the mapCPEntry's literal value as the constant symbol's literal value.
                 // This is done to make sure all the references have the same literal value. Otherwise the `===` will
                 // fail for them.
-                constantSymbol.literalValue = mapCPEntry.literalValue;
+                // constantSymbol.value = mapCPEntry.literalValue;
             }
 
-            constantSymbol.literalValueTypeTag = valueType.tag;
             constantSymbol.cpEntryIndex = constantValueCPEntry;
         }
 
@@ -1015,7 +1013,8 @@ public class CompiledPackageSymbolEnter {
             String varName = getVarName(localVarDataInStream);
             BVarSymbol varSymbol = new BVarSymbol(0, names.fromString(varName), this.env.pkgSymbol.pkgID,
                     funcType.paramTypes.get(i), invokableSymbol);
-            invokableSymbol.defaultableParams.add(varSymbol);
+            varSymbol.defaultableParam = true;
+            invokableSymbol.params.add(varSymbol);
         }
 
         if (restParamCount == 1) {
@@ -1023,13 +1022,6 @@ public class CompiledPackageSymbolEnter {
             BVarSymbol varSymbol = new BVarSymbol(0, names.fromString(varName), this.env.pkgSymbol.pkgID,
                     funcType.paramTypes.get(requiredParamCount + defaultableParamCount), invokableSymbol);
             invokableSymbol.restParam = varSymbol;
-        }
-
-        byte[] paramDefaultsData = attrDataMap.get(AttributeInfo.Kind.PARAMETER_DEFAULTS_ATTRIBUTE);
-        DataInputStream paramDefaultsDataInStream = new DataInputStream(new ByteArrayInputStream(paramDefaultsData));
-        int paramDefaultsInfoCount = paramDefaultsDataInStream.readShort();
-        for (int i = 0; i < paramDefaultsInfoCount; i++) {
-            invokableSymbol.defaultableParams.get(i).defaultValue = getDefaultValue(paramDefaultsDataInStream);
         }
     }
 
@@ -1410,8 +1402,6 @@ public class CompiledPackageSymbolEnter {
                     return new BMapType(TypeTags.MAP, constraint, symTable.mapType.tsymbol);
                 case 'H':
                     return new BStreamType(TypeTags.STREAM, constraint, symTable.streamType.tsymbol);
-                case 'Q':
-                    return new BChannelType(TypeTags.CHANNEL, constraint, symTable.channelType.tsymbol);
                 case 'G':
                 case 'T':
                 case 'X':
@@ -1458,7 +1448,7 @@ public class CompiledPackageSymbolEnter {
 
         @Override
         public BType getErrorType(BType reasonType, BType detailsType) {
-            if (reasonType == symTable.stringType && detailsType == symTable.pureTypeConstrainedMap) {
+            if (reasonType == symTable.stringType && detailsType == symTable.detailType) {
                 return symTable.errorType;
             }
             BTypeSymbol errorSymbol = new BErrorTypeSymbol(SymTag.ERROR, Flags.PUBLIC, Names.EMPTY,

@@ -100,7 +100,7 @@ public class OpenRecordTypeReferenceTest {
         BMap foo2 = (BMap) returns[0];
         assertEquals(foo2.get("s").stringValue(), "qwerty");
         assertEquals(((BInteger) foo2.get("i")).intValue(), 10);
-        assertEquals(foo2.get("rj").getType().getTag(), TypeTags.JSON);
+        assertEquals(foo2.get("rj").getType().getTag(), TypeTags.MAP);
         assertEquals(foo2.get("rj").stringValue(), "{\"name\":\"apple\", \"color\":\"red\", \"price\":40}");
         assertEquals(foo2.get("rx").getType().getTag(), TypeTags.XML);
         assertEquals(foo2.get("rx").stringValue(), "<book>Count of Monte Cristo</book>");
@@ -110,7 +110,7 @@ public class OpenRecordTypeReferenceTest {
         assertEquals(foo2.get("ra").stringValue(), "{city:\"Colombo\", country:\"Sri Lanka\"}");
         assertEquals(foo2.get("crx").getType().getTag(), TypeTags.XML);
         assertEquals(foo2.get("crx").stringValue(), "<book>Count of Monte Cristo</book>");
-        assertEquals(foo2.get("crj").getType().getTag(), TypeTags.JSON);
+        assertEquals(foo2.get("crj").getType().getTag(), TypeTags.MAP);
         assertEquals(foo2.get("crj").stringValue(), "{\"name\":\"apple\", \"color\":\"red\", \"price\":40}");
         assertEquals(foo2.get("rp").getType().getTag(), TypeTags.OBJECT);
         assertEquals(((BMap) foo2.get("crp")).get("name").stringValue(), "Jane Doe");

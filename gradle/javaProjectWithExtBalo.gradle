@@ -22,6 +22,10 @@ configurations {
     baloImplementation {
         transitive false
     }
+    baloTestImplementation {
+        extendsFrom baloImplementation
+        transitive false
+    }
 }
 
 dependencies {
@@ -42,13 +46,33 @@ compileJava {
     }
 }
 
-task createBalHome(type: org.gradle.api.tasks.Copy) {
+task createBalHome(type: Copy) {
+    dependsOn configurations.baloImplementation
     from configurations.baloImplementation
-    into "$buildDir/lib"
+    into "$buildDir/ballerina-home/main/lib"
+}
+
+task createTestBalHome(type: Copy) {
+    dependsOn configurations.baloTestImplementation
+    from configurations.baloTestImplementation
+    into "$buildDir/ballerina-home/test/lib/"
 }
 
 test {
+    dependsOn createTestBalHome
+
+    inputs.files(configurations.baloTestImplementation);
+
+    systemProperty "ballerina.home", "$buildDir/ballerina-home/test"
+    systemProperty "enableJBallerinaTests", "true"
+
+    systemProperty "java.util.logging.config.file", "src/test/resources/logging.properties"
+    systemProperty "java.util.logging.manager", "org.ballerinalang.logging.BLogManager"
+
+    useTestNG() {
+        suites 'src/test/resources/testng.xml'
+    }
     minHeapSize = "256m"
     maxHeapSize = "1024m"
-    dependsOn createBalHome
 }
+

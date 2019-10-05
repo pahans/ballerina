@@ -3,8 +3,7 @@ import ballerina/log;
 
 // Create an HTTP client endpoint that can send HTTP/2 messages.
 // HTTP version is set to 2.0.
-http:Client clientEP = new("http://localhost:7090",
-    config = { httpVersion: "2.0" });
+http:Client clientEP = new("http://localhost:7090", { httpVersion: "2.0" });
 
 public function main() {
 
@@ -69,7 +68,7 @@ public function main() {
 
     var responsePayload = response.getJsonPayload();
     if (responsePayload is json) {
-        log:printInfo("Response : " + responsePayload.toString());
+        log:printInfo("Response : " + responsePayload.toJsonString());
     } else {
         log:printError("Expected response payload not received",
           err = responsePayload);
@@ -89,7 +88,7 @@ public function main() {
         }
         var promisedPayload = promisedResponse.getJsonPayload();
         if (promisedPayload is json) {
-            log:printInfo("Promised resource : " + promisedPayload.toString());
+            log:printInfo("Promised resource : " + promisedPayload.toJsonString());
         } else {
             log:printError("Expected promised response payload not received",
                 err = promisedPayload);

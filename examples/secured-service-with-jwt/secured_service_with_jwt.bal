@@ -1,28 +1,31 @@
-import ballerina/auth;
 import ballerina/http;
+import ballerina/jwt;
 import ballerina/log;
 
-// Create a JWT authentication provider with the relevant configurations.
-auth:JWTAuthProvider jwtAuthProvider = new({
+// Creates an inbound JWT authentication provider with the relevant
+// configurations.
+jwt:InboundJwtAuthProvider jwtAuthProvider = new({
     issuer: "ballerina",
-    audience: ["ballerina.io"],
-    certificateAlias: "ballerina",
-    trustStore: {
-        path: "${ballerina.home}/bre/security/ballerinaTruststore.p12",
-        password: "ballerina"
+    audience: "ballerina.io",
+    trustStoreConfig: {
+        certificateAlias: "ballerina",
+        trustStore: {
+            path: "${ballerina.home}/bre/security/ballerinaTruststore.p12",
+            password: "ballerina"
+        }
     }
 });
 
-// Create a JWT authentication handler with the created JWT auth provider.
-http:JwtAuthnHandler jwtAuthnHandler = new(jwtAuthProvider);
+// Creates a Bearer Auth handler with the created JWT Auth provider.
+http:BearerAuthHandler jwtAuthHandler = new(jwtAuthProvider);
 
 // The endpoint used here is the `http:Listener`. The JWT authentication
-// handler is set to this endpoint using the `authnHandlers` attribute.
+// handler is set to this endpoint using the `authHandlers` attribute.
 // It is optional to override the authentication and authorization at the
 // service and resource levels.
 listener http:Listener ep = new(9090, config = {
     auth: {
-        authnHandlers: [jwtAuthnHandler]
+        authHandlers: [jwtAuthHandler]
     },
     // The secure hello world sample uses HTTPS.
     secureSocket: {
@@ -36,7 +39,8 @@ listener http:Listener ep = new(9090, config = {
 @http:ServiceConfig {
     basePath: "/hello"
 }
-// The Auth configuration comprises of two parts - authentication & authorization.
+// The Auth configuration comprises of two parts -
+// authentication & authorization.
 // Authentication can be disabled by setting the `enabled: false` flag.
 // Authorization is based on scopes. A scope maps to one or more groups.
 // For a user to access a resource, the user should be in the same groups as
@@ -48,7 +52,8 @@ service echo on ep {
         methods: ["GET"],
         path: "/sayHello",
         auth: {
-            scopes: ["hello"]
+            scopes: ["hello"],
+            enabled: true
         }
     }
     // The authentication and authorization settings can be overridden at

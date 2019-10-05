@@ -1,12 +1,12 @@
-type ExampleObject object {
+public type ExampleObject object {
     string taintedData = "";
 };
 
-type ExampleRecord record {
+public type ExampleRecord record {
     string taintedData = "";
 };
 
-public function secureFunction(@sensitive any secureIn, any insecureIn) {
+public function secureFunction(@untainted any secureIn, any insecureIn) {
 
 }
 

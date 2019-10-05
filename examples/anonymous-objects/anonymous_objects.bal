@@ -4,7 +4,7 @@ public type Person record {
     string name;
     int age;
     // This is an anonymous object type descriptor. All the fields and
-    // methods are made public in order to allow declaration of
+    // methods are made public. This is done to allow the declaration of
     // variables equivalent to this object type (since two public object types
     // are considered unequivalent if either of the objects have
     // any private members).
@@ -30,7 +30,7 @@ public function main() {
         age: 25,
         address: new("Colombo", "Sri Lanka")
     };
-    io:println(john);
+    io:println(john.address.city);
 
     // Since anonymous objects do not have a type name associated with them,
     // the object descriptor itself has to be specified when declaring
@@ -50,5 +50,5 @@ public function main() {
     } adr = new("London", "UK");
 
     Person jane = { name: "Jane Doe", age: 20, address: adr };
-    io:println(jane);
+    io:println(jane.address.country);
 }

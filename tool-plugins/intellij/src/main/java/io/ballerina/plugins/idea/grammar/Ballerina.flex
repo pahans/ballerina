@@ -10,7 +10,7 @@ import static io.ballerina.plugins.idea.psi.BallerinaTypes.*;
 %%
 
 %{
-    private boolean inXmlMode = false;
+    private boolean inXmlExpressionMode = false;
     private boolean inXmlTagMode = false;
     private boolean inDoubleQuotedXmlStringMode = false;
     private boolean inSingleQuotedXmlStringMode = false;
@@ -20,13 +20,11 @@ import static io.ballerina.plugins.idea.psi.BallerinaTypes.*;
     private boolean inStringTemplate = false;
     private boolean inStringTemplateExpression = false;
 
-    private boolean inDeprecatedTemplate = false;
-
-    private boolean inSiddhi = false;
+    private boolean inStreams = false;
     private boolean inTableSqlQuery = false;
-    private boolean inSiddhiInsertQuery = false;
-    private boolean inSiddhiTimeScaleQuery = false;
-    private boolean inSiddhiOutputRateLimit = false;
+    private boolean inStreamsInsertQuery = false;
+    private boolean inStreamsTimeScaleQuery = false;
+    private boolean inStreamsOutputRateLimit = false;
 
     public BallerinaLexer() {
         this((java.io.Reader)null);
@@ -60,12 +58,12 @@ HexDigit = [0-9a-fA-F]
 HexadecimalFloatingPointLiteral =  {HexIndicator} {HexFloatingPointNumber}
 HexIndicator = 0 [xX]
 
-DecimalFloatingPointNumber = {DecimalNumeral} {ExponentPart} | {DottedDecimalNumber} {ExponentPart}?
+DecimalFloatingPointNumber = {DecimalNumeral} {ExponentPart} {DecimalFloatSelector}? | {DottedDecimalNumber} {ExponentPart}? {DecimalFloatSelector}?
 ExponentPart = {ExponentIndicator} {SignedInteger}
 ExponentIndicator = [eE]
 SignedInteger = {Sign}? {Digits}
 Sign = [+-]
-
+DecimalFloatSelector = [dDfF]
 
 HexFloatingPointNumber = {HexDigits} {BinaryExponent} | {DottedHexNumber} {BinaryExponent}?
 BinaryExponent = {BinaryExponentIndicator} {SignedInteger}
@@ -81,21 +79,9 @@ BOOLEAN_LITERAL = "true" | "false"
 ESCAPE_SEQUENCE = \\ [btnfr\"'\\] | {UnicodeEscape}
 STRING_CHARACTER =  [^\\\"] | {ESCAPE_SEQUENCE}
 STRING_CHARACTERS = {STRING_CHARACTER}+
-QUOTED_STRING_LITERAL = \" {STRING_CHARACTERS}? \"
-
-SYMBOLIC_STRING_LITERAL =  \' {UNDELIMETERED_INITIAL_CHAR} {UNDELIMETERED_FOLLOWING_CHAR}*
-
-UNDELIMETERED_INITIAL_CHAR = [a-zA-Z_]
-    // Negates ASCII characters
-    // Negates unicode whitespace characters : 0x200E, 0x200F, 0x2028 and 0x2029
-    // Negates unicode characters with property Pattern_Syntax=True (http://unicode.org/reports/tr31/tr31-2.html#Pattern_Syntax)
-    // Negates unicode characters of category "Private Use" ranging from: 0xE000 .. 0xF8FF | 0xF0000 .. 0xFFFFD | 0x100000 .. 0x10FFFD
-    | [^\u0000-\u007F\uE000-\uF8FF\u200E\u200F\u2028\u2029\u00A1-\u00A7\u00A9\u00AB-\u00AC\u00AE\u00B0-\u00B1\u00B6-\u00B7\u00BB\u00BF\u00D7\u00F7\u2010-\u2027\u2030-\u205E\u2190-\u2BFF\u3001-\u3003\u3008-\u3020\u3030\uFD3E-\uFD3F\uFE45-\uFE46\uDB80-\uDBBF\uDBC0-\uDBFF\uDC00-\uDFFF]
-
-UNDELIMETERED_FOLLOWING_CHAR = {UNDELIMETERED_INITIAL_CHAR} | {DIGIT}
+QUOTED_STRING_LITERAL = {DOUBLE_QUOTE} {STRING_CHARACTERS}? {DOUBLE_QUOTE}
 
 // Blob Literal
-
 BASE_16_BLOB_LITERAL = "base16" {WHITE_SPACE}* {BACKTICK} {HEX_GROUP}* {WHITE_SPACE}* {BACKTICK}
 HEX_GROUP = {WHITE_SPACE}* {HexDigit} {WHITE_SPACE}* {HexDigit}
 
@@ -111,17 +97,27 @@ LETTER = [a-zA-Z_] | [^\u0000-\u007F\uD800-\uDBFF] | [\uD800-\uDBFF] [\uDC00-\uD
 DIGIT = [0-9]
 LETTER_OR_DIGIT = [a-zA-Z0-9_] | [^\u0000-\u007F\uD800-\uDBFF] | [\uD800-\uDBFF] [\uDC00-\uDFFF]
 
-IDENTIFIER = {LETTER} {LETTER_OR_DIGIT}* | {IdentifierLiteral}
-IdentifierLiteral = \^ \" {IdentifierLiteralChar}+ \"
-IdentifierLiteralChar = [^|\"\\\b\f\n\r\t] | {IdentifierLiteralEscapeSequence}
-IdentifierLiteralEscapeSequence = \\ [|\"\\\/] | \\\\ [btnfr] | {UnicodeEscape}
-UnicodeEscape = "\\u" {HexDigit} {HexDigit} {HexDigit} {HexDigit}
+IDENTIFIER = {UnquotedIdentifier} | {QuotedIdentifier}
+UnquotedIdentifier =  {IdentifierInitialChar} {IdentifierFollowingChar}*
+QuotedIdentifier =  \' {QuotedIdentifierChar}+
+QuotedIdentifierChar = {IdentifierFollowingChar} | {QuotedIdentifierEscape} | {StringNumericEscape}
+
+IdentifierInitialChar = [a-zA-Z_]
+    // Negates ( AsciiChar | UnicodeNonIdentifierChar )
+    | [^\u0000-\u007F\uE000-\uF8FF\u200E\u200F\u2028\u2029\u00A1-\u00A7\u00A9\u00AB-\u00AC\u00AE\u00B0-\u00B1\u00B6-\u00B7\u00BB\u00BF\u00D7\u00F7\u2010-\u2027\u2030-\u205E\u2190-\u2BFF\u3001-\u3003\u3008-\u3020\u3030\uFD3E-\uFD3F\uFE45-\uFE46\uDB80-\uDBBF\uDBC0-\uDBFF\uDC00-\uDFFF]
+
+IdentifierFollowingChar = {IdentifierInitialChar} | {DIGIT}
+
+// QuotedIdentifierEscape := \ ^ ( AsciiLetter | 0x9 | 0xA | 0xD | UnicodePatternWhiteSpaceChar )
+// AsciiLetter := A .. Z | a .. z
+// UnicodePatternWhiteSpaceChar := 0x200E | 0x200F | 0x2028 | 0x2029
+QuotedIdentifierEscape = \\ [^a-zA-Z\u0009\u000A\u000D\u200E\u200F\u2028\u2029]
+StringNumericEscape = \\ [|\"\\/] | \\\\ [btnfr] | {UnicodeEscape}
+UnicodeEscape = \\u {HexDigit} {HexDigit} {HexDigit} {HexDigit}
 
 WHITE_SPACE=\s+
 
 BACKTICK = "`"
-LEFT_BRACE = "{"
-RIGHT_BRACE = "}"
 
 // Todo - Add inspection
 LINE_COMMENT = "/" "/" [^\r\n]*
@@ -131,76 +127,16 @@ XML_LITERAL_START = xml[ \t\n\x0B\f\r]*`
 STRING_TEMPLATE_LITERAL_START = string[ \t\n\x0B\f\r]*`
 STRING_TEMPLATE_LITERAL_END = "`"
 
-
-DEPRECATED = "deprecated"
-DEPRECATED_TEMPLATE_START = {DEPRECATED} {WHITE_SPACE}* {LEFT_BRACE}
-
 INTERPOLATION_START = "${"
 
 HEX_DIGITS = {HEX_DIGIT} ({HEX_DIGIT_OR_UNDERSCORE}* {HEX_DIGIT})?
 HEX_DIGIT_OR_UNDERSCORE = {HEX_DIGIT} | "_"
 
+//Todo - Remove after restoring xml grammar support
 // XML
-XML_COMMENT_START = "<!--"
-CDATA = "<![CDATA[" .*? "]]>"
-DTD = "<!" ([^-].|.[^-]).*? ">"
-ENTITY_REF = "&" {XML_QNAME} ";"
-CHAR_REF = "&#" {DIGIT}+ ';' | "&#x" {HEX_DIGITS}+ ";"
-XML_WS = " " | \t | \r? \n
-XML_TAG_OPEN_SLASH = "</"
-XML_TAG_SPECIAL_OPEN = "<?" ({XML_QNAME} {QNAME_SEPARATOR})? {XML_QNAME} {XML_WS} // Todo - Fix
-XML_TAG_OPEN = "<"
+XML_ALL_CHAR = [^`]
 XML_LITERAL_END = "`"
-XML_TEMPLATE_TEXT = {XML_TEXT_SEQUENCE}? {INTERPOLATION_START}
-XML_TEXT_SEQUENCE = {XML_BRACES_SEQUENCE}? ({XML_TEXT_CHAR} {XML_BRACES_SEQUENCE}?)+ | {XML_BRACES_SEQUENCE} ({XML_TEXT_CHAR} {XML_BRACES_SEQUENCE}?)* | {XML_BRACES_SEQUENCE}+
-XML_TEXT_CHAR = [^<&$`{}] | '\\' [`] | {XML_WS} | {XML_ESCAPED_SEQUENCE}
-XML_ESCAPED_SEQUENCE =  \\\\ | \\\$\{ | \\} | \\\{ | &(gt|lt|amp);
-XML_BRACES_SEQUENCE = (\{})+ (\{)* (})* | (}\{)+ (\{)* (})* | (\{\{)+ (\{)* (})* | (}})+ (\{)* (})* | (\{})* \{ | } (\{})*
-
-// XML_TAG
-XML_TAG_CLOSE = ">"
-XML_TAG_SPECIAL_CLOSE = \?>
-XML_TAG_SLASH_CLOSE = "/>"
-SLASH = "/"
-QNAME_SEPARATOR = :
-EQUALS = "="
 DOUBLE_QUOTE = "\""
-SINGLE_QUOTE = "'"
-XML_QNAME = {NAME_START_CHAR} {NAME_CHAR}*
-XML_TAG_WS = [ \t\r\n]
-HEX_DIGIT = [0-9a-fA-F]
-NAME_CHAR = {NAME_START_CHAR} | "-" | "." | {DIGIT} | \u00B7 | [\u0300-\u036F] | [\u203F-\u2040]
-NAME_START_CHAR = [a-zA-Z_] | [\u2070-\u218F] | [\u2C00-\u2FEF] | [\u3001-\uD7FF] | [\uF900-\uFDCF] | [\uFDF0-\uFFFD]
-
-// DOUBLE_QUOTED_XML_STRING
-DOUBLE_QUOTE_END = "\""
-XML_DOUBLE_QUOTED_TEMPLATE_STRING = {XML_DOUBLE_QUOTED_STRING_SEQUENCE}? {INTERPOLATION_START}
-XML_DOUBLE_QUOTED_STRING_SEQUENCE = {XML_BRACES_SEQUENCE}? ({XMLDoubleQuotedStringChar} {XML_BRACES_SEQUENCE}?)+ | {XML_BRACES_SEQUENCE} ({XMLDoubleQuotedStringChar} {XML_BRACES_SEQUENCE}?)*
-XMLDoubleQuotedStringChar = [^$<\"{}\\] | {XML_ESCAPED_SEQUENCE}
-
-// SINGLE_QUOTED_XML_STRING
-SINGLE_QUOTE_END = "'"
-XML_SINGLE_QUOTED_TEMPLATE_STRING = {XML_SINGLE_QUOTED_STRING_SEQUENCE}? {INTERPOLATION_START}
-XML_SINGLE_QUOTED_STRING_SEQUENCE = {XML_BRACES_SEQUENCE}? ({XMLSingleQuotedStringChar} {XML_BRACES_SEQUENCE}?)+ | {XML_BRACES_SEQUENCE} ({XMLSingleQuotedStringChar} {XML_BRACES_SEQUENCE}?)*
-XMLSingleQuotedStringChar = [^$<'{}\\] | {XML_ESCAPED_SEQUENCE}
-
-// XML_PI
-XML_PI_END = {XML_TAG_SPECIAL_CLOSE}
-XML_PI_TEXT = {XML_PI_TEXT_FRAGMENT} {XML_PI_END}
-XML_PI_TEMPLATE_TEXT = {XML_PI_TEXT_FRAGMENT} {INTERPOLATION_START}
-XML_PI_TEXT_FRAGMENT = {XML_PI_ALLOWED_SEQUENCE}? ({XML_PI_CHAR} {XML_PI_ALLOWED_SEQUENCE}?)*
-XML_PI_CHAR = [^${}?>] | {XML_ESCAPED_SEQUENCE}
-XML_PI_ALLOWED_SEQUENCE = {XML_BRACES_SEQUENCE} | {XML_PI_SPECIAL_SEQUENCE} | ({XML_BRACES_SEQUENCE} {XML_PI_SPECIAL_SEQUENCE})+ {XML_BRACES_SEQUENCE}? | ({XML_PI_SPECIAL_SEQUENCE} {XML_BRACES_SEQUENCE})+ {XML_PI_SPECIAL_SEQUENCE}?
-XML_PI_SPECIAL_SEQUENCE = ">"+ | ">"* "?"+
-
-// XML_COMMENT
-XML_COMMENT_END = "-->"
-XML_COMMENT_TEMPLATE_TEXT = {XML_COMMENT_TEXT_FRAGMENT} {INTERPOLATION_START}
-XML_COMMENT_TEXT_FRAGMENT = {XML_COMMENT_ALLOWED_SEQUENCE}? ({XML_COMMENT_CHAR} {XML_COMMENT_ALLOWED_SEQUENCE}?)*
-XML_COMMENT_CHAR = [^>\\-] | {XML_BRACES_SEQUENCE} | {XML_ESCAPED_SEQUENCE} | '\\'[`] | !\$\{
-XML_COMMENT_ALLOWED_SEQUENCE = {XML_BRACES_SEQUENCE} | {XML_COMMENT_SPECIAL_SEQUENCE} | ({XML_BRACES_SEQUENCE} {XML_COMMENT_SPECIAL_SEQUENCE})+ {XML_BRACES_SEQUENCE}? | ({XML_COMMENT_SPECIAL_SEQUENCE} {XML_BRACES_SEQUENCE})+ {XML_COMMENT_SPECIAL_SEQUENCE}?
-XML_COMMENT_SPECIAL_SEQUENCE = >+ | >? - [^-]
-XML_COMMENT_TEXT = {XML_COMMENT_ALLOWED_SEQUENCE}? ({XML_COMMENT_CHAR}+ {XML_COMMENT_ALLOWED_SEQUENCE}?)
 
 // MARKDOWN_DOCUMENTATION
 MARKDOWN_DOCUMENTATION_LINE_START =  {HASH} {DOCUMENTATION_SPACE}?
@@ -241,32 +177,6 @@ PARAMETER_NAME = {IDENTIFIER}
 DESCRIPTION_SEPARATOR = {DOCUMENTATION_SPACE}* {SUB} {DOCUMENTATION_SPACE}*
 PARAMETER_DOCUMENTATION_END = [\n]
 
-// TRIPLE_BACKTICK_INLINE_CODE
-TRIPLE_BACK_TICK_INLINE_CODE_END = {BACKTICK} {BACKTICK} {BACKTICK}
-TRIPLE_BACK_TICK_INLINE_CODE = {TRIPLE_BACK_TICK_INLINE_CODE_CHAR}+
-TRIPLE_BACK_TICK_INLINE_CODE_CHAR = [^`] | [`] [^`] | [`] [`] [^`]
-
-// DOUBLE_BACKTICK_INLINE_CODE
-DOUBLE_BACK_TICK_INLINE_CODE_END = {BACKTICK} {BACKTICK}
-DOUBLE_BACK_TICK_INLINE_CODE = {DOUBLE_BACK_TICK_INLINE_CODE_CHAR}+
-DOUBLE_BACK_TICK_INLINE_CODE_CHAR = [^`] | [`] [^`]
-
-// SINGLE_BACKTICK_INLINE_CODE
-SINGLE_BACK_TICK_INLINE_CODE_END = {BACKTICK}
-SINGLE_BACK_TICK_INLINE_CODE = {SINGLE_BACK_TICK_INLINE_CODE_CHAR}+
-SINGLE_BACK_TICK_INLINE_CODE_CHAR = [^`]
-
-// DEPRECATED_TEMPLATE
-DEPRECATED_TEMPLATE_END = {RIGHT_BRACE}
-SB_DEPRECATED_INLINE_CODE_START = {DEPRECATED_BACK_TICK}
-DB_DEPRECATED_INLINE_CODE_START = {DEPRECATED_BACK_TICK} {DEPRECATED_BACK_TICK}
-TB_DEPRECATED_INLINE_CODE_START = {DEPRECATED_BACK_TICK} {DEPRECATED_BACK_TICK} {DEPRECATED_BACK_TICK}
-DEPRECATED_TEMPLATE_TEXT = {DEPRECATED_VALID_CHAR_SEQUENCE}? ({DEPRECATED_TEMPLATE_STRING_CHAR} {DEPRECATED_VALID_CHAR_SEQUENCE}?)+ | {DEPRECATED_VALID_CHAR_SEQUENCE} ({DEPRECATED_TEMPLATE_STRING_CHAR} {DEPRECATED_VALID_CHAR_SEQUENCE}?)*
-DEPRECATED_TEMPLATE_STRING_CHAR = [^`{}\\] | '\\' [{}`] | {WHITE_SPACE} | {DEPRECATED_ESCAPED_SEQUENCE}
-DEPRECATED_BACK_TICK = "`"
-DEPRECATED_ESCAPED_SEQUENCE = '\\\\'
-DEPRECATED_VALID_CHAR_SEQUENCE = '\\' ~'\\'
-
 // STRING_TEMPLATE
 STRING_LITERAL_ESCAPED_SEQUENCE = {DOLLAR}** \\ [\\'\"bnftr\{`]
 STRING_TEMPLATE_VALID_CHAR_SEQUENCE = [^`$\\] | {DOLLAR}+ [^`$\{\\] | {WHITE_SPACE} | {STRING_LITERAL_ESCAPED_SEQUENCE}
@@ -286,11 +196,6 @@ DOLLAR = \$
 %state SINGLE_BACKTICKED_MARKDOWN_MODE
 %state DOUBLE_BACKTICKED_MARKDOWN_MODE
 %state TRIPLE_BACKTICKED_MARKDOWN_MODE
-
-%state SINGLE_BACKTICK_INLINE_CODE_MODE
-%state DOUBLE_BACKTICK_INLINE_CODE_MODE
-%state TRIPLE_BACKTICK_INLINE_CODE_MODE
-%state DEPRECATED_TEMPLATE_MODE
 
 %state STRING_TEMPLATE_MODE
 
@@ -323,7 +228,6 @@ DOLLAR = \$
 
     "decimal"                                   { return DECIMAL; }
     "default"                                   { return DEFAULT; }
-    "deprecated"                                { return DEPRECATED; }
     "descending"                                { return DESCENDING; }
 
     "else"                                      { return ELSE; }
@@ -338,6 +242,8 @@ DOLLAR = \$
     "fork"                                      { return FORK; }
     "function"                                  { return FUNCTION; }
     "future"                                    { return FUTURE; }
+
+    "handle"                                    { return HANDLE; }
 
     "if"                                        { return IF; }
     "import"                                    { return IMPORT; }
@@ -374,6 +280,7 @@ DOLLAR = \$
     "returns"                                   { return RETURNS; }
 
     "service"                                   { return SERVICE; }
+    "source"                                    { return SOURCE; }
     "start"                                     { return START; }
     "stream"                                    { return STREAM; }
     "string"                                    { return STRING; }
@@ -384,9 +291,8 @@ DOLLAR = \$
     "try"                                       { return TRY; }
     "type"                                      { return TYPE; }
     "typedesc"                                  { return TYPEDESC; }
+    "typeof"                                    { return TYPEOF; }
     "throw"                                     { return THROW; }
-
-    "untaint"                                   { return UNTAINT; }
 
     "wait"                                      { return WAIT; }
     "while"                                     { return WHILE; }
@@ -405,12 +311,16 @@ DOLLAR = \$
     "."                                         { return DOT; }
     ","                                         { return COMMA; }
     "{"                                         { return LEFT_BRACE; }
-    "}"                                         { if (inStringTemplateExpression) { inStringTemplateExpression = false; inStringTemplate = true; yybegin(STRING_TEMPLATE_MODE); } return RIGHT_BRACE; }
+    "}"                                         { if (inStringTemplateExpression) { inStringTemplateExpression = false; inStringTemplate = true; yybegin(STRING_TEMPLATE_MODE); }
+                                                  if (inXmlExpressionMode) { inXmlExpressionMode = false; yybegin(XML_MODE); }
+                                                  if (inXmlCommentMode) { inXmlCommentMode = false; yybegin(XML_COMMENT_MODE); } return RIGHT_BRACE; }
     "("                                         { return LEFT_PARENTHESIS; }
     ")"                                         { return RIGHT_PARENTHESIS; }
     "["                                         { return LEFT_BRACKET; }
     "]"                                         { return RIGHT_BRACKET; }
     "?"                                         { return QUESTION_MARK; }
+    "{|"                                        { return LEFT_CLOSED_RECORD_DELIMITER; }
+    "|}"                                        { return RIGHT_CLOSED_RECORD_DELIMITER; }
 
     "="                                         { return ASSIGN; }
     "+"                                         { return ADD; }
@@ -462,7 +372,10 @@ DOLLAR = \$
 
     "..<"                                       { return HALF_OPEN_RANGE; }
 
-    "from"                                      { inTableSqlQuery = true; inSiddhiInsertQuery = true; inSiddhiOutputRateLimit = true; return FROM; }
+    ".@"                                        { return ANNOTATION_ACCESS; }
+    "?."                                        { return OPTIONAL_FIELD_ACCESS; }
+
+    "from"                                      { inTableSqlQuery = true; inStreamsInsertQuery = true; inStreamsOutputRateLimit = true; return FROM; }
     "on"                                        { return ON; }
     "select"                                    { if(inTableSqlQuery) { inTableSqlQuery = false; return SELECT; } return IDENTIFIER; }
     "group"                                     { return GROUP; }
@@ -471,33 +384,33 @@ DOLLAR = \$
     "order"                                     { return ORDER; }
     "where"                                     { return WHERE; }
     "followed"                                  { return FOLLOWED; }
-    "for"                                       { inSiddhiTimeScaleQuery = true; return FOR; }
+    "for"                                       { inStreamsTimeScaleQuery = true; return FOR; }
     "window"                                    { return WINDOW; }
-    "events"                                    { if(inSiddhiInsertQuery) { inSiddhiInsertQuery = false; return EVENTS; } return IDENTIFIER; }
+    "events"                                    { if(inStreamsInsertQuery) { inStreamsInsertQuery = false; return EVENTS; } return IDENTIFIER; }
     "every"                                     { return EVERY; }
-    "within"                                    { inSiddhiTimeScaleQuery = true; return WITHIN; }
-    "last"                                      { if(inSiddhiOutputRateLimit) { inSiddhiOutputRateLimit = false; return LAST; } return IDENTIFIER; }
-    "first"                                     { if(inSiddhiOutputRateLimit) { inSiddhiOutputRateLimit = false; return FIRST; } return IDENTIFIER; }
+    "within"                                    { inStreamsTimeScaleQuery = true; return WITHIN; }
+    "last"                                      { if(inStreamsOutputRateLimit) { inStreamsOutputRateLimit = false; return LAST; } return IDENTIFIER; }
+    "first"                                     { if(inStreamsOutputRateLimit) { inStreamsOutputRateLimit = false; return FIRST; } return IDENTIFIER; }
     "snapshot"                                  { return SNAPSHOT; }
-    "output"                                    { if(inSiddhiOutputRateLimit) { inSiddhiTimeScaleQuery = true; return OUTPUT; } return IDENTIFIER; }
+    "output"                                    { if(inStreamsOutputRateLimit) { inStreamsTimeScaleQuery = true; return OUTPUT; } return IDENTIFIER; }
     "inner"                                     { return INNER; }
     "outer"                                     { return OUTER; }
     "right"                                     { return RIGHT; }
     "left"                                      { return LEFT; }
     "full"                                      { return FULL; }
     "unidirectional"                            { return UNIDIRECTIONAL; }
-    "second"                                    { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return SECOND; } return IDENTIFIER; }
-    "minute"                                    { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return MINUTE; } return IDENTIFIER; }
-    "hour"                                      { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return HOUR; } return IDENTIFIER; }
-    "day"                                       { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return DAY; } return IDENTIFIER; }
-    "month"                                     { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return MONTH; } return IDENTIFIER; }
-    "year"                                      { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return YEAR; } return IDENTIFIER; }
-    "seconds"                                   { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return SECONDS; } return IDENTIFIER; }
-    "minutes"                                   { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return MINUTES; } return IDENTIFIER; }
-    "hours"                                     { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return HOURS; } return IDENTIFIER; }
-    "days"                                      { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return DAYS; } return IDENTIFIER; }
-    "months"                                    { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return MONTHS; } return IDENTIFIER; }
-    "years"                                     { if(inSiddhiTimeScaleQuery) { inSiddhiTimeScaleQuery = false; return YEARS; } return IDENTIFIER; }
+    "second"                                    { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return SECOND; } return IDENTIFIER; }
+    "minute"                                    { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return MINUTE; } return IDENTIFIER; }
+    "hour"                                      { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return HOUR; } return IDENTIFIER; }
+    "day"                                       { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return DAY; } return IDENTIFIER; }
+    "month"                                     { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return MONTH; } return IDENTIFIER; }
+    "year"                                      { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return YEAR; } return IDENTIFIER; }
+    "seconds"                                   { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return SECONDS; } return IDENTIFIER; }
+    "minutes"                                   { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return MINUTES; } return IDENTIFIER; }
+    "hours"                                     { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return HOURS; } return IDENTIFIER; }
+    "days"                                      { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return DAYS; } return IDENTIFIER; }
+    "months"                                    { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return MONTHS; } return IDENTIFIER; }
+    "years"                                     { if(inStreamsTimeScaleQuery) { inStreamsTimeScaleQuery = false; return YEARS; } return IDENTIFIER; }
     "forever"                                   { return FOREVER; }
 
     {WHITE_SPACE}                               { return WHITE_SPACE; }
@@ -507,7 +420,6 @@ DOLLAR = \$
     {DECIMAL_INTEGER_LITERAL}                   { return DECIMAL_INTEGER_LITERAL; }
     {HEX_INTEGER_LITERAL}                       { return HEX_INTEGER_LITERAL; }
     {QUOTED_STRING_LITERAL}                     { return QUOTED_STRING_LITERAL; }
-    {SYMBOLIC_STRING_LITERAL}                   { return SYMBOLIC_STRING_LITERAL; }
 
     {DecimalFloatingPointNumber}                { return DECIMAL_FLOATING_POINT_NUMBER; }
     {HexadecimalFloatingPointLiteral}           { return HEXADECIMAL_FLOATING_POINT_LITERAL; }
@@ -526,63 +438,12 @@ DOLLAR = \$
     {PARAMETER_DOCUMENTATION_START}             { yybegin(MARKDOWN_PARAMETER_DOCUMENTATION_MODE); return PARAMETER_DOCUMENTATION_START; }
     {MARKDOWN_DOCUMENTATION_LINE_START}         { yybegin(MARKDOWN_DOCUMENTATION_MODE); return MARKDOWN_DOCUMENTATION_LINE_START; }
 
-    {DEPRECATED_TEMPLATE_START}                 { inDeprecatedTemplate = true; yybegin(DEPRECATED_TEMPLATE_MODE); return DEPRECATED_TEMPLATE_START; }
     .                                           { return BAD_CHARACTER; }
 }
 
 <XML_MODE>{
-    {XML_COMMENT_START}                         { yybegin(XML_COMMENT_MODE); return XML_COMMENT_START; }
-    {CDATA}                                     { return CDATA; }
-    {DTD}                                       { } // Todo - Need to return a value?
-    {ENTITY_REF}                                { /*return ENTITY_REF;*/ } // Do not need
-    {CHAR_REF}                                  { /*return CHAR_REF;*/ } // Do not need
-    {XML_TAG_SPECIAL_OPEN}                      { yybegin(XML_PI_MODE); return XML_TAG_SPECIAL_OPEN; }
-    {XML_TAG_OPEN_SLASH}                        { yybegin(XML_TAG_MODE); return XML_TAG_OPEN_SLASH; }
-    {XML_TAG_OPEN}                              { yybegin(XML_TAG_MODE); return XML_TAG_OPEN; }
     {XML_LITERAL_END}                           { yybegin(YYINITIAL); return XML_LITERAL_END; }
-    {XML_TEMPLATE_TEXT}                         { inXmlMode = true; yybegin(YYINITIAL); return XML_TEMPLATE_TEXT; }
-    {XML_TEXT_SEQUENCE}                         { return XML_TEXT_SEQUENCE; }
-    .                                           { return BAD_CHARACTER; }
-}
-
-<XML_TAG_MODE>{
-    {XML_TAG_CLOSE}                             { yybegin(XML_MODE); return XML_TAG_CLOSE; }
-    {XML_TAG_SPECIAL_CLOSE}                     { /*yybegin(XML_MODE); return XML_TAG_SPECIAL_CLOSE;*/ } // Do not need
-    {XML_TAG_SLASH_CLOSE}                       { yybegin(XML_MODE); return XML_TAG_SLASH_CLOSE; }
-    {SLASH}                                     { /*return SLASH;*/ } // Do not need
-    {QNAME_SEPARATOR}                           { return QNAME_SEPARATOR; }
-    {EQUALS}                                    { return EQUALS; }
-    {DOUBLE_QUOTE}                              { yybegin(DOUBLE_QUOTED_XML_STRING_MODE); return DOUBLE_QUOTE; }
-    {SINGLE_QUOTE}                              { yybegin(SINGLE_QUOTED_XML_STRING_MODE); return SINGLE_QUOTE; }
-    {XML_QNAME}                                 { return XML_QNAME; }
-    {XML_TAG_WS}                                { } // Todo - Need to return a value?
-    .                                           { return BAD_CHARACTER; }
-}
-
-<DOUBLE_QUOTED_XML_STRING_MODE>{
-    {DOUBLE_QUOTE_END}                          { yybegin(XML_TAG_MODE); return DOUBLE_QUOTE_END; }
-    {XML_DOUBLE_QUOTED_TEMPLATE_STRING}         { inDoubleQuotedXmlStringMode = true; yybegin(YYINITIAL); return XML_DOUBLE_QUOTED_TEMPLATE_STRING; }
-    {XML_DOUBLE_QUOTED_STRING_SEQUENCE}         { return XML_DOUBLE_QUOTED_STRING_SEQUENCE; }
-    .                                           { return BAD_CHARACTER; }
-}
-
-<SINGLE_QUOTED_XML_STRING_MODE>{
-    {SINGLE_QUOTE_END}                          { yybegin(XML_TAG_MODE); return SINGLE_QUOTE_END; }
-    {XML_SINGLE_QUOTED_TEMPLATE_STRING}         { inSingleQuotedXmlStringMode = true; yybegin(YYINITIAL); return XML_SINGLE_QUOTED_TEMPLATE_STRING; }
-    {XML_SINGLE_QUOTED_STRING_SEQUENCE}         { return XML_SINGLE_QUOTED_STRING_SEQUENCE; }
-    .                                           { return BAD_CHARACTER; }
-}
-
-<XML_PI_MODE>{
-    {XML_PI_TEMPLATE_TEXT}                      { inXmlPiMode = true; yybegin(YYINITIAL); return XML_PI_TEMPLATE_TEXT; }
-    {XML_PI_TEXT}                               { yybegin(XML_MODE); return XML_PI_TEXT; }
-    .                                           { return BAD_CHARACTER; }
-}
-
-<XML_COMMENT_MODE>{
-    {XML_COMMENT_END}                           { yybegin(XML_MODE); return XML_COMMENT_END; }
-    {XML_COMMENT_TEMPLATE_TEXT}                 { inXmlCommentMode = true; yybegin(YYINITIAL); return XML_COMMENT_TEMPLATE_TEXT; }
-    {XML_COMMENT_TEXT}                          { return XML_COMMENT_TEXT; }
+    {XML_ALL_CHAR}                              { return XML_ALL_CHAR; }
     .                                           { return BAD_CHARACTER; }
 }
 
@@ -591,33 +452,6 @@ DOLLAR = \$
     {STRING_TEMPLATE_EXPRESSION_START}          { inStringTemplate = false; inStringTemplateExpression = true; yybegin(YYINITIAL); return STRING_TEMPLATE_EXPRESSION_START; }
     {STRING_TEMPLATE_TEXT}                      { return STRING_TEMPLATE_TEXT; }
     .                                           { inStringTemplate = false; yybegin(YYINITIAL); return BAD_CHARACTER; }
-}
-
-<SINGLE_BACKTICK_INLINE_CODE_MODE>{
-    {SINGLE_BACK_TICK_INLINE_CODE_END}          { yybegin(DEPRECATED_TEMPLATE_MODE); return SINGLE_BACK_TICK_INLINE_CODE_END; }
-    {SINGLE_BACK_TICK_INLINE_CODE}              { return SINGLE_BACK_TICK_INLINE_CODE; }
-     .                                          { yybegin(DEPRECATED_TEMPLATE_MODE); return BAD_CHARACTER; }
-}
-
-<DOUBLE_BACKTICK_INLINE_CODE_MODE>{
-    {DOUBLE_BACK_TICK_INLINE_CODE_END}          { yybegin(DEPRECATED_TEMPLATE_MODE); return DOUBLE_BACK_TICK_INLINE_CODE_END; }
-    {DOUBLE_BACK_TICK_INLINE_CODE}              { return DOUBLE_BACK_TICK_INLINE_CODE; }
-     .                                          { yybegin(DEPRECATED_TEMPLATE_MODE); return BAD_CHARACTER; }
-}
-
-<TRIPLE_BACKTICK_INLINE_CODE_MODE>{
-    {TRIPLE_BACK_TICK_INLINE_CODE_END}          { yybegin(DEPRECATED_TEMPLATE_MODE); return TRIPLE_BACK_TICK_INLINE_CODE_END; }
-    {TRIPLE_BACK_TICK_INLINE_CODE}              { return TRIPLE_BACK_TICK_INLINE_CODE; }
-     .                                          { yybegin(DEPRECATED_TEMPLATE_MODE); return BAD_CHARACTER; }
-}
-
-<DEPRECATED_TEMPLATE_MODE>{
-    {DEPRECATED_TEMPLATE_END}                   { inDeprecatedTemplate = false; yybegin(YYINITIAL); return DEPRECATED_TEMPLATE_END; }
-    {SB_DEPRECATED_INLINE_CODE_START}           { yybegin(SINGLE_BACKTICK_INLINE_CODE_MODE); return SB_DEPRECATED_INLINE_CODE_START; }
-    {DB_DEPRECATED_INLINE_CODE_START}           { yybegin(DOUBLE_BACKTICK_INLINE_CODE_MODE); return DB_DEPRECATED_INLINE_CODE_START; }
-    {TB_DEPRECATED_INLINE_CODE_START}           { yybegin(TRIPLE_BACKTICK_INLINE_CODE_MODE); return TB_DEPRECATED_INLINE_CODE_START; }
-    {DEPRECATED_TEMPLATE_TEXT}                  { return DEPRECATED_TEMPLATE_TEXT; }
-    .                                           { yybegin(YYINITIAL); return BAD_CHARACTER; }
 }
 
 <MARKDOWN_DOCUMENTATION_MODE>{

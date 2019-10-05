@@ -17,19 +17,20 @@
 */
 package org.ballerinalang.stdlib.task.service;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.BServiceUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
+import static org.ballerinalang.stdlib.task.utils.TaskTestUtils.getFilePath;
 
 /**
  * Tests for Ballerina Task Timer Listener..
@@ -39,10 +40,10 @@ public class TimerServiceTest {
 
     @Test(description = "Tests running an timer as a service")
     public void testListenerTimer() {
-        CompileResult compileResult = BCompileUtil.compile("listener/timer/service_simple.bal");
-        BServiceUtil.runService(compileResult);
+        CompileResult compileResult = BCompileUtil.compile(true,
+                getFilePath(Paths.get("listener", "timer", "service_simple.bal")));
         await().atMost(10000, TimeUnit.MILLISECONDS).until(() -> {
-            BValue[] count = BRunUtil.invokeStateful(compileResult, "getCount");
+            BValue[] count = BRunUtil.invoke(compileResult, "getCount");
             Assert.assertEquals(count.length, 1);
             Assert.assertTrue(count[0] instanceof BInteger);
             return (((BInteger) count[0]).intValue() > 3);
@@ -51,11 +52,10 @@ public class TimerServiceTest {
 
     @Test(description = "Tests running an timer as a service")
     public void testListenerTimerLimitedNoOfRuns() {
-        CompileResult compileResult = BCompileUtil.compile(
-                "listener/timer/service_limited_number_of_runs.bal");
-        BServiceUtil.runService(compileResult);
+        CompileResult compileResult = BCompileUtil.compile(true,
+                getFilePath(Paths.get("listener", "timer", "service_limited_number_of_runs.bal")));
         await().atMost(10000, TimeUnit.MILLISECONDS).until(() -> {
-            BValue[] count = BRunUtil.invokeStateful(compileResult, "getCount");
+            BValue[] count = BRunUtil.invoke(compileResult, "getCount");
             Assert.assertEquals(count.length, 1);
             Assert.assertTrue(count[0] instanceof BInteger);
             return (((BInteger) count[0]).intValue() == 3);
@@ -64,10 +64,10 @@ public class TimerServiceTest {
 
     @Test(description = "Tests a timer listener with inline configurations")
     public void testListenerTimerInlineConfigs() {
-        CompileResult compileResult = BCompileUtil.compile("listener/timer/service_inline_configs.bal");
-        BServiceUtil.runService(compileResult);
+        CompileResult compileResult = BCompileUtil.compile(true,
+                getFilePath(Paths.get("listener", "timer", "service_inline_configs.bal")));
         await().atMost(10000, TimeUnit.MILLISECONDS).until(() -> {
-            BValue[] count = BRunUtil.invokeStateful(compileResult, "getCount");
+            BValue[] count = BRunUtil.invoke(compileResult, "getCount");
             Assert.assertEquals(count.length, 1);
             Assert.assertTrue(count[0] instanceof BInteger);
             return (((BInteger) count[0]).intValue() > 3);
@@ -80,8 +80,7 @@ public class TimerServiceTest {
             expectedExceptionsMessageRegExp = ".*Timer scheduling interval should be a positive integer.*"
     )
     public void testListenerTimerNegativeInterval() {
-        CompileResult compileResult = BCompileUtil.compile("listener/timer/service_negative_interval.bal");
-        BServiceUtil.runService(compileResult);
+        BCompileUtil.compile(getFilePath(Paths.get("listener", "timer", "service_negative_interval.bal")));
     }
 
     @Test(
@@ -90,13 +89,20 @@ public class TimerServiceTest {
             expectedExceptionsMessageRegExp = ".*Timer scheduling delay should be a non-negative value.*"
     )
     public void testListenerTimerNegativeDelay() {
-        CompileResult compileResult = BCompileUtil.compile("listener/timer/service_negative_delay.bal");
-        BServiceUtil.runService(compileResult);
+        BCompileUtil.compile(getFilePath(Paths.get("listener", "timer", "service_negative_delay.bal")));
     }
 
     @Test(description = "Tests a timer listener without delay field")
     public void testListenerTimerWithoutDelay() {
-        CompileResult compileResult = BCompileUtil.compile("listener/timer/service_without_delay.bal");
-        BServiceUtil.runService(compileResult);
+        BCompileUtil.compile(getFilePath(Paths.get("listener", "timer", "service_without_delay.bal")));
+    }
+
+    @Test(
+            description = "Tests a timer scheduler with zero interval",
+            expectedExceptions = BLangRuntimeException.class,
+            expectedExceptionsMessageRegExp = ".*Timer scheduling interval should be a positive integer.*"
+    )
+    public void testZeroInterval() {
+        BCompileUtil.compile(getFilePath(Paths.get("listener", "timer", "zero_interval.bal")));
     }
 }

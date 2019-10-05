@@ -5,7 +5,7 @@ type Person record {|
 |};
 
 function invalidRestField() {
-    Person p = {name:"John", age:20, height:6, employed:false, city:"Colombo"};
+    Person p = { name: "John", age: 20, "height": 6, "employed": false, "city": "Colombo" };
 }
 
 type PersonA record {
@@ -14,7 +14,7 @@ type PersonA record {
 };
 
 function emptyRecordForAnyRestField() {
-    PersonA p = {name:"John", misc:{}};
+    PersonA p = { name:"John", "misc": {} };
 }
 
 type Pet record {
@@ -27,7 +27,7 @@ type Bar object {
 
 function testInvalidRestFieldAddition() {
     PersonA p = {};
-    p.invField = new Bar();
+    p["invField"] = new Bar();
 }
 
 type Baz record {|
@@ -35,12 +35,25 @@ type Baz record {|
     anydata...;
 |};
 
-type MyError error<string, map<error>>;
+type Qux record {
+    string s;
+};
+
+type MyError error<string>;
 
 function testErrorAdditionForInvalidRestField() {
     error e1 = error("test reason");
-    MyError e2 = error("test reason 2", { err: e1 });
+    MyError e2 = error("test reason 2", err = e1);
     Baz b = { a: 1 };
-    b.err1 = e1;
-    b.err2 = e2;
+    b["err1"] = e1;
+    b["err2"] = e2;
+
+    Qux q = { s: "hello" };
+    q["e1"] = e1;
+    q["e2"] = e2;
+}
+
+function testAnydataOrErrorRestFieldRHSAccess() {
+    Person p = {};
+    anydata|error name = p?.firstName;
 }

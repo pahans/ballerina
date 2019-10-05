@@ -1,4 +1,4 @@
-import testorg/foo version v1;
+import testorg/foo;
 
 // -----------------------------------------------------------
 
@@ -189,11 +189,11 @@ function testStringWithoutType() returns string {
 
 // -----------------------------------------------------------
 
-function testFloatAsFiniteType() returns (foo:FiniteFloatType, foo:FiniteFloatType) {
+function testFloatAsFiniteType() returns [foo:FiniteFloatType, foo:FiniteFloatType] {
     foo:FiniteFloatType f1 = 2.0;
     foo:FiniteFloatType f2 = 4.0;
 
-    return (f1, f2);
+    return [f1, f2];
 }
 
 // -----------------------------------------------------------
@@ -201,25 +201,25 @@ function testFloatAsFiniteType() returns (foo:FiniteFloatType, foo:FiniteFloatTy
 function testConstInMapKey() returns string {
     string key = foo:KEY;
     map<string> m = { key: "value" };
-    return m.key;
+    return <string>m["key"];
 }
 
 function testConstInMapValue() returns string {
     string value = foo:VALUE;
     map<string> m = { "key": value };
-    return m.key;
+    return <string>m["key"];
 }
 
 function testConstInJsonKey() returns json {
     string key = foo:KEY;
     json j = { key: "value" };
-    return j.key;
+    return <json>j.key;
 }
 
 function testConstInJsonValue() returns json {
     string value = foo:VALUE;
     json j = { "key": value };
-    return j.key;
+    return <json>j.key;
 }
 
 // -----------------------------------------------------------
@@ -252,27 +252,27 @@ function testStringConstInUnion() returns any {
 // -----------------------------------------------------------
 
 function testBooleanConstInTuple() returns boolean {
-    (boolean, int) v = (foo:booleanWithType, 1);
+    [boolean, int] v = [foo:booleanWithType, 1];
     return v[0];
 }
 
 function testIntConstInTuple() returns int {
-    (int, boolean) v = (foo:intWithType, true);
+    [int, boolean] v = [foo:intWithType, true];
     return v[0];
 }
 
 function testByteConstInTuple() returns byte {
-    (byte, boolean) v = (foo:byteWithType, true);
+    [byte, boolean] v = [foo:byteWithType, true];
     return v[0];
 }
 
 function testFloatConstInTuple() returns float {
-    (float, boolean) v = (foo:floatWithType, true);
+    [float, boolean] v = [foo:floatWithType, true];
     return v[0];
 }
 
 function testStringConstInTuple() returns string {
-    (string, boolean) v = (foo:stringWithType, true);
+    [string, boolean] v = [foo:stringWithType, true];
     return v[0];
 }
 
@@ -286,47 +286,25 @@ function testProperSubset() returns foo:G {
 // -----------------------------------------------------------
 
 function testBuiltinFunctionInvocation() returns boolean {
-    return foo:SHA1.equalsIgnoreCase("SHA1");
+    return foo:SHA1.toUpperAscii() == "SHA1";
 }
 
 // -----------------------------------------------------------
 
 function testBuiltinFunctionInvocationOnArrayElement() returns boolean {
     string[] arr = [foo:SHA1];
-    return arr[0].equalsIgnoreCase("SHA1");
+    return arr[0].toUpperAscii() == "SHA1";
 }
 
 // -----------------------------------------------------------
 
 function testBuiltinFunctionInvocationOnField() returns boolean {
     foo:TestRecord tr = { field: foo:SHA1 };
-    return tr.field.equalsIgnoreCase("SHA1");
+    return tr.field.toUpperAscii() == "SHA1";
 }
 
 // -----------------------------------------------------------
 
 function testLabeling() returns string {
     return foo:labeledString;
-}
-
-// -----------------------------------------------------------
-
-function testBooleanConcat() returns string {
-    return foo:aBoolean + " rocks";
-}
-
-function testIntConcat() returns string {
-    return foo:aInt + " rocks";
-}
-
-function testByteConcat() returns string {
-    return foo:aByte + " rocks";
-}
-
-function testFloatConcat() returns string {
-    return foo:aFloat + " rocks";
-}
-
-function testDecimalConcat() returns string {
-    return foo:aDecimal + " rocks";
 }

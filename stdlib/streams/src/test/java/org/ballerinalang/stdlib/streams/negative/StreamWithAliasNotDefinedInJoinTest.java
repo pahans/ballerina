@@ -17,9 +17,9 @@
  */
 package org.ballerinalang.stdlib.streams.negative;
 
-import org.ballerinalang.launcher.util.BAssertUtil;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.CompileResult;
+import org.ballerinalang.test.util.BAssertUtil;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -49,7 +49,8 @@ public class StreamWithAliasNotDefinedInJoinTest {
         BAssertUtil.validateError(result, 5, "undefined symbol 'y'", 51, 36);
         BAssertUtil.validateError(result, 6, "undefined symbol 'x'", 51, 54);
         BAssertUtil.validateError(result, 7, "fields defined in select clause, incompatible with output " +
-                "fields in type 'StockWithPrice', expected '[symbol, tweet, price]' but found '[symbol, price, tweet]'",
+                 "fields in type 'StockWithPrice', expected '[symbol(string), tweet(string), price(float)]' but " +
+                 "found '[symbol(other), price(other), tweet(other)]'",
                 52, 9);
     }
 }

@@ -16,17 +16,20 @@
 
 package io.ballerina.plugins.idea.debugger;
 
+import com.google.common.base.Strings;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.xdebugger.frame.XExecutionStack;
 import com.intellij.xdebugger.frame.XStackFrame;
 import com.intellij.xdebugger.frame.XSuspendContext;
-import io.ballerina.plugins.idea.debugger.dto.Frame;
-import io.ballerina.plugins.idea.debugger.dto.Message;
+import org.eclipse.lsp4j.debug.StackFrame;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+
+import static io.ballerina.plugins.idea.BallerinaConstants.BAL_FILE_EXT;
 
 /**
  * Represent a Ballerina suspended context. Created in debug hits.
@@ -35,14 +38,16 @@ public class BallerinaSuspendContext extends XSuspendContext {
 
     private List<BallerinaExecutionStack> myExecutionStacks = new LinkedList<>();
     private BallerinaExecutionStack myActiveStack;
+    private BallerinaDebugProcess myProcess;
 
-    public BallerinaSuspendContext(@NotNull BallerinaDebugProcess process, @NotNull Message message) {
-        addToExecutionStack(process, message);
+    BallerinaSuspendContext(@NotNull BallerinaDebugProcess process) {
+        myProcess = process;
     }
 
-    public void addToExecutionStack(@NotNull BallerinaDebugProcess process, @NotNull Message message) {
-        BallerinaExecutionStack stack = new BallerinaExecutionStack(process, this, message.getThreadId(),
-                message.getFrames());
+    void addToExecutionStack(Long threadId, StackFrame[] stackFrames) {
+        List<BallerinaStackFrame> balStackFrames = toBalStackFrames(stackFrames);
+        BallerinaExecutionStack stack = new BallerinaExecutionStack(myProcess, this, threadId,
+                balStackFrames);
         myExecutionStacks.add(stack);
         myActiveStack = stack;
     }
@@ -53,19 +58,49 @@ public class BallerinaSuspendContext extends XSuspendContext {
         return myActiveStack;
     }
 
-    public void setMyActiveStack(BallerinaExecutionStack stack) {
+    private void setMyActiveStack(BallerinaExecutionStack stack) {
         myActiveStack = stack;
     }
 
     @NotNull
     @Override
     public XExecutionStack[] getExecutionStacks() {
-        return myExecutionStacks.toArray(new BallerinaExecutionStack[myExecutionStacks.size()]);
+        return myExecutionStacks.toArray(new BallerinaExecutionStack[0]);
+    }
+
+    private List<BallerinaStackFrame> toBalStackFrames(StackFrame[] frames) {
+        List<BallerinaStackFrame> balStackFrames = new ArrayList<>();
+        for (StackFrame frame : frames) {
+            // Todo - Enable java stack frames
+            if (isBallerinaSource(frame)) {
+                balStackFrames.add(new BallerinaStackFrame(myProcess, frame));
+            }
+        }
+        return balStackFrames;
+    }
+
+    private boolean isBallerinaSource(StackFrame frame) {
+
+        if (frame == null) {
+            return false;
+        }
+
+        String fileName = frame.getSource().getName();
+        String filePath = frame.getSource().getPath();
+        if (frame.getSource() == null || Strings.isNullOrEmpty(fileName) || Strings.isNullOrEmpty(filePath)) {
+            return false;
+        }
+
+        if (fileName.split("\\.").length <= 1) {
+            return false;
+        }
+
+        return fileName.endsWith(BAL_FILE_EXT);
     }
 
     static class BallerinaExecutionStack extends XExecutionStack {
 
-        private final String myWorkerID;
+        private final Long myWorkerID;
         @NotNull
         private final BallerinaDebugProcess myProcess;
         @NotNull
@@ -73,16 +108,13 @@ public class BallerinaSuspendContext extends XSuspendContext {
 
         private final BallerinaSuspendContext myContext;
 
-        public BallerinaExecutionStack(@NotNull BallerinaDebugProcess process, BallerinaSuspendContext context,
-                                       String myWorkerID, List<Frame> frames) {
+        BallerinaExecutionStack(@NotNull BallerinaDebugProcess process, BallerinaSuspendContext context,
+                                Long myWorkerID, @NotNull List<BallerinaStackFrame> frames) {
             super(" Worker #" + myWorkerID);
             this.myWorkerID = myWorkerID;
             this.myContext = context;
             this.myProcess = process;
-            this.myStacks = ContainerUtil.newArrayListWithCapacity(frames.size());
-            for (Frame frame : frames) {
-                myStacks.add(new BallerinaStackFrame(myProcess, frame));
-            }
+            this.myStacks = frames;
         }
 
         @Nullable
@@ -102,7 +134,7 @@ public class BallerinaSuspendContext extends XSuspendContext {
             myContext.setMyActiveStack(this);
         }
 
-        public String getMyWorkerID() {
+        Long getMyWorkerID() {
             return myWorkerID;
         }
     }

@@ -17,7 +17,6 @@
 */
 package org.ballerinalang.stdlib.task.objects;
 
-import org.ballerinalang.bre.Context;
 import org.ballerinalang.stdlib.task.exceptions.SchedulingException;
 import org.ballerinalang.stdlib.task.utils.TaskJob;
 import org.quartz.JobDataMap;
@@ -74,12 +73,12 @@ public class Timer extends AbstractTask {
      * {@inheritDoc}
      */
     @Override
-    public void start(Context context) throws SchedulingException {
+    public void start() throws SchedulingException {
         JobDataMap jobDataMap = getJobDataMapFromTask();
         try {
             scheduleTimer(jobDataMap);
         } catch (SchedulerException e) {
-            throw new SchedulingException("Failed to schedule Task.", e);
+            throw new SchedulingException("Failed to schedule task.", e);
         }
     }
 
@@ -106,7 +105,7 @@ public class Timer extends AbstractTask {
      *
      * @return the number of times the timer runs before shutdown.
      */
-    public long getMaxRuns() {
+    private long getMaxRuns() {
         return this.maxRuns;
     }
 
@@ -125,7 +124,7 @@ public class Timer extends AbstractTask {
      * @param jobData Map containing the details of the job.
      * @throws SchedulerException if scheduling is failed.
      */
-    private void scheduleTimer(JobDataMap jobData) throws SchedulerException {
+    private void scheduleTimer(JobDataMap jobData) throws SchedulerException, SchedulingException {
         SimpleScheduleBuilder schedule = createSchedulerBuilder(this.getInterval(), this.getMaxRuns());
         String triggerId = this.getId();
         JobDetail job = newJob(TaskJob.class).usingJobData(jobData).withIdentity(triggerId).build();
@@ -148,13 +147,13 @@ public class Timer extends AbstractTask {
                     .build();
         }
 
-        scheduler.scheduleJob(job, trigger);
+        TaskManager.getInstance().getScheduler().scheduleJob(job, trigger);
         quartzJobs.put(triggerId, job.getKey());
     }
 
     private static SimpleScheduleBuilder createSchedulerBuilder(long interval, long maxRuns) {
         SimpleScheduleBuilder simpleScheduleBuilder = simpleSchedule()
-                .withMisfireHandlingInstructionNextWithExistingCount()
+                .withMisfireHandlingInstructionNextWithRemainingCount()
                 .withIntervalInMilliseconds(interval);
         if (maxRuns > 0) {
             // Quartz uses number of repeats, but we count total number of runs.

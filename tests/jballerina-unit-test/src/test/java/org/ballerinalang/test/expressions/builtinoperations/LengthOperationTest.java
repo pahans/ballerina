@@ -22,7 +22,6 @@ import org.ballerinalang.test.util.BAssertUtil;
 import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
-import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -272,32 +271,6 @@ public class LengthOperationTest {
         Assert.assertEquals(actual, expected);
     }
 
-    @Test(description = "Test length of table")
-    public void lengthOfTable() {
-        BValue[] args = new BValue[0];
-        BValue[] returns = BRunUtil.invoke(result, "lengthOfTable", args);
-
-        Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-
-        int actual = (int) ((BInteger) returns[0]).intValue();
-        int expected = 3;
-        Assert.assertEquals(actual, expected);
-    }
-
-    @Test(description = "Test length of empty table")
-    public void lengthOfEmptyTable() {
-        BValue[] args = new BValue[0];
-        BValue[] returns = BRunUtil.invoke(result, "lengthOfEmptyTable", args);
-
-        Assert.assertEquals(returns.length, 1);
-        Assert.assertSame(returns[0].getClass(), BInteger.class);
-
-        int actual = (int) ((BInteger) returns[0]).intValue();
-        int expected = 0;
-        Assert.assertEquals(actual, expected);
-    }
-
     @Test(description = "Test length of record")
     public void lengthOfRecord() {
         BValue[] args = new BValue[0];
@@ -328,14 +301,6 @@ public class LengthOperationTest {
     public void testArrayLengthOfNull() {
         BValue[] args = new BValue[0];
         BRunUtil.invoke(result, "accessLengthOfNullArray", args);
-    }
-
-    @Test(description = "Test length of json when reference point to json that is null.",
-            expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = "error: NullReferenceException \\{\\}.*")
-    public void testJsonLengthOfNull() {
-        BValue[] args = new BValue[0];
-        BRunUtil.invoke(result, "accessLengthOfNullJson", args);
     }
 
     @Test(description = "Test length of map when reference point to null map.")

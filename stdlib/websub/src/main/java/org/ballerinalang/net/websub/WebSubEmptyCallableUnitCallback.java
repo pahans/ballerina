@@ -17,10 +17,9 @@
 */
 package org.ballerinalang.net.websub;
 
-import org.ballerinalang.bre.bvm.BLangVMErrors;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.services.ErrorHandlerUtils;
+import org.ballerinalang.jvm.services.ErrorHandlerUtils;
+import org.ballerinalang.jvm.values.ErrorValue;
+import org.ballerinalang.jvm.values.connector.CallableUnitCallback;
 
 /**
  * Empty callback implementation for WebSub resources.
@@ -33,9 +32,7 @@ public class WebSubEmptyCallableUnitCallback implements CallableUnitCallback {
     }
 
     @Override
-    public void notifyFailure(BError error) {
-        ErrorHandlerUtils.printError("error: " + BLangVMErrors.getPrintableStackTrace(error));
-
+    public void notifyFailure(ErrorValue error) {
+        ErrorHandlerUtils.printError("error: " + error.getPrintableStackTrace());
     }
-
 }

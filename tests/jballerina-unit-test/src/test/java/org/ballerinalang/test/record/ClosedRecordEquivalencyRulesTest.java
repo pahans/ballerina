@@ -22,12 +22,12 @@ import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
-import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import static org.ballerinalang.test.util.BAssertUtil.validateError;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 /**
  * Test cases for verifying the equivalency/assignability rules for closed records.
@@ -46,9 +46,12 @@ public class ClosedRecordEquivalencyRulesTest {
     @Test(description = "Negative tests for when both LHS and RHS are closed")
     public void testClosedRecordNegatives() {
         CompileResult negative = BCompileUtil.compile("test-src/record/equiv_rules_neg_cr_to_cr.bal");
-        assertEquals(negative.getErrorCount(), 2);
-        validateError(negative, 0, "incompatible types: expected 'AnotherPerson', found 'Person1'", 28, 24);
-        validateError(negative, 1, "incompatible types: expected 'AnotherPerson', found 'Person2'", 38, 24);
+        int i = 0;
+        validateError(negative, i++, "incompatible types: expected 'AnotherPerson', found 'Person1'", 28, 24);
+        validateError(negative, i++, "incompatible types: expected 'AnotherPerson', found 'Person2'", 38, 24);
+        validateError(negative, i++, "incompatible types: expected 'AnotherPerson3', found 'Person1'", 49, 25);
+        validateError(negative, i++, "incompatible types: expected 'AnotherPerson3', found 'Person1'", 55, 25);
+        assertEquals(negative.getErrorCount(), i);
     }
 
     @Test(description = "Test assigning a closed record to a cloesd record type variable")
@@ -63,20 +66,6 @@ public class ClosedRecordEquivalencyRulesTest {
         assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
     }
 
-    @Test(description = "RHS and LHS closed with additional fields (optional) than RHS")
-    public void testCRToCRClosedToClosedAssignment3() {
-        BValue[] returns = BRunUtil.invoke(closedRecToClosedRec, "testClosedToClosedAssignment3");
-        assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
-    }
-
-    @Test(description = "RHS and LHS closed with additional fields (optional) than RHS",
-          expectedExceptions = BLangRuntimeException.class,
-          expectedExceptionsMessageRegExp = ".*invalid field access: field 'weight' not found in record type " +
-                  "'Person1'.*")
-    public void testCRToCRClosedToClosedAssignment4() {
-        BRunUtil.invoke(closedRecToClosedRec, "testClosedToClosedAssignment4");
-    }
-
     @Test(description = "RHS and LHS closed with RHS required fields corresponding to LHS optional fields")
     public void testCRToCRReqFieldToOptField() {
         BValue[] returns = BRunUtil.invoke(closedRecToClosedRec, "testReqFieldToOptField");
@@ -89,11 +78,23 @@ public class ClosedRecordEquivalencyRulesTest {
         assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
     }
 
-    @Test(description = "RHS and LHS closed with RHS optional fields corresponding to LHS optional fields",
-          expectedExceptions = BLangRuntimeException.class,
-          expectedExceptionsMessageRegExp = ".*cannot find key 'age'.*")
+    @Test(description = "RHS and LHS closed with RHS optional fields corresponding to LHS optional fields")
     public void testCRToCROptFieldToOptField2() {
-        BRunUtil.invoke(closedRecToClosedRec, "testOptFieldToOptField2");
+        BValue[] returns = BRunUtil.invoke(closedRecToClosedRec, "testOptFieldToOptField2");
+        assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
+        assertNull(returns[1]);
+    }
+
+    @Test(description = "RHS and LHS closed with RHS type being a public typedesc")
+    public void testCRToCRHeterogeneousTypedescEq() {
+        BValue[] returns = BRunUtil.invoke(closedRecToClosedRec, "testHeterogeneousTypedescEq");
+        assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
+    }
+
+    @Test(description = "RHS and LHS closed with LHS type being a public typedesc")
+    public void testCRToCRHeterogeneousTypedescEq2() {
+        BValue[] returns = BRunUtil.invoke(closedRecToClosedRec, "testHeterogeneousTypedescEq2");
+        assertEquals(returns[0].stringValue(), "{name:\"John Doe\", age:25}");
     }
 
     @Test(description = "RHS open and LHS closed is disallowed")

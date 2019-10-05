@@ -34,6 +34,7 @@ import org.testng.annotations.Test;
 /**
  * Identifier literal test cases.
  */
+@Test(groups = { "brokenOnSpecDeviation" })
 public class IdentifierLiteralTest {
     private CompileResult result;
 
@@ -152,7 +153,7 @@ public class IdentifierLiteralTest {
         Assert.assertEquals(actualString, "sample test");
     }
 
-    @Test(description = "Test connector name with identifier literal", enabled = false)
+    @Test(description = "Test connector name with identifier literal")
     public void testConnectorWithIdentifierLiteral() {
         BValue[] returns = BRunUtil.invoke(result, "testConnectorNameWithIL");
 
@@ -161,7 +162,7 @@ public class IdentifierLiteralTest {
         Assert.assertEquals(((BString) returns[0]).stringValue(), "this is a sample");
     }
 
-    @Test(description = "Test connector action with identifier literal", enabled = false)
+    @Test(description = "Test connector action with identifier literal")
     public void testConnectorActionWithIdentifierLiteral() {
         BValue[] returns = BRunUtil.invoke(result, "testConnectorActionWithIL");
 
@@ -213,13 +214,12 @@ public class IdentifierLiteralTest {
     public void testIdentifierLiteralWithWrongCharacter() {
         CompileResult resultNeg = BCompileUtil.compile("test-src/expressions/literals/identifierliteral" +
                 "/identifier-literal-wrong-character-negative.bal");
-        Assert.assertEquals(resultNeg.getErrorCount(), 4);
-        BAssertUtil.validateError(resultNeg, 0, "invalid token 'var'", 3, 23);
-        BAssertUtil.validateError(resultNeg, 1, "invalid token '\" = \"'", 3, 26);
-        BAssertUtil.validateError(resultNeg, 2, "mismatched input 'dfs'. expecting {'is', ';', '?', '+', '-', '*', " +
-                "'/', '%', '==', '!=', '>', '<', '>=', '<=', '&&', '||', '===', '!==', '&', '^', '...', '|', '?:', " +
-                "'->>', '..<'}", 3, 31);
-        BAssertUtil.validateError(resultNeg, 3, "token recognition error at: '\";\\n}\\n\\n\\n'", 4, 25);
+        Assert.assertEquals(resultNeg.getErrorCount(), 5);
+        BAssertUtil.validateError(resultNeg, 0, "invalid token 'var'", 3, 20);
+        BAssertUtil.validateError(resultNeg, 1, "extraneous input '\" = \"'", 3, 23);
+        BAssertUtil.validateError(resultNeg, 2, "token recognition error at: '\";\\n    return 'global\\ '", 3, 31);
+        BAssertUtil.validateError(resultNeg, 3, "missing token '=' before 'v'", 4, 21);
+        BAssertUtil.validateError(resultNeg, 4, "token recognition error at: '\\'", 4, 22);
     }
 
     @Test
@@ -240,5 +240,14 @@ public class IdentifierLiteralTest {
         Assert.assertEquals(returns.length, 1);
         Assert.assertSame(returns[0].getClass(), BString.class);
         Assert.assertEquals(returns[0].stringValue(), "I am an integer");
+    }
+
+    @Test
+    public void testILConsistency() {
+        BValue[] returns = BRunUtil.invoke(result, "testILConsistency");
+        Assert.assertEquals(returns.length, 1);
+        Assert.assertSame(returns[0].getClass(), BMap.class);
+        Assert.assertEquals(((BMap) returns[0]).getIfExist("{http://test.com}fname").stringValue(),
+                "First Name Element");
     }
 }

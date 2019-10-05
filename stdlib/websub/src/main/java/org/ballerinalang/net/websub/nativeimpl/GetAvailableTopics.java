@@ -18,10 +18,10 @@
 
 package org.ballerinalang.net.websub.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.natives.annotations.ReturnType;
@@ -39,11 +39,10 @@ import org.ballerinalang.net.websub.hub.Hub;
         returnType = {@ReturnType(type = TypeKind.ARRAY, elementType = TypeKind.STRING)},
         isPublic = true
 )
-public class GetAvailableTopics extends BlockingNativeCallableUnit {
+public class GetAvailableTopics {
 
-    @Override
-    public void execute(Context context) {
+    public static ArrayValue getAvailableTopics(Strand strand, ObjectValue webSubHub) {
         String[] topics = Hub.getInstance().getTopics();
-        context.setReturnValues(new BValueArray(topics));
+        return new ArrayValue(topics);
     }
 }

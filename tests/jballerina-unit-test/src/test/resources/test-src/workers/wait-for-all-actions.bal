@@ -13,8 +13,8 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 import ballerina/runtime;
-import ballerina/io;
 
 function waitTest1() returns map<anydata> { // {f1: 7, f2: 22, f4: "hello foo", f6: true}
     future<int> f1 = start add_1(5, 2);
@@ -284,7 +284,7 @@ function waitTest26() returns map<anydata|error> {
     map<anydata|error> m = {};
     m["id"] = anonRec.id;
     m["name"] = anonRec.name;
-    m["status"] = anonRec.status;
+    m["status"] = anonRec["status"];
     return m;
 }
 
@@ -297,7 +297,7 @@ function waitTest27() returns map<anydata> {
     map<anydata> m = {};
     m["id"] = anonRec.id;
     m["name"] = anonRec.name;
-    m["greet"] = anonRec.greet;
+    m["greet"] = anonRec["greet"];
     return m;
 }
 

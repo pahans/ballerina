@@ -19,15 +19,14 @@ package org.ballerinalang.langserver.sourceprune;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.compiler.DocumentServiceKeys;
 import org.ballerinalang.langserver.compiler.LSContext;
 import org.ballerinalang.langserver.compiler.LSServiceOperationContext;
-import org.ballerinalang.langserver.compiler.common.LSDocument;
 import org.ballerinalang.langserver.compiler.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.compiler.workspace.WorkspaceDocumentManagerImpl;
 import org.ballerinalang.langserver.completions.CompletionKeys;
-import org.ballerinalang.langserver.completions.util.CompletionUtil;
 import org.ballerinalang.langserver.completions.util.SourcePruneException;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.eclipse.lsp4j.Position;
@@ -42,6 +41,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * Test the source prune operation with specific sources individual from the completion operation.
@@ -72,18 +72,33 @@ public class SourcePruneTest {
         String source = configObject.getAsJsonPrimitive("source").getAsString();
         LSContext lsContext = this.getLSContext(source, position);
         String fileUri = lsContext.get(DocumentServiceKeys.FILE_URI_KEY);
-        Path compilationPath = new LSDocument(fileUri).getPath();
-        String documentContent = new String(Files.readAllBytes(compilationPath)).replaceAll("\r?\n", LINE_SEPARATOR);
+        Optional<Path> filePath = CommonUtil.getPathFromURI(fileUri);
+        if (!filePath.isPresent()) {
+            Assert.fail("Invalid File path: [" + fileUri + "]");
+        }
+        String documentContent = new String(Files.readAllBytes(filePath.get())).replaceAll("\r?\n", LINE_SEPARATOR);
 
-        this.documentManager.openFile(compilationPath, documentContent);
+        this.documentManager.openFile(filePath.get(), documentContent);
         try {
-            CompletionUtil.getPrunedSource(lsContext);
-            String prunedSource = documentManager.getFileContent(compilationPath);
+            SourcePruner.pruneSource(lsContext);
+            String prunedSource = documentManager.getFileContent(filePath.get());
             Path expectedPath = expectedRoot.resolve(configObject.getAsJsonPrimitive("expected").getAsString());
-            String expected = new String(Files.readAllBytes(expectedPath));
+            String expected = new String(Files.readAllBytes(expectedPath)).replaceAll("\r?\n", LINE_SEPARATOR);
+            boolean sourceMatch = prunedSource.equals(expected);
+            if (!sourceMatch) {
+                Assert.fail("Sources Does not Match for " + configPath + System.lineSeparator()
+                        + "Pruned Source [" + prunedSource + "]" + System.lineSeparator()
+                        + "Expected Source [" + expected + "]");
+            }
             Assert.assertEquals(prunedSource, expected);
-            BallerinaParser parser = CommonUtil.prepareParser(prunedSource, true);
+            BallerinaParser parser = CommonUtil.prepareParser(prunedSource);
             parser.compilationUnit();
+            boolean prunedSourceErrors = parser.getNumberOfSyntaxErrors() != 0;
+            if (prunedSourceErrors) {
+                Assert.fail("Pruned Source Contains errors for " + configPath + System.lineSeparator()
+                        + "Pruned Source [" + prunedSource + "]" + System.lineSeparator()
+                        + "Expected Source [" + expected + "]");
+            }
             Assert.assertEquals(parser.getNumberOfSyntaxErrors(), 0);
         } catch (SourcePruneException e) {
             Assert.fail(e.getMessage());
@@ -91,7 +106,7 @@ public class SourcePruneTest {
     }
     
     private LSContext getLSContext(String source, Position position) {
-        LSContext lsContext = new LSServiceOperationContext();
+        LSContext lsContext = new LSServiceOperationContext(LSContextOperation.SOURCE_PRUNER);
         URI fileUri = sourceRoot.resolve(source).toUri();
         TextDocumentPositionParams positionParams = new TextDocumentPositionParams();
         positionParams.setPosition(position);
@@ -137,7 +152,9 @@ public class SourcePruneTest {
                 {"src_prune_config24.json"},
                 // Annotation Definition
                 {"src_prune_config25.json"},
-                {"src_prune_config26.json"},
+//                {"src_prune_config26.json"},
+                {"src_prune_config78.json"},
+                {"src_prune_config79.json"},
                 // Global variable Definition
                 {"src_prune_config27.json"},
                 {"src_prune_config28.json"},
@@ -152,6 +169,8 @@ public class SourcePruneTest {
                 {"src_prune_config35.json"},
                 {"src_prune_config36.json"},
                 {"src_prune_config37.json"},
+                {"src_prune_config80.json"},
+                {"src_prune_config81.json"},
                 // Compound assignment statement
                 {"src_prune_config38.json"},
                 // If else statement conditions
@@ -160,10 +179,6 @@ public class SourcePruneTest {
                 {"src_prune_config41.json"},
                 // Match Statement
                 {"src_prune_config42.json"},
-                {"src_prune_config43.json"},
-                {"src_prune_config44.json"},
-                {"src_prune_config45.json"},
-                {"src_prune_config46.json"},
                 // Foreach statement
                 {"src_prune_config47.json"},
                 {"src_prune_config48.json"},
@@ -178,7 +193,7 @@ public class SourcePruneTest {
                 {"src_prune_config55.json"},
                 {"src_prune_config56.json"},
                 // XML Namespace Declaration statement
-                {"src_prune_config57.json"},
+//                {"src_prune_config57.json"},
                 // Array Literal Expression
                 {"src_prune_config58.json"},
                 // Record Literal Expression
@@ -204,6 +219,18 @@ public class SourcePruneTest {
                 {"src_prune_config73.json"},
                 {"src_prune_config74.json"},
                 {"src_prune_config75.json"},
+                {"src_prune_config76.json"},
+                // Iterable Operators
+                {"src_prune_config77.json"},
+                // Type Descriptor
+                {"src_prune_config82.json"},
+                // Invalid source without semicolon after close parenthesis
+                {"src_prune_config83.json"},
+                {"src_prune_config84.json"},
+                {"src_prune_config85.json"},
+                {"src_prune_config86.json"},
+                {"src_prune_config87.json"},
+                {"src_prune_config88.json"},
         };
     }
 }

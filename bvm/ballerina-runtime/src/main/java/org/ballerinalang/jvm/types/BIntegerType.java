@@ -23,25 +23,25 @@ package org.ballerinalang.jvm.types;
  * @since 0.995.0
  */
 @SuppressWarnings("unchecked")
-class BIntegerType extends BType {
+public class BIntegerType extends BType {
 
     /**
      * Create a {@code BIntegerType} which represents the boolean type.
      *
      * @param typeName string name of the type
      */
-    BIntegerType(String typeName, String pkgPath) {
-        super(typeName, pkgPath, Integer.class);
+    BIntegerType(String typeName, BPackage pkg) {
+        super(typeName, pkg, Long.class);
     }
 
     @Override
     public <V extends Object> V getZeroValue() {
-        return (V) new Integer(0);
+        return (V) new Long(0);
     }
 
     @Override
     public <V extends Object> V getEmptyValue() {
-        return (V) new Integer(0);
+        return (V) new Long(0);
     }
 
     @Override

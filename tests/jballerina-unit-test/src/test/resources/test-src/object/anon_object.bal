@@ -38,7 +38,7 @@ function testAnonObjectAsPkgVar() returns (string) {
     person = new (fname = "sameera", lname = "jaya");
     person.lname = person.lname + "soma";
     person.age = 100;
-    return person.fname + ":" + person.lname + ":" + person.age;
+    return person.fname + ":" + person.lname + ":" + person.age.toString();
 }
 
 type employee object {
@@ -97,7 +97,7 @@ function testAnonObjectAsObjectField() returns (string) {
     employee e = new ("sam", "json", 100,
                      new ("12 Gemba St APT 134", "Los Altos", "CA", "95123"),
                         new());
-    return e.dateOfBirth.month + ":" + e.address.line01 + ":" + e.address["state"] + ":" + e.fname;
+    return e.dateOfBirth.month + ":" + e.address.line01 + ":" + e.address.state + ":" + e.fname;
 }
 
 object { public int age = 0; public string name = ""; function __init (int age, string lname) {self.name = "a " + lname;} function getName() returns string {return self.name;}} p = new (5, "hello");
@@ -128,14 +128,12 @@ public type Person object {
         return self.name;
     }
 
-    public function getKind() returns string;
+    public function getKind() returns string {
+        return self.kind;
+    }
 };
 
-public function Person.getKind() returns string {
-    return self.kind;
-}
-
-function testObjectEquivalencyBetweenAnonAndNormalObject() returns (int, string, string) {
+function testObjectEquivalencyBetweenAnonAndNormalObject() returns [int, string, string] {
     object { 
         public int age = 0;
         public string name = "";
@@ -153,10 +151,10 @@ function testObjectEquivalencyBetweenAnonAndNormalObject() returns (int, string,
 
     Person person1 = value;
 
-    return (person1.age, person1.name, person1.getKind());
+    return [person1.age, person1.name, person1.getKind()];
 }
 
-function testAnonObjectWithRecordLiteral() returns (int, string) {
+function testAnonObjectWithRecordLiteral() returns [int, string] {
     object { 
         public record {| int age; string name; anydata...; |} details;
         private int length; 
@@ -171,7 +169,7 @@ function testAnonObjectWithRecordLiteral() returns (int, string) {
         
     } value = new ({age:8, name:"sanjiva"}, "passed kind");
 
-    return (value.details.age, value.getName());
+    return [value.details.age, value.getName()];
 }
 
 type Foo object {
@@ -190,13 +188,13 @@ type Foo object {
     }
 };
 
-function testObjectWithAnonRecordLiteral() returns (int, string) {
+function testObjectWithAnonRecordLiteral() returns [int, string] {
     Foo value = new ({age:8, name:"sanjiva"}, "passed kind");
 
-    return (value.details.age, value.getName());
+    return [value.details.age, value.getName()];
 }
 
-function testObjectWithSelfReference() returns (int, string) {
+function testObjectWithSelfReference() returns [int, string] {
     object {
         public int age; 
         public string name; 
@@ -212,5 +210,5 @@ function testObjectWithSelfReference() returns (int, string) {
     } sample = new;
 
     sample.test(10, "Jewell");
-    return (sample.age, sample.name);
+    return [sample.age, sample.name];
 }

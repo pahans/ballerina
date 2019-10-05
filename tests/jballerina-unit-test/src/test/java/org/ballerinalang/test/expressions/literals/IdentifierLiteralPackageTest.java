@@ -26,40 +26,48 @@ import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * Identifier literal test cases with package.
  */
+@Test(groups = { "brokenOnSpecDeviation" })
 public class IdentifierLiteralPackageTest {
+
+    private CompileResult result;
+
+    @BeforeClass
+    public void setup() {
+
+        result = BCompileUtil.compile(this, "test-src/expressions/literals/identifierliteral/TestProject",
+                "pkg.main");
+        Assert.assertEquals(result.getDiagnostics().length, 0);
+    }
 
     @Test(description = "Test accessing variable in other packages defined with identifier literal")
     public void testAccessingVarsInOtherPackage() {
-        CompileResult result = BCompileUtil.compile(this, "test-src/expressions/literals/identifierliteral",
-                                                    "pkg.main");
-        BValue[] returns = BRunUtil.invoke(result, "pkg.main:0.0.0", "getVarsInOtherPkg");
+        BValue[] returns = BRunUtil.invoke(result, "getVarsInOtherPkg");
         Assert.assertEquals(returns.length, 4);
         Assert.assertSame(returns[0].getClass(), BInteger.class);
         Assert.assertSame(returns[1].getClass(), BString.class);
         Assert.assertSame(returns[2].getClass(), BFloat.class);
         Assert.assertSame(returns[3].getClass(), BInteger.class);
         Assert.assertEquals(((BInteger) returns[0]).intValue(), 800);
-        Assert.assertEquals(((BString) returns[1]).stringValue(), "value");
+        Assert.assertEquals(returns[1].stringValue(), "value");
         Assert.assertEquals(((BFloat) returns[2]).floatValue(), 99.34323);
         Assert.assertEquals(((BInteger) returns[3]).intValue(), 88343);
     }
 
     @Test(description = "Test accessing global vars with identifier literals defined in other packages")
     public void testAccessStructGlobalVarWithIdentifierLiteralInOtherPackage() {
-        CompileResult result = BCompileUtil.compile(this, "test-src/expressions/literals/identifierliteral",
-                                                    "pkg.main");
-        BValue[] returns = BRunUtil.invoke(result, "pkg.main:0.0.0", "accessStructWithIL");
+        BValue[] returns = BRunUtil.invoke(result, "accessStructWithIL");
 
         Assert.assertEquals(returns.length, 2);
         Assert.assertSame(returns[0].getClass(), BString.class);
         Assert.assertSame(returns[1].getClass(), BInteger.class);
 
-        Assert.assertEquals(((BString) returns[0]).stringValue(), "Harry");
+        Assert.assertEquals(returns[0].stringValue(), "Harry");
         Assert.assertEquals(((BInteger) returns[1]).intValue(), 25);
 
     }

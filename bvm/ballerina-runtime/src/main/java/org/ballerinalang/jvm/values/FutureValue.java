@@ -17,14 +17,26 @@
   */
  package org.ballerinalang.jvm.values;
 
- import org.ballerinalang.jvm.Strand;
+ import org.ballerinalang.jvm.scheduling.Strand;
+ import org.ballerinalang.jvm.transactions.TransactionLocalContext;
+ import org.ballerinalang.jvm.types.BFutureType;
+ import org.ballerinalang.jvm.types.BType;
+ import org.ballerinalang.jvm.values.connector.CallableUnitCallback;
 
- /**
-  * Represent a Ballerina future in Java.
-  *
-  * @since 0.995.0
-  */
- public class FutureValue {
+ import java.util.Map;
+ import java.util.StringJoiner;
+
+/**
+ * <p>
+ * Represent a Ballerina future in Java.
+ * </p>
+ * <p>
+ * <i>Note: This is an internal API and may change in future versions.</i>
+ * </p>
+ * 
+ * @since 0.995.0
+ */
+ public class FutureValue implements RefValue {
 
      public Strand strand;
 
@@ -34,7 +46,47 @@
 
      public Throwable panic;
 
-     public FutureValue(Strand strand) {
+     public CallableUnitCallback callback;
+
+     public TransactionLocalContext transactionLocalContext;
+
+     BType type;
+
+     public FutureValue(Strand strand, CallableUnitCallback callback, BType constraint) {
          this.strand = strand;
+         this.callback = callback;
+         this.type = new BFutureType(constraint);
+     }
+
+     @Override
+     public String stringValue(Strand strand) {
+         StringJoiner sj = new StringJoiner(",", "{", "}");
+         sj.add("isDone:" + isDone);
+         if (isDone) {
+             sj.add("result:" + result.toString());
+         }
+         if (panic != null) {
+             sj.add("panic:" + panic.getLocalizedMessage());
+         }
+         return "future " + sj.toString();
+     }
+
+     @Override
+     public BType getType() {
+         return this.type;
+     }
+
+     @Override
+     public Object copy(Map<Object, Object> refs) {
+         throw new UnsupportedOperationException();
+     }
+
+     @Override
+     public Object frozenCopy(Map<Object, Object> refs) {
+         throw new UnsupportedOperationException();
+     }
+
+     public void cancel() {
+         this.strand.cancel = true;
      }
  }

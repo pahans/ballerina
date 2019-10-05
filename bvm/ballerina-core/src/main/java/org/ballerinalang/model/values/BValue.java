@@ -17,15 +17,12 @@
 */
 package org.ballerinalang.model.values;
 
-import org.ballerinalang.bre.bvm.BVM;
 import org.ballerinalang.model.types.BType;
-import org.ballerinalang.util.exceptions.BLangFreezeException;
 import org.ballerinalang.util.exceptions.BallerinaException;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,8 +36,6 @@ public interface BValue {
 
     BType getType();
 
-    void stamp(BType type, List<BVM.TypeValuePair> unresolvedValues);
-
     /**
      * Deep copy {@link BValue}.
      *
@@ -50,15 +45,6 @@ public interface BValue {
      */
     BValue copy(Map<BValue, BValue> refs);
 
-    /**
-     * Method to attempt freezing a {@link BValue}, to disallow further modification.
-     *
-     * @param freezeStatus  the {@link BVM.FreezeStatus} instance to keep track of the
-     *                      freeze result of this attempt
-     */
-    default void attemptFreeze(BVM.FreezeStatus freezeStatus) {
-        throw new BLangFreezeException("'freeze()' not allowed on '" + getType() + "'");
-    }
 
     /**
      * Method to retrieve if the {@link BValue} is frozen, if applicable. Compile time checks ensure that the check

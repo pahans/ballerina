@@ -27,10 +27,11 @@ service InitiatorService on new http:Listener(8080) {
             // When a participant is called, the transaction context is propagated, and that participant
             // gets infected and joins the distributed transaction.
             boolean successful = callBusinessService();
+
             if (successful) {
-                res.statusCode = http:OK_200;
+                res.statusCode = http:STATUS_OK;
             } else {
-                res.statusCode = http:INTERNAL_SERVER_ERROR_500;
+                res.statusCode = http:STATUS_INTERNAL_SERVER_ERROR;
                 abort;
             }
 
@@ -57,15 +58,16 @@ service InitiatorService on new http:Listener(8080) {
 function callBusinessService() returns boolean {
     http:Client participantEP = new("http://localhost:8889/stockquote/update");
 
-    float price = math:randomInRange(200, 250) + math:random();
+    float price = <int>math:randomInRange(200, 250) + math:random();
     json bizReq = { symbol: "GOOG", price: price };
     http:Request req = new;
     req.setJsonPayload(bizReq);
     var result = participantEP->post("", req);
     log:printInfo("Got response from bizservice");
     if (result is error) {
+	log:printInfo(result.toString());
         return false;
     }  else {
-        return (result.statusCode == http:OK_200);
+        return (result.statusCode == http:STATUS_OK);
     }
 }

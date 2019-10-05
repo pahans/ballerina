@@ -17,13 +17,9 @@
  */
 package org.ballerinalang.stdlib.runtime.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.natives.annotations.Argument;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
-import org.ballerinalang.natives.annotations.ReturnType;
-import org.ballerinalang.stdlib.runtime.utils.RuntimeUtils;
 
 /**
  * Extern function ballerina.runtime:getProperty.
@@ -33,15 +29,15 @@ import org.ballerinalang.stdlib.runtime.utils.RuntimeUtils;
 @BallerinaFunction(
         orgName = "ballerina", packageName = "runtime",
         functionName = "getProperty",
-        args = {@Argument(name = "name", type = TypeKind.STRING)},
-        returnType = {@ReturnType(type = TypeKind.STRING)},
         isPublic = true
 )
-public class GetProperty extends BlockingNativeCallableUnit {
+public class GetProperty {
 
-    @Override
-    public void execute(Context context) {
-        String name = context.getStringArgument(0);
-        context.setReturnValues(RuntimeUtils.getSystemProperty(name));
+    public static String getProperty(Strand strand, String name) {
+        String value = System.getProperty(name);
+        if (value == null) {
+            return BTypes.typeString.getZeroValue();
+        }
+        return value;
     }
 }

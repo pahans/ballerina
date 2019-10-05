@@ -1,5 +1,5 @@
 import ballerina/runtime;
-import ballerina/io;
+
 
 string append = "";
 function simpleSyncSend() returns string {
@@ -11,7 +11,7 @@ function process() returns string {
    worker w1 {
      int a = 10;
      a -> w2;
-     () result = a ->> w2;
+     a ->> w2;
      a -> w2;
      foreach var i in 1 ... 5 {
                            append = append + "w1";
@@ -55,7 +55,7 @@ function multipleSyncSend() returns string{
                 append2 = append2 + "w2";
          }
          if(false){
-              error err = error("err", { message: "err msg" });
+              error err = error("err", message = "err msg");
               return err;
          }
          b = <- w1;
@@ -86,7 +86,7 @@ function returnNil() returns any|error {
 
    worker w2 returns error? {
      if(false){
-          error err = error("err", { message: "err msg" });
+          error err = error("err", message = "err msg");
           return err;
      }
      int b = 15;
@@ -121,12 +121,12 @@ function multiWorkerSend() returns string{
 
        worker w2 returns error? {
          if(false){
-              error err = error("err", { message: "err msg" });
+              error err = error("err", message = "err msg");
               return err;
          }
 
          if(false){
-              error err = error("err", { message: "err msg" });
+              error err = error("err", message = "err msg");
               return err;
          }
          int b = 15;
@@ -184,7 +184,7 @@ function errorResult() returns error? {
 
        worker w2 returns error? {
          if(false){
-              error err = error("err", { message: "err msg" });
+              error err = error("err", message = "err msg");
               return err;
          }
          int b = 15;
@@ -204,7 +204,7 @@ function errorResult() returns error? {
 
        worker w3 returns error|string {
                 if(false){
-                     error err = error("err", { message: "err msg" });
+                     error err = error("err", message = "err msg");
                      return err;
                 }
                 int b;
@@ -217,8 +217,7 @@ function errorResult() returns error? {
                 b = <- w2;
                 if (b > 0) {
                     map<string> reason = { k1: "error3" };
-                    map<string> details = { message: "msg3" };
-                    error er3 = error(reason.k1, details);
+                    error er3 = error(reason.get("k1"), message = "msg3");
                     return er3;
                 }
                 foreach var i in 1 ... 5 {
@@ -259,7 +258,7 @@ function panicTest() returns error? {
 
        worker w3 returns string|error {
                 if(false){
-                     error err = error("err", { message: "err msg" });
+                     error err = error("err", message = "err msg");
                      return err;
                 }
                 int b;
@@ -269,8 +268,7 @@ function panicTest() returns error? {
                 b = <- w2;
                 if (b > 0) {
                     map<string> reason = { k1: "error3" };
-                    map<string> details = { message: "msg3" };
-                    error er3 = error(reason.k1, details);
+                    error er3 = error(reason.get("k1"), message = "msg3");
                     panic er3;
                 }
 
@@ -417,23 +415,21 @@ function errorResultWithMultipleWorkers() returns error? {
         int x = 30;
         () n = x ->> w2;
         error? res = x ->> w2;
-        res = x + 44 ->> w2;
         return res;
     }
 
-    worker w2 returns error? {
+    worker w2 returns int|error {
         int x = 0;
         x = <- w1;
         if(true) {
             error err = error("err returned from w2"); // Already errored
             return err;
         }
-        x = <- w1;
-        error? res = <- w1;
+        int res = <- w1;
         return res;
     }
 
-    error? eor = wait w2 | w1;
+    error? eor = wait w1;
     return eor;
 }
 

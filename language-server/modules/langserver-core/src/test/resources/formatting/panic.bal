@@ -32,10 +32,31 @@ public function main() {
 function throwError(error err) {    panic   err   ;}
 
 function throwError2(int | error a) {
+        int b=0;
     if (a is int) {
-        a += 1;
+           b+=a;
     } else {
  panic
             a;
     }
+}
+
+public function main2(string... args) {
+  panic         error ( "Player has to be initialized" ) ;
+}
+
+public function main3(string... args) {panic
+         error
+(
+            "Player has to be initialized"
+  )
+        ;
+}
+
+public function main4(string... args) {
+  panic   getError();
+}
+
+public function getError() returns error {
+    return   error ("Player has to be initialized") ;
 }

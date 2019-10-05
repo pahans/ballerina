@@ -4,14 +4,24 @@ import ballerina/socket;
 
 public function main() {
     // Create a new socket client by providing the host, port, and callback service.
-    socket:Client socketClient = new({ host: "localhost", port: 61598,
-            callbackService: ClientService });
+    socket:Client socketClient = new ({
+        host: "localhost",
+        port: 61598,
+        callbackService: ClientService
+    });
     string content = "Hello Ballerina";
-    byte[] payloadByte = content.toByteArray("UTF-8");
+    byte[] payloadByte = content.toBytes();
     // Send desired content to the server using the write function.
-    var writeResult = socketClient->write(payloadByte);
-    if (writeResult is error) {
-        io:println("Unable to written the content ", writeResult);
+    int i = 0;
+    int arrayLength = payloadByte.length();
+    while (i < arrayLength) {
+        var writeResult = socketClient->write(payloadByte);
+        if (writeResult is error) {
+            io:println("Unable to written the content ", writeResult);
+        } else {
+            i = i + writeResult;
+            payloadByte = payloadByte.slice(writeResult, arrayLength);
+        }
     }
 }
 
@@ -26,21 +36,23 @@ service ClientService = service {
     // This is invoked when the server sends any content.
     resource function onReadReady(socket:Caller caller) {
         var result = caller->read();
-        if (result is (byte[], int)) {
-            var (content, length) = result;
+        if (result is [byte[], int]) {
+            var [content, length] = result;
             if (length > 0) {
-                io:ReadableByteChannel byteChannel =
-                    io:createReadableChannel(content);
-                io:ReadableCharacterChannel characterChannel =
+                var byteChannel =
+                io:createReadableChannel(content);
+                if (byteChannel is io:ReadableByteChannel) {
+                    io:ReadableCharacterChannel characterChannel =
                     new io:ReadableCharacterChannel(byteChannel, "UTF-8");
-                var str = characterChannel.read(25);
-                if (str is string) {
-                    io:println(untaint str);
+                    var str = characterChannel.read(25);
+                    if (str is string) {
+                        io:println(<@untainted>str);
+                    } else {
+                        io:println("Error while reading characters ", str);
+                    }
                 } else {
-                    io:println("Error while reading characters ", str);
+                    io:println("Client close: ", caller.remotePort);
                 }
-            } else {
-                io:println("Client close: ", caller.remotePort);
             }
         } else {
             io:println(result);

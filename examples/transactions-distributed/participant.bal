@@ -30,7 +30,7 @@ service ParticipantService on new http:Listener(8889) {
         log:printInfo("Joined transaction: " +
                        transactions:getCurrentTransactionId());
 
-        var updateReq = untaint req.getJsonPayload();
+        var updateReq = <@untainted> req.getJsonPayload();
         if (updateReq is json) {
             string msg =
                 io:sprintf("Update stock quote request received.
@@ -40,10 +40,10 @@ service ParticipantService on new http:Listener(8889) {
             log:printInfo(msg);
 
             json jsonRes = { "message": "updating stock" };
-            res.statusCode = http:OK_200;
+            res.statusCode = http:STATUS_OK;
             res.setJsonPayload(jsonRes);
         } else {
-            res.statusCode = http:INTERNAL_SERVER_ERROR_500;
+            res.statusCode = http:STATUS_INTERNAL_SERVER_ERROR;
             res.setPayload(updateReq.reason());
             log:printError("Payload error occurred!", err = updateReq);
         }

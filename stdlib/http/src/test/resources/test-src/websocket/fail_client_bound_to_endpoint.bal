@@ -15,9 +15,9 @@
 // under the License.
 
 import ballerina/http;
-import ballerina/io;
 
-http:WebSocketClient wsClientEp = new("wss://echo.websocket.org", config = {callbackService: wsService});
+
+http:WebSocketClient wsClientEp = new("wss://echo.websocket.org", {callbackService: wsService});
 
 service wsService on wsClientEp {
 

@@ -26,6 +26,8 @@ public enum CompilerOptionName {
 
     PROJECT_DIR("projectDirectory"),
 
+    SOURCE_TYPE("sourceType"),
+
     PRESERVE_WHITESPACE("preserveWhitespace"),
 
     OFFLINE("offline"),
@@ -46,9 +48,9 @@ public enum CompilerOptionName {
 
     LOCK_ENABLED("lockEnabled"),
 
-    SIDDHI_RUNTIME_ENABLED("siddhiRuntimeEnabled"),
+    EXPERIMENTAL_FEATURES_ENABLED("experimentalFeaturesEnabled"),
 
-    EXPERIMENTAL_FEATURES_ENABLED("experimentalFeaturesEnabled");
+    TOOLING_COMPILATION("toolingCompilation");
 
     public final String name;
 

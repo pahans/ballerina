@@ -17,10 +17,14 @@
 */
 package org.ballerinalang.langserver.completion.definitions;
 
+import org.ballerinalang.langserver.compiler.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.completion.CompletionTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
 
 /**
  * Completion item tests for service definition.
@@ -29,6 +33,11 @@ public class ServiceDefinitionCompletionTest extends CompletionTest {
 
     private static final Logger log = LoggerFactory.getLogger(ServiceDefinitionCompletionTest.class);
 
+    @Test(dataProvider = "completion-data-provider")
+    public void test(String config, String configPath) throws WorkspaceDocumentException, IOException {
+        super.test(config, configPath);
+    }
+
     @DataProvider(name = "completion-data-provider")
     @Override
     public Object[][] dataProvider() {
@@ -36,19 +45,23 @@ public class ServiceDefinitionCompletionTest extends CompletionTest {
         return new Object[][] {
             {"serviceEndpointBind1.json", "service"},
             {"serviceEndpointBind2.json", "service"},
-            {"serviceEndpointBind3.json", "service"},
+            // This is an invalid case
+//            {"serviceEndpointBind3.json", "service"},
             {"serviceEndpointBind4.json", "service"},
+            {"serviceEndpointBind5.json", "service"},
             {"serviceBodyCompletion1.json", "service"},
             {"serviceBodyCompletion2.json", "service"},
-            {"serviceBodyCompletion3.json", "service"},
-            {"serviceBodyCompletion4.json", "service"},
-            {"serviceBodyCompletion5.json", "service"},
+            {"serviceBodyCompletion6.json", "service"},
+            {"serviceBodyCompletion7.json", "service"},
+            {"serviceBodyCompletion8.json", "service"},
             {"serviceVariableAndFieldsCompletion1.json", "service"},
             {"httpServiceBodyResourceCompletion.json", "service"},
-            {"websocketServiceBodyResourceCompletion.json", "service"},
+            {"websocketServiceBodyResourceCompletion1.json", "service"},
+            {"websocketServiceBodyResourceCompletion2.json", "service"},
             {"websubServiceBodyResourceCompletion.json", "service"},
             {"grpcServiceBodyResourceCompletion.json", "service"},
             {"serviceDefinitionContextSuggestion1.json", "service"},
+            {"completionAftercheckpanic.json", "service"},
         };
     }
 }

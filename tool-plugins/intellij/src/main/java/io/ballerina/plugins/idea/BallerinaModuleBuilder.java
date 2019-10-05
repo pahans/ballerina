@@ -33,7 +33,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Responsible for creating a Ballerina module.
@@ -41,27 +47,94 @@ import java.util.List;
 public class BallerinaModuleBuilder extends JavaModuleBuilder implements SourcePathsBuilder, ModuleBuilderListener {
 
     private static final Logger LOG = Logger.getInstance(BallerinaModuleBuilder.class);
+    private ModifiableRootModel rootModel;
 
     @Override
-    public void setupRootModel(ModifiableRootModel modifiableRootModel) throws ConfigurationException {
+    public void setupRootModel(@NotNull ModifiableRootModel modifiableRootModel) throws ConfigurationException {
+        this.rootModel = modifiableRootModel;
         addListener(this);
         super.setupRootModel(modifiableRootModel);
     }
 
-    // Note - Removing this override will create src directory in the project root.
+    @Override
     public List<Pair<String, String>> getSourcePaths() {
-        String ballerinaCacheRoot = getContentEntryPath() + File.separator + ".ballerina";
-        new File(ballerinaCacheRoot).mkdirs();
-        String ballerinaTomlFile = getContentEntryPath() + File.separator +
-                BallerinaConstants.BALLERINA_CONFIG_FILE_NAME;
-        File file = new File(ballerinaTomlFile);
         try {
-            file.createNewFile();
-            // Todo - Add some content to the toml file?
-        } catch (IOException e) {
-            LOG.debug(e);
+            // Todo - Revamp with "ballerina init ." command, when its available.
+            initProject(Paths.get(Objects.requireNonNull(rootModel.getProject().getBasePath())));
+        } catch (Exception e) {
+            LOG.warn("Ballerina project artifacts creation is failed dues to: ", e);
         }
         return ContainerUtil.emptyList();
+    }
+
+    /**
+     * Initialize a new ballerina project in the given path.
+     *
+     * @param path Project path
+     * @throws IOException If any IO exception occurred
+     */
+    private static void initProject(Path path) throws IOException {
+        // We will be creating following in the project directory
+        // - Ballerina.toml
+        // - src/
+        // - tests/
+        // -- resources/      <- integration test resources
+        // - .gitignore       <- git ignore file
+
+        Path manifest = path.resolve("Ballerina.toml");
+        Path src = path.resolve("src");
+        Path test = path.resolve("tests");
+        Path testResources = test.resolve("resources");
+        Path gitignore = path.resolve(".gitignore");
+
+
+        Files.createFile(manifest);
+        Files.createFile(gitignore);
+        Files.createDirectory(src);
+        Files.createDirectory(test);
+        Files.createDirectory(testResources);
+
+        String defaultManifest = "[project]\n" +
+                "org-name= \"ORG_NAME\"\n" +
+                "version= \"0.1.0\"\n" +
+                "\n" +
+                "[dependencies]\n";
+
+        String defaultGitignore = "target\n";
+
+        // replace manifest org with a guessed value.
+        defaultManifest = defaultManifest.replaceAll("ORG_NAME", guessOrgName());
+
+        Files.write(manifest, defaultManifest.replace("\n", System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
+        Files.write(gitignore, defaultGitignore.replace("\n", System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String guessOrgName() {
+        String guessOrgName = System.getProperty("user.name");
+        if (guessOrgName == null) {
+            guessOrgName = "my_org";
+        } else {
+            guessOrgName = guessOrgName.toLowerCase(Locale.getDefault());
+        }
+        return guessOrgName;
+    }
+
+    private void addBallerinaProjectArtifacts() {
+        try {
+            LOG.info("Initiating ballerina project by adding required project artifacts manually");
+
+            // Creates "src" dir.
+            String ballerinaSrcDir = getContentEntryPath() + File.separator + "src";
+            new File(ballerinaSrcDir).mkdirs();
+
+            // Creates .toml file.
+            String ballerinaTomlFile = getContentEntryPath() + File.separator +
+                    BallerinaConstants.BALLERINA_CONFIG_FILE_NAME;
+            File file = new File(ballerinaTomlFile);
+            file.createNewFile();
+        } catch (Exception e) {
+            LOG.warn("Error occurred when initiating ballerina project due to:", e);
+        }
     }
 
     @NotNull

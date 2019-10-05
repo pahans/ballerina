@@ -18,18 +18,14 @@
 
 package org.ballerinalang.net.websub.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.connector.api.BLangConnectorSPIUtil;
-import org.ballerinalang.connector.api.BallerinaConnectorException;
-import org.ballerinalang.connector.api.Struct;
-import org.ballerinalang.model.types.BStructureType;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.types.BRecordType;
+import org.ballerinalang.jvm.util.exceptions.BallerinaConnectorException;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.MapValue;
+import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.TypedescValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BString;
-import org.ballerinalang.model.values.BTypeDescValue;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.net.http.WebSocketServicesRegistry;
@@ -37,17 +33,14 @@ import org.ballerinalang.net.websub.WebSubServicesRegistry;
 
 import java.util.HashMap;
 
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.EXTENSION_CONFIG_HEADER_AND_PAYLOAD_KEY_RESOURCE_MAP;
+import static org.ballerinalang.net.websub.WebSubSubscriberConstants
+        .EXTENSION_CONFIG_HEADER_AND_PAYLOAD_KEY_RESOURCE_MAP;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.EXTENSION_CONFIG_HEADER_RESOURCE_MAP;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.EXTENSION_CONFIG_PAYLOAD_KEY_RESOURCE_MAP;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.EXTENSION_CONFIG_TOPIC_HEADER;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.EXTENSION_CONFIG_TOPIC_IDENTIFIER;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.LISTENER_SERVICE_ENDPOINT_CONFIG;
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.RESOURCE_NAME_ON_INTENT_VERIFICATION;
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.RESOURCE_NAME_ON_NOTIFICATION;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.SERVICE_CONFIG_EXTENSION_CONFIG;
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.STRUCT_WEBSUB_INTENT_VERIFICATION_REQUEST;
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.STRUCT_WEBSUB_NOTIFICATION_REQUEST;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.TOPIC_ID_HEADER;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.TOPIC_ID_HEADER_AND_PAYLOAD;
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.TOPIC_ID_PAYLOAD_KEY;
@@ -68,31 +61,29 @@ import static org.ballerinalang.net.websub.WebSubSubscriberConstants.WEBSUB_SERV
         receiver = @Receiver(type = TypeKind.OBJECT, structType = WEBSUB_SERVICE_LISTENER,
                 structPackage = WEBSUB_PACKAGE)
 )
-public class InitWebSubSubscriberServiceEndpoint extends BlockingNativeCallableUnit {
+public class InitWebSubSubscriberServiceEndpoint {
 
     @SuppressWarnings("unchecked")
-    @Override
-    public void execute(Context context) {
+    public static void initWebSubSubscriberServiceEndpoint(Strand strand, ObjectValue subscriberServiceEndpoint) {
 
-        Struct subscriberServiceEndpoint = BLangConnectorSPIUtil.getConnectorEndpointStruct(context);
-        Struct serviceEndpoint = ((subscriberServiceEndpoint).getRefField(WEBSUB_HTTP_ENDPOINT).getStructValue());
-        BMap<String, BValue> listener = (BMap<String, BValue>) context.getRefArgument(0);
-        BMap<String, BValue> config = (BMap<String, BValue>) listener.get(LISTENER_SERVICE_ENDPOINT_CONFIG);
-
+        ObjectValue serviceEndpoint = (ObjectValue) subscriberServiceEndpoint.get(WEBSUB_HTTP_ENDPOINT);
+        MapValue<String, Object> config = (MapValue<String, Object>) subscriberServiceEndpoint.get(
+                LISTENER_SERVICE_ENDPOINT_CONFIG);
         WebSubServicesRegistry webSubServicesRegistry;
 
         if (config == null || config.get(SERVICE_CONFIG_EXTENSION_CONFIG) == null) {
-             webSubServicesRegistry = new WebSubServicesRegistry(new WebSocketServicesRegistry());
+            webSubServicesRegistry = new WebSubServicesRegistry(new WebSocketServicesRegistry());
         } else {
-            BMap<String, BValue> extensionConfig = (BMap<String, BValue>) config.get(SERVICE_CONFIG_EXTENSION_CONFIG);
-            String topicIdentifier = extensionConfig.get(EXTENSION_CONFIG_TOPIC_IDENTIFIER).stringValue();
-            BString topicHeader = null;
-            BMap<String, BValue> headerResourceMap = null;
-            BMap<String, BMap<String, BValue>> payloadKeyResourceMap = null;
-            BMap<String, BMap<String, BMap<String, BValue>>> headerAndPayloadKeyResourceMap = null;
+            MapValue<String, Object> extensionConfig = (MapValue<String, Object>) config.get(
+                    SERVICE_CONFIG_EXTENSION_CONFIG);
+            String topicIdentifier = extensionConfig.getStringValue(EXTENSION_CONFIG_TOPIC_IDENTIFIER);
+            String topicHeader = null;
+            MapValue<String, Object> headerResourceMap = null;
+            MapValue<String, MapValue<String, Object>> payloadKeyResourceMap = null;
+            MapValue<String, MapValue<String, MapValue<String, Object>>> headerAndPayloadKeyResourceMap = null;
 
             if (TOPIC_ID_HEADER.equals(topicIdentifier) || TOPIC_ID_HEADER_AND_PAYLOAD.equals(topicIdentifier)) {
-                topicHeader = (BString) extensionConfig.get(EXTENSION_CONFIG_TOPIC_HEADER);
+                topicHeader = extensionConfig.getStringValue(EXTENSION_CONFIG_TOPIC_HEADER);
                 if (topicHeader == null) {
                     throw new BallerinaConnectorException("Topic Header not specified to dispatch by "
                                                                   + topicIdentifier);
@@ -100,53 +91,49 @@ public class InitWebSubSubscriberServiceEndpoint extends BlockingNativeCallableU
             }
 
             if (TOPIC_ID_HEADER.equals(topicIdentifier)) {
-                headerResourceMap = (BMap<String, BValue>) extensionConfig.get(EXTENSION_CONFIG_HEADER_RESOURCE_MAP);
+                headerResourceMap = (MapValue<String, Object>) extensionConfig.get(
+                        EXTENSION_CONFIG_HEADER_RESOURCE_MAP);
                 if (headerResourceMap == null) {
                     throw new BallerinaConnectorException("Resource map not specified to dispatch by header");
                 }
             } else if (TOPIC_ID_HEADER_AND_PAYLOAD.equals(topicIdentifier)) {
-                headerAndPayloadKeyResourceMap = (BMap<String, BMap<String, BMap<String, BValue>>>)
+                headerAndPayloadKeyResourceMap = (MapValue<String, MapValue<String, MapValue<String, Object>>>)
                         extensionConfig.get(EXTENSION_CONFIG_HEADER_AND_PAYLOAD_KEY_RESOURCE_MAP);
                 if (headerAndPayloadKeyResourceMap == null) {
                     throw new BallerinaConnectorException("Resource map not specified to dispatch by header and "
                                                                   + "payload");
                 }
-                headerResourceMap = (BMap<String, BValue>) extensionConfig.get(
-                                                            EXTENSION_CONFIG_HEADER_RESOURCE_MAP);
-                payloadKeyResourceMap = (BMap<String, BMap<String, BValue>>) extensionConfig.get(
-                                                            EXTENSION_CONFIG_PAYLOAD_KEY_RESOURCE_MAP);
+                headerResourceMap = (MapValue<String, Object>) extensionConfig.get(
+                        EXTENSION_CONFIG_HEADER_RESOURCE_MAP);
+                payloadKeyResourceMap = (MapValue<String, MapValue<String, Object>>) extensionConfig.get(
+                        EXTENSION_CONFIG_PAYLOAD_KEY_RESOURCE_MAP);
             } else {
-                payloadKeyResourceMap = (BMap<String, BMap<String, BValue>>) extensionConfig.get(
-                                                            EXTENSION_CONFIG_PAYLOAD_KEY_RESOURCE_MAP);
+                payloadKeyResourceMap = (MapValue<String, MapValue<String, Object>>) extensionConfig.get(
+                        EXTENSION_CONFIG_PAYLOAD_KEY_RESOURCE_MAP);
                 if (payloadKeyResourceMap == null) {
                     throw new BallerinaConnectorException("Resource map not specified to dispatch by payload");
                 }
             }
-            HashMap<String, String[]> resourceDetails = buildResourceDetailsMap(topicIdentifier, headerResourceMap,
-                                                                                payloadKeyResourceMap,
-                                                                                headerAndPayloadKeyResourceMap);
+            HashMap<String, BRecordType> resourceDetails = buildResourceDetailsMap(topicIdentifier, headerResourceMap,
+                                                                                   payloadKeyResourceMap,
+                                                                                   headerAndPayloadKeyResourceMap);
             webSubServicesRegistry = new WebSubServicesRegistry(new WebSocketServicesRegistry(), topicIdentifier,
-                                                                topicHeader == null ? null : topicHeader.stringValue(),
-                                                                headerResourceMap, payloadKeyResourceMap,
+                                                                topicHeader, headerResourceMap, payloadKeyResourceMap,
                                                                 headerAndPayloadKeyResourceMap, resourceDetails);
         }
 
         serviceEndpoint.addNativeData(WEBSUB_SERVICE_REGISTRY, webSubServicesRegistry);
-        context.setReturnValues();
     }
 
-    private HashMap<String, String[]> buildResourceDetailsMap(String topicIdentifier,
-                                                              BMap<String, BValue> headerResourceMap,
-                                                              BMap<String, BMap<String, BValue>> payloadKeyResourceMap,
-                                                              BMap<String, BMap<String, BMap<String, BValue>>>
-                                                                      headerAndPayloadKeyResourceMap) {
-        //Map with resource details where the key is the resource name and the value is the param
-        HashMap<String, String[]> resourceDetails = new HashMap<>();
-        resourceDetails.put(RESOURCE_NAME_ON_INTENT_VERIFICATION,
-                            new String[]{WEBSUB_PACKAGE, STRUCT_WEBSUB_INTENT_VERIFICATION_REQUEST});
-        resourceDetails.put(RESOURCE_NAME_ON_NOTIFICATION,
-                            new String[]{WEBSUB_PACKAGE, STRUCT_WEBSUB_NOTIFICATION_REQUEST});
-
+    private static HashMap<String, BRecordType> buildResourceDetailsMap(String topicIdentifier,
+                                                                        MapValue<String, Object> headerResourceMap,
+                                                                        MapValue<String, MapValue<String, Object>>
+                                                                                payloadKeyResourceMap,
+                                                                        MapValue<String, MapValue<String,
+                                                                                MapValue<String, Object>>>
+                                                                                headerAndPayloadKeyResourceMap) {
+        // Map with resource details where the key is the resource name and the value is the param
+        HashMap<String, BRecordType> resourceDetails = new HashMap<>();
         if (topicIdentifier != null) {
             switch (topicIdentifier) {
                 case TOPIC_ID_HEADER:
@@ -169,35 +156,33 @@ public class InitWebSubSubscriberServiceEndpoint extends BlockingNativeCallableU
         return resourceDetails;
     }
 
-    private static void populateResourceDetailsByHeader(BMap<String, BValue> headerResourceMap,
-                                                        HashMap<String, String[]> resourceDetails) {
-        headerResourceMap.getMap().values().forEach(value -> populateResourceDetails(resourceDetails,
-                                                                                     (BValueArray) value));
+    private static void populateResourceDetailsByHeader(MapValue<String, Object> headerResourceMap,
+                                                        HashMap<String, BRecordType> resourceDetails) {
+        headerResourceMap.values().forEach(value -> populateResourceDetails(resourceDetails, (ArrayValue) value));
     }
 
-    private static void populateResourceDetailsByPayload(BMap<String, BMap<String, BValue>> payloadKeyResourceMap,
-                                                         HashMap<String, String[]> resourceDetails) {
-        payloadKeyResourceMap.getMap().values().forEach(mapByKey -> {
-            mapByKey.getMap().values().forEach(value -> populateResourceDetails(resourceDetails,
-                                                                                (BValueArray) value));
+    private static void populateResourceDetailsByPayload(
+            MapValue<String, MapValue<String, Object>> payloadKeyResourceMap,
+            HashMap<String, BRecordType> resourceDetails) {
+        payloadKeyResourceMap.values().forEach(mapByKey -> {
+            mapByKey.values().forEach(value -> populateResourceDetails(resourceDetails, (ArrayValue) value));
         });
     }
 
-    private static void populateResourceDetailsByHeaderAndPayload(BMap<String, BMap<String, BMap<String, BValue>>>
-                                                                          headerAndPayloadKeyResourceMap,
-                                                                  HashMap<String, String[]> resourceDetails) {
-        headerAndPayloadKeyResourceMap.getMap().values().forEach(mapByHeader -> {
-            mapByHeader.getMap().values().forEach(mapByKey -> {
-                mapByKey.getMap().values().forEach(value -> populateResourceDetails(resourceDetails,
-                                                                                    (BValueArray) value));
+    private static void populateResourceDetailsByHeaderAndPayload(
+            MapValue<String, MapValue<String, MapValue<String, Object>>> headerAndPayloadKeyResourceMap,
+            HashMap<String, BRecordType> resourceDetails) {
+        headerAndPayloadKeyResourceMap.values().forEach(mapByHeader -> {
+            mapByHeader.values().forEach(mapByKey -> {
+                mapByKey.values().forEach(value -> populateResourceDetails(resourceDetails, (ArrayValue) value));
             });
         });
     }
 
-    private static void populateResourceDetails(HashMap<String, String[]> resourceDetails,
-                                                BValueArray resourceDetailTuple) {
-        String resourceName = resourceDetailTuple.getBValue(0).stringValue();
-        BStructureType paramDetails = (BStructureType) ((BTypeDescValue) (resourceDetailTuple).getBValue(1)).value();
-        resourceDetails.put(resourceName, new String[]{paramDetails.getPackagePath(), paramDetails.getName()});
+    private static void populateResourceDetails(HashMap<String, BRecordType> resourceDetails,
+                                                ArrayValue resourceDetailTuple) {
+        String resourceName = resourceDetailTuple.getRefValue(0).toString();
+        resourceDetails.put(resourceName,
+                            (BRecordType) ((TypedescValue) resourceDetailTuple.getRefValue(1)).getDescribingType());
     }
 }

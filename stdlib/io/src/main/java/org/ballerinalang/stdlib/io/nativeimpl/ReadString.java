@@ -19,25 +19,19 @@
 
 package org.ballerinalang.stdlib.io.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
-import org.ballerinalang.model.NativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BString;
-import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.stdlib.io.channels.base.DataChannel;
-import org.ballerinalang.stdlib.io.events.EventContext;
-import org.ballerinalang.stdlib.io.events.EventRegister;
-import org.ballerinalang.stdlib.io.events.EventResult;
-import org.ballerinalang.stdlib.io.events.Register;
-import org.ballerinalang.stdlib.io.events.data.ReadStringEvent;
 import org.ballerinalang.stdlib.io.utils.IOConstants;
 import org.ballerinalang.stdlib.io.utils.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * Extern function ballerina.io#readString.
@@ -53,58 +47,26 @@ import org.ballerinalang.stdlib.io.utils.IOUtils;
                 @Argument(name = "encoding", type = TypeKind.STRING)},
         isPublic = true
 )
-public class ReadString implements NativeCallableUnit {
-    /**
-     * Represents data channel.
-     */
-    private static final int DATA_CHANNEL_INDEX = 0;
-    /**
-     * Represents the number of bytes.
-     */
-    private static final int NUMBER_OF_BYTES_INDEX = 0;
-    /**
-     * Represents the encoding index.
-     */
-    private static final int ENCODING_INDEX = 0;
+public class ReadString {
 
-    /**
-     * Triggers upon receiving the response.
-     *
-     * @param result the response received after reading int.
-     * @return read int value.
-     */
-    private static EventResult readResponse(EventResult<String, EventContext> result) {
-        EventContext eventContext = result.getContext();
-        Context context = eventContext.getContext();
-        Throwable error = eventContext.getError();
-        CallableUnitCallback callback = eventContext.getCallback();
-        if (null != error) {
-            BError errorStruct = IOUtils.createError(context, IOConstants.IO_ERROR_CODE, error.getMessage());
-            context.setReturnValues(errorStruct);
+    private static final Logger log = LoggerFactory.getLogger(ReadString.class);
+
+    public static Object readString(Strand strand, ObjectValue dataChannelObj, long nBytes, String encoding) {
+        DataChannel channel = (DataChannel) dataChannelObj.getNativeData(IOConstants.DATA_CHANNEL_NAME);
+        if (channel.hasReachedEnd()) {
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Channel %d reached it's end", channel.hashCode()));
+            }
+            return IOUtils.createEoFError();
         } else {
-            String readStr = result.getResponse();
-            context.setReturnValues(new BString(readStr));
+            try {
+                return channel.readString((int) nBytes, encoding);
+            } catch (IOException e) {
+                String msg = "Error occurred while reading string: " + e.getMessage();
+                log.error(msg, e);
+                return IOUtils.createError(msg);
+            }
         }
-        IOUtils.validateChannelState(eventContext);
-        callback.notifySuccess();
-        return result;
     }
 
-    @Override
-    public void execute(Context context, CallableUnitCallback callback) {
-        BMap<String, BValue> dataChannelStruct = (BMap<String, BValue>) context.getRefArgument(DATA_CHANNEL_INDEX);
-        long nBytes = context.getIntArgument(NUMBER_OF_BYTES_INDEX);
-        String encoding = context.getStringArgument(ENCODING_INDEX);
-        DataChannel channel = (DataChannel) dataChannelStruct.getNativeData(IOConstants.DATA_CHANNEL_NAME);
-        EventContext eventContext = new EventContext(context, callback);
-        ReadStringEvent event = new ReadStringEvent(channel, eventContext, (int) nBytes, encoding);
-        Register register = EventRegister.getFactory().register(event, ReadString::readResponse);
-        eventContext.setRegister(register);
-        register.submit();
-    }
-
-    @Override
-    public boolean isBlocking() {
-        return false;
-    }
 }

@@ -14,15 +14,33 @@
  * limitations under the License.
  *
  */
- 
+
 apply from: "$rootDir/gradle/balNativeLibProject.gradle"
+apply from: "$rootDir/gradle/baseNativeStdLibProject.gradle"
+
+configurations {
+    genBalo
+    balSource
+}
 
 dependencies {
     implementation 'org.ow2.asm:asm'
-    implementation 'org.ballerinalang:ballerina-lang:0.992.0-m1'
-    baloCreat project(':lib-creator-milestone')
-    implementation project(':ballerina-core')
-//    implementation project(':ballerina-lang')
+    implementation 'org.ow2.asm:asm-util'
+    implementation 'org.ow2.asm:asm-tree'
+    implementation project(':ballerina-lang')
+    implementation project(':ballerina-runtime')
 
-    baloImplementation project(path: ':ballerina-bir', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-utils', configuration: 'baloImplementation')
+
+    baloCreat project(':lib-creator')
 }
+
+
+artifacts {
+    balSource file("src/main/ballerina/")
+}
+
+createBalo {
+    jvmTarget = 'true'
+}
+

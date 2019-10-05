@@ -21,7 +21,6 @@ import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.wso2.ballerinalang.compiler.bir.BIREmitter;
 import org.wso2.ballerinalang.compiler.bir.model.BIRNode;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 
@@ -38,10 +37,5 @@ public class BIRModelTest {
         Assert.assertEquals(result.getErrorCount(), 0);
 
         BIRNode.BIRPackage birPackage = ((BLangPackage) result.getAST()).symbol.bir;
-        BIREmitter birEmitter = new BIREmitter();
-        String birText = birEmitter.emit(birPackage);
-
-        // TODO dummy test
-        Assert.assertEquals(birText, birText);
     }
 }

@@ -1,21 +1,21 @@
-import ballerina/h2;
 import ballerina/io;
 import ballerina/http;
 import ballerina/log;
-h2:InMemoryConfig conf = {
-    name: "testName",
-    username: "user",
-    password: "pwd"
-};
 
-h2:Client testDb = new h2:Client({
-        path: "testPath",
-        name: "hubDatabaseName",
-        username: "hubDatabaseUsername",
-        password: "hubDatabasePassword",
-        poolOptions: {
-            maximumPoolSize: 5
-        }});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 public function main(string... args) {
     int a = 10;
@@ -41,9 +41,9 @@ public function main(string... args) {
 }
 
 service sampleService on new http:Listener(8080) {
-    int serviceVar1 = 124;
 
-    string serviceVar2 = "Test String";
+
+
 
     resource function sampleResource(http:Caller caller, http:Request request) {
         worker w1 {
@@ -64,7 +64,7 @@ function divideNumbers(int a, int b) returns int|error {
     return a / b;
 }
 
-function initiateNestedTransactionInRemote(string nestingMethod) returns string {
+function initiateNestedTransactionInRemote(string nestingMethod) returns @tainted string {
    http:Client remoteEp = new("http://localhost:8889");
     string s = "";
     transaction {
@@ -77,13 +77,13 @@ function initiateNestedTransactionInRemote(string nestingMethod) returns string 
                 s += " remote1-excepted";
                 var payload = resp.getTextPayload();
                 if (payload is string) {
-                    s += ":[" + untaint payload + "]";
+                    s += ":[" + payload + "]";
                 }
             } else {
                 var text = resp.getTextPayload();
                 if (text is string) {
                     log:printInfo(text);
-                    s += " <" + untaint text + ">";
+                    s += " <" + text + ">";
                 } else {
                     s += " error-in-remote-response " + text.reason();
                     log:printError(text.reason());

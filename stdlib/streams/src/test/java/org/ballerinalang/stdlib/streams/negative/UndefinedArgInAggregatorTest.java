@@ -18,9 +18,9 @@
 
 package org.ballerinalang.stdlib.streams.negative;
 
-import org.ballerinalang.launcher.util.BAssertUtil;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.CompileResult;
+import org.ballerinalang.test.util.BAssertUtil;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -41,7 +41,7 @@ public class UndefinedArgInAggregatorTest {
     @Test(description = "Test if the proper error is thrown if the aggregator or arg is not defined")
     public void testUndefinedArgsInAggregator() {
         Assert.assertEquals(result.getErrorCount(), 3);
-        BAssertUtil.validateError(result, 0, "undefined symbol 'inputStreamage'", 81, 57);
-        BAssertUtil.validateError(result, 1, "undefined function 'sum6'", 81, 51);
+        BAssertUtil.validateError(result, 0, "undefined function 'sum6'", 81, 51);
+        BAssertUtil.validateError(result, 1, "undefined symbol 'inputStreamage'", 81, 57);
     }
 }

@@ -39,7 +39,7 @@ type Person object {
 
 function getError() returns string|error {
     map<string> m = {f: "foo"};
-    error e = error("failed to create Person object", m);
+    error e = error("failed to create Person object", f = "foo");
     return e;
 }
 
@@ -69,12 +69,16 @@ type Person3 object {
 
 type FooErrData record {
     string f;
+    string message?;
+    error cause?;
 };
 
 type FooErr error<string, FooErrData>;
 
 type BarErrData record {
     string b;
+    string message?;
+    error cause?;
 };
 
 type BarErr error<string, BarErrData>;
@@ -84,7 +88,20 @@ type Person4 object {
 
     function __init() returns FooErr|BarErr {
         self.name = "";
-        FooErr e = error("Foo Error", {f:"foo"});
+        FooErr e = error("Foo Error", f = "foo");
         return e;
     }
 };
+
+type Too object {
+    public function __init() {
+    }
+    function name() {
+        self.__init(); // valid
+    }
+};
+
+function callInitFunction() {
+    Too t = new;
+    t.__init(); // invalid
+}

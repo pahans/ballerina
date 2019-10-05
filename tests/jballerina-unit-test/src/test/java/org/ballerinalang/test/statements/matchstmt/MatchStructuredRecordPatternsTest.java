@@ -72,7 +72,7 @@ public class MatchStructuredRecordPatternsTest {
 
         BString bString = (BString) returns[0];
 
-        Assert.assertEquals(bString.stringValue(), "Matched Values : 12, {s:\"S\", i:23, f:5.6}");
+        Assert.assertEquals(bString.stringValue(), "Matched Values : 12, s=S i=23 f=5.6");
     }
 
     @Test(description = "Test basics of structured pattern match statement 4")
@@ -83,7 +83,7 @@ public class MatchStructuredRecordPatternsTest {
 
         BString bString = (BString) returns[0];
 
-        Assert.assertEquals(bString.stringValue(), "Matched Values : {b:12, f:{s:\"S\", i:23, f:5.6}}");
+        Assert.assertEquals(bString.stringValue(), "Matched Values : b=12 f=s=S i=23 f=5.6");
     }
 
     @Test(description = "Test basics of structured pattern match statement 5")
@@ -181,7 +181,7 @@ public class MatchStructuredRecordPatternsTest {
         Assert.assertEquals(results.getString(++i), msg + "default : true");
     }
 
-    @Test(description = "Test structured pattern match with type guard 3")
+    @Test(description = "Test structured pattern match with type guard 4")
     public void testStructuredMatchPatternWithTypeGuard4() {
         BValue[] returns = BRunUtil.invoke(result, "testStructuredMatchPatternWithTypeGuard4", new BValue[]{});
         Assert.assertEquals(returns.length, 1);
@@ -191,11 +191,12 @@ public class MatchStructuredRecordPatternsTest {
 
         int i = -1;
         String msg = "Matched with ";
-        Assert.assertEquals(results.getString(++i), msg + "restparam : {}");
-        Assert.assertEquals(results.getString(++i), msg + "restparam : {\"var2\":true}");
-        Assert.assertEquals(results.getString(++i), msg + "restparam : {\"var2\":true, \"var3\":true}");
+        Assert.assertEquals(results.getString(++i), msg + "restparam : ");
+        Assert.assertEquals(results.getString(++i), msg + "restparam : var2=true");
+        Assert.assertEquals(results.getString(++i), msg + "restparam : var2=true var3=true");
     }
 
+    // TODO : Syntax used in test case should be invalid per spec. Please refer git issue #16961.
     @Test(description = "Test structured pattern with closed record")
     public void testClosedRecord() {
         BValue[] returns = BRunUtil.invoke(result, "testClosedRecord", new BValue[]{});
@@ -209,4 +210,21 @@ public class MatchStructuredRecordPatternsTest {
         Assert.assertEquals(results.getString(++i), msg + "closed pattern");
         Assert.assertEquals(results.getString(++i), msg + "opened pattern");
     }
+
+    @Test(description = "Test structured pattern match with empty record")
+    public void testStructuredMatchPatternWithEmptyRecord() {
+        BValue[] returns = BRunUtil.invoke(result, "testStructuredMatchPatternWithEmptyRecord", new BValue[]{});
+        Assert.assertEquals(returns.length, 1);
+        Assert.assertSame(returns[0].getClass(), BValueArray.class);
+        BValueArray results = (BValueArray) returns[0];
+
+        int i = -1;
+        String msg = "Matched with ";
+        Assert.assertEquals(results.getString(++i), msg + "empty record");
+        Assert.assertEquals(results.getString(++i), msg + "a: 1");
+        Assert.assertEquals(results.getString(++i), msg + "a: 1, b: 2");
+        Assert.assertEquals(results.getString(++i), msg + "a: 1, b: 2, c: 3");
+        Assert.assertEquals(results.getString(++i), msg + "a: 1, b: 2, c: 3");
+    }
+
 }

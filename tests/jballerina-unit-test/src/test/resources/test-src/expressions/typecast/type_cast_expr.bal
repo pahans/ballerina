@@ -21,6 +21,7 @@ type MyErrorTwo error<ERR_REASON, ErrorDetails>;
 
 type ErrorDetails record {
    string message;
+   error cause?;
 };
 
 type Employee record {
@@ -227,21 +228,21 @@ function testArrayCastNegative() {
 }
 
 function testTupleCastPositive() returns boolean {
-    (string, int, float) s = ("this is an array", 1, 3.0);
+    [string, int, float] s = ["this is an array", 1, 3.0];
     any a = s;
-    (string, int, float) s2 = <(string, int, float)> a;
+    [string, int, float] s2 = <[string, int, float]> a;
 
-    (string, int|string, float) s3 = ("this is an array", 1, 3.0);
+    [string, int|string, float] s3 = ["this is an array", 1, 3.0];
     anydata a2 = s3;
-    (string, int|string, float) s4 = <(string, int|string, float)> a2;
+    [string, int|string, float] s4 = <[string, int|string, float]> a2;
 
     return s === s2 && s3 === s4;
 }
 
 function testTupleCastNegative() {
-    (string, int|string, float) s = ("this is an array", 1, 3.0);
+    [string, int|string, float] s = ["this is an array", 1, 3.0];
     any a = s;
-    (string, int|string, float) s2 = <(string, int, float)> a;
+    [string, int|string, float] s2 = <[string, int, float]> a;
 }
 
 function testJsonCastPositive() returns boolean {
@@ -343,7 +344,7 @@ function testErrorCastPositive() returns boolean {
     any|error a2 = e3;
     error e4 = <MyError> a2;
 
-    MyErrorTwo e5 = error(ERR_REASON, { message: "error message" });
+    MyErrorTwo e5 = error(ERR_REASON, message = "error message");
     a2 = e5;
     MyErrorTwo e6 = <MyErrorTwo> a2;
     error e7 = <error> a2;
@@ -370,18 +371,18 @@ function testFunctionCastNegative() {
     function (string) returns string f1 = <function (string) returns string> a;
 }
 
-//function testFutureCastPositive() returns boolean {
-//    future<int> s1 = start testFutureFunc();
-//    any a = s1;
-//    future<int> s2 = <future<int>> a;
-//    return s1 === s2;
-//}
-//
-//function testFutureCastNegative() {
-//    future<int> s1 = start testFutureFunc();
-//    any a = s1;
-//    future<json> s2 = <future<json>> a;
-//}
+function testFutureCastPositive() returns boolean {
+    future<int> s1 = start testFutureFunc();
+    any a = s1;
+    future<int> s2 = <future<int>> a;
+    return s1 === s2;
+}
+
+function testFutureCastNegative() {
+    future<int> s1 = start testFutureFunc();
+    any a = s1;
+    future<json> s2 = <future<json>> a;
+}
 
 function testObjectCastPositive() returns boolean {
     EmployeeObject e = new("Em Zee");
@@ -399,7 +400,7 @@ function testObjectCastNegative() {
 function testStreamCastPositive() returns boolean {
     stream<int> s1 = new;
     any a = s1;
-    stream<any> s2 = <stream<int|float>> a;
+    stream<anydata> s2 = <stream<int|float>> a;
     return s1 === s2;
 }
 
@@ -410,14 +411,14 @@ function testStreamCastNegative() {
 }
 
 function testTypedescCastPositive() returns boolean {
-    typedesc t1 = int;
+    typedesc<int> t1 = int;
     any a = t1;
-    typedesc t2 = <typedesc> a;
+    typedesc<int> t2 = <typedesc<int>> a;
     return t1 === t2;
 }
 
 function testTypedescCastNegative() {
-    typedesc t1 = int;
+    typedesc<int> t1 = int;
     any a = t1;
     int t2 = <int> a;
 }
@@ -440,10 +441,10 @@ function testMapElementCastPositive() returns boolean {
         mapVal: strMapVal
     };
 
-    map<string|int> strMapValTwo = <map<string|int>> m.mapVal;
+    map<string|int> strMapValTwo = <map<string|int>> m.get("mapVal");
 
-    return <Employee> m.emp1 === e1 && <EmployeeObject> m.emp2 === e2 && <int> m.intVal == iVal &&
-                <string> strMapValTwo.stringVal == sVal && bVal == <boolean> m.boolVal;
+    return <Employee> m.get("emp1") === e1 && <EmployeeObject> m.get("emp2") === e2 && <int> m.get("intVal") == iVal &&
+                <string> strMapValTwo.get("stringVal") == sVal && bVal == <boolean> m.get("boolVal");
 }
 
 function testMapElementCastNegative() {
@@ -464,9 +465,9 @@ function testMapElementCastNegative() {
         mapVal: strMapVal
     };
 
-    Employee e3 = <Employee> m.emp1;
-    int iVal2 = <int> m.intVal;
-    map<int> strMapValTwo = <map<int>> m.mapVal;
+    Employee e3 = <Employee> m.get("emp1");
+    int iVal2 = <int> m.get("intVal");
+    map<int> strMapValTwo = <map<int>> m.get("mapVal");
 }
 
 function testListElementCastPositive() returns boolean {
@@ -477,7 +478,7 @@ function testListElementCastPositive() returns boolean {
     string sVal = "Hello from Ballerina";
     any[] anyArr = [iValTwo, sVal, bVal];
 
-    (Employee, int, any[]) t1 = (e1, iVal, anyArr);
+    [Employee, int, any[]] t1 = [e1, iVal, anyArr];
 
     any a = t1[2];
     any[] anyArrTwo = <any[]> a;
@@ -493,7 +494,7 @@ function testListElementCastNegative() {
     string sVal = "Hello from Ballerina";
     any[] anyArr = [sVal, bVal];
 
-    (Employee, int, any[]) t1 = (e1, iVal, anyArr);
+    [Employee, int, any[]] t1 = [e1, iVal, anyArr];
 
     any a = t1[2];
     any[] anyArrTwo = <any[]> a;
@@ -510,7 +511,7 @@ function testOutOfOrderUnionConstraintCastPositive() returns boolean {
 function testOutOfOrderUnionConstraintCastNegative() {
     stream<int|float> s1 = new;
     any a = s1;
-    stream<boolean|EmployeeObject> s2 = <stream<boolean|EmployeeObject>> a;
+    stream<boolean|error> s2 = <stream<boolean|error>> a;
 }
 
 function testStringAsInvalidBasicType() {
@@ -584,7 +585,7 @@ function testStringInUnionAsString(string s1) returns boolean {
 
 //////////////////////// from boolean ////////////////////////
 
-function testBooleanAsBoolean() returns (boolean, boolean, boolean, boolean) {
+function testBooleanAsBoolean() returns [boolean, boolean, boolean, boolean] {
     boolean b1 = true;
     boolean s1 = <boolean> b1;
     anydata a = <boolean> getBoolean(b1);
@@ -597,10 +598,10 @@ function testBooleanAsBoolean() returns (boolean, boolean, boolean, boolean) {
     boolean s3 = <boolean> b1;
     boolean s4 = <boolean> getBoolean(b1);
 
-    return (s1, s2, s3, s4);
+    return [s1, s2, s3, s4];
 }
 
-function testBooleanInUnionAsBoolean() returns (boolean, boolean) {
+function testBooleanInUnionAsBoolean() returns [boolean, boolean] {
     boolean f1 = true;
     Employee|string|int|boolean f2 = f1;
     json f3 = true;
@@ -627,7 +628,7 @@ function testBooleanInUnionAsBoolean() returns (boolean, boolean) {
 
     boolean ft2 = (s7 == s6 && s7 == s8 && s9 == s8) ? s6 : true;
 
-    return(ft1, ft2);
+    return [ft1, ft2];
 }
 
 function testSimpleTypeToUnionCastPositive() returns boolean {
@@ -646,7 +647,7 @@ function testSimpleTypeToUnionCastPositive() returns boolean {
 
 function testDirectlyUnmatchedUnionToUnionCastPositive() returns boolean {
     string s = "hello world";
-    string|typedesc v1 = s;
+    string|typedesc<anydata> v1 = s;
     json|table<Lead> v2 = <json|table<Lead>> v1;
     boolean castSuccessful = s == v2;
 
@@ -666,11 +667,11 @@ function testDirectlyUnmatchedUnionToUnionCastNegative_2() {
     Lead|int v4 = <Lead|int> v3;
 }
 
-function testTypeCastOnRecordLiterals() returns (string, string, string) {
+function testTypeCastOnRecordLiterals() returns [string, string, string] {
     string s1 = init(<ServerModeConfig>{});
     string s2 = init(<EmbeddedModeConfig>{});
     string s3 = init(<InMemoryModeConfig>{});
-    return (s1, s2, s3);
+    return [s1, s2, s3];
 }
 
 function init(InMemoryModeConfig|ServerModeConfig|EmbeddedModeConfig rec) returns string {
@@ -780,7 +781,7 @@ function testFiniteTypeToFiniteTypeCastNegative() {
 }
 
 function testFunc(string s, int i) returns string {
-    return string.convert(i) + s;
+    return i.toString() + s;
 }
 
 function testFutureFunc() returns int {
@@ -793,4 +794,13 @@ function getString(string s) returns string {
 
 function getBoolean(boolean b) returns boolean {
     return b;
+}
+
+function testContexuallyExpectedType() returns Employee {
+    Employee e = <@untainted> { name: "Em Zee", id: 1100 };
+    return e;
+}
+
+function testContexuallyExpectedTypeRecContext() returns Employee {
+    return <@untainted> { name: "Em Zee", id: 1100 };
 }

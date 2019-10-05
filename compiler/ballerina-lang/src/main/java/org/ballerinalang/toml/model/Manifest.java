@@ -17,8 +17,13 @@
  */
 package org.ballerinalang.toml.model;
 
-import java.util.ArrayList;
+import org.ballerinalang.compiler.BLangCompilerException;
+import org.wso2.ballerinalang.programfile.ProgramFileConstants;
+
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -27,244 +32,97 @@ import java.util.stream.Collectors;
  * @since 0.964
  */
 public class Manifest {
-    private String name = "";
-    private String version = "";
-    private List<String> authors = new ArrayList<>();
-    private List<String> keywords = new ArrayList<>();
-    private String documentationURL = "";
-    private String homepageURL = "";
-    private String repositoryURL = "";
-    private String description = "";
-    private String readmeFilePath = "";
-    private String license = "";
-    private List<Dependency> dependencies = new ArrayList<>();
-    private List<Dependency> patches = new ArrayList<>();
+    private Project project = new Project();
+    private Map<String, Object> dependencies = new LinkedHashMap<>();
+    private Platform platform = new Platform();
 
-    /**
-     * Get the patches list.
-     *
-     * @return patches list
-     */
-    public List<Dependency> getPatches() {
-        return patches;
+    public Project getProject() {
+        return project;
     }
 
-    /**
-     * Add a patch to the patches list.
-     *
-     * @param dependency dependency object
-     */
-    public void addPatches(Dependency dependency) {
-        this.patches.add(dependency);
-        patches = removeDuplicates(patches);
+    public void setProject(Project project) {
+        this.project = project;
     }
 
-    /**
-     * Get the dependencies list.
-     *
-     * @return dependencies list
-     */
+    public Map<String, Object> getDependenciesAsObjectMap() {
+        return this.dependencies.entrySet().stream()
+                .collect(Collectors.toMap(d -> d.getKey().replaceAll("^\"|\"$", ""), Map.Entry::getValue));
+    }
+
     public List<Dependency> getDependencies() {
-        return dependencies;
+        return this.dependencies.entrySet().stream()
+                .map(entry -> {
+                    Dependency dependency = new Dependency();
+                    // get rid of the double quotes
+                    dependency.setModuleID(entry.getKey());
+                    dependency.setMetadata(convertObjectToDependencyMetadata(entry.getValue()));
+                    return dependency;
+                })
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Add a dependency to the dependencies list.
-     *
-     * @param dependency dependency object
-     */
-    public void addDependency(Dependency dependency) {
-        this.dependencies.add(dependency);
-        dependencies = removeDuplicates(dependencies);
+    private DependencyMetadata convertObjectToDependencyMetadata(Object obj) {
+        DependencyMetadata metadata = new DependencyMetadata();
+        if (obj instanceof String) {
+            metadata.setVersion((String) obj);
+        } else if (obj instanceof Map) {
+            Map metadataMap = (Map) obj;
+            if (metadataMap.keySet().contains("version") && metadataMap.get("version") instanceof String) {
+                metadata.setVersion((String) metadataMap.get("version"));
+            }
+
+            if (metadataMap.keySet().contains("path") && metadataMap.get("path") instanceof String) {
+                metadata.setPath((String) metadataMap.get("path"));
+            }
+        }
+        return metadata;
     }
 
-    /**
-     * Get keywords.
-     *
-     * @return list of keywords
-     */
-    public List<String> getKeywords() {
-        return keywords;
+    public Platform getPlatform() {
+        return platform;
     }
 
-    /**
-     * Set keywords list.
-     *
-     * @param keywords keyword list
-     */
-    public void setKeywords(List<String> keywords) {
-        this.keywords = keywords;
+    public void setPlatform(Platform platform) {
+        this.platform = platform;
     }
 
-    /**
-     * Get file path of the readme file.
-     *
-     * @return file path of the readme file
-     */
-    public String getReadmeFilePath() {
-        return readmeFilePath;
+    public String getTargetPlatform(String moduleName) {
+        // If module is a template we will return any
+        if (isTemplateModule(moduleName)) {
+            return ProgramFileConstants.ANY_PLATFORM;
+        }
+        // check if platform exists
+        if (null != platform.libraries) {
+            // Check if target exist return error if not
+            if (null == platform.target) {
+                throw new BLangCompilerException("Platform target is not specified in the Ballerina.toml");
+            }
+            // Check if it is a valid platform
+            if (!(Arrays.stream(ProgramFileConstants.SUPPORTED_PLATFORMS).anyMatch(platform.getTarget()::equals))) {
+                throw new BLangCompilerException("Platform target is not " +
+                        "supported by installed Ballerina distribution." +
+                        "\nSupported platforms : " + supportedPlatforms());
+            }
+            // Check if module have platform specific libraries
+            List<Library> deps = platform.libraries.stream().filter(library -> {
+                return library.getModules() == null ||
+                        Arrays.stream(library.getModules()).anyMatch(moduleName::equals);
+            }).collect(Collectors.toList());
+            // If not return any
+            if (deps.size() > 0) {
+                return platform.target;
+            }
+        }
+        // return any if not
+        return ProgramFileConstants.ANY_PLATFORM;
     }
 
-    /**
-     * Set file path of the readme file.
-     *
-     * @param readmeFilePath file path of the readme file
-     */
-    public void setReadmeFilePath(String readmeFilePath) {
-        this.readmeFilePath = readmeFilePath;
+    private String supportedPlatforms() {
+        String platforms = String.join(",", ProgramFileConstants.SUPPORTED_PLATFORMS);
+        return platforms;
     }
 
-    /**
-     * Get documentation URL.
-     *
-     * @return documentation URL
-     */
-    public String getDocumentationURL() {
-        return documentationURL;
-    }
-
-    /**
-     * Set documentation URL.
-     *
-     * @param documentationURL documentation URL
-     */
-    public void setDocumentationURL(String documentationURL) {
-        this.documentationURL = documentationURL;
-    }
-
-    /**
-     * Get homepage URL.
-     *
-     * @return homepage URL
-     */
-    public String getHomepageURL() {
-        return homepageURL;
-    }
-
-    /**
-     * Set homepage URL.
-     *
-     * @param homepageURL homepage URL
-     */
-    public void setHomepageURL(String homepageURL) {
-        this.homepageURL = homepageURL;
-    }
-
-    /**
-     * Get repository URL.
-     *
-     * @return repository URL
-     */
-    public String getRepositoryURL() {
-        return repositoryURL;
-    }
-
-    /**
-     * Set the repository URL.
-     *
-     * @param repositoryURL repository URL
-     */
-    public void setRepositoryURL(String repositoryURL) {
-        this.repositoryURL = repositoryURL;
-    }
-
-    /**
-     * Get description.
-     *
-     * @return description
-     */
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * Set the description.
-     *
-     * @param description description about the package
-     */
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    /**
-     * Get authors of the toml file.
-     *
-     * @return authors
-     */
-    public List<String> getAuthors() {
-        return authors;
-    }
-
-    /**
-     * Set authors of the toml file.
-     *
-     * @param authors list of authors
-     */
-    public void setAuthors(List<String> authors) {
-        this.authors = authors;
-    }
-
-    /**
-     * Get the package name.
-     *
-     * @return package name
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Set the package name.
-     *
-     * @param name package name
-     */
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    /**
-     * Get the version.
-     *
-     * @return version
-     */
-    public String getVersion() {
-        return version;
-    }
-
-    /**
-     * Set the version.
-     *
-     * @param version version of the package.
-     */
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
-    /**
-     * Get the license.
-     *
-     * @return license
-     */
-    public String getLicense() {
-        return license;
-    }
-
-    /**
-     * Set the license.
-     *
-     * @param license license
-     */
-    public void setLicense(String license) {
-        this.license = license;
-    }
-
-    /**
-     * Remove duplicates from dependencies and patches list.
-     *
-     * @param list list of elements
-     * @return dependencies or patches list without duplicates
-     */
-    private List<Dependency> removeDuplicates(List<Dependency> list) {
-        return list.stream().distinct().collect(Collectors.toList());
+    public boolean isTemplateModule(String moduleName) {
+        return this.getProject().getTemplates().contains(moduleName);
     }
 }

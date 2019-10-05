@@ -1,0 +1,150 @@
+import org.gradle.internal.os.OperatingSystem;
+import org.apache.tools.ant.filters.*;
+
+apply from: "$rootDir/gradle/birTestableProject.gradle"
+
+project.ext.moduleName = files(file('src/main/ballerina/src').listFiles()).filter { File f ->
+    f.isDirectory() && f.name != 'target' && f.name != '.ballerina'
+}.singleFile.name
+
+def generatedBirDir = "$buildDir/generated-bir/" + project.ext.orgName + "/" + project.ext.moduleName + "/0.0.0/"
+
+
+task copyExternalMappingNextToBir(type: Copy) {
+    dependsOn compileJava
+    from "$buildDir/classes/java/main/META-INF/this.map.json"
+    into generatedBirDir
+    rename { project.ext.moduleName + ".map.json" }
+}
+
+task copyTomlFiles(type: Copy) {
+    dependsOn compileJava
+    from('src/main/ballerina') {
+        include '*.toml'
+    }
+    filter(ReplaceTokens, tokens: ['project.version': project.version])
+    into generatedBirDir
+}
+
+task createBir {
+    dependsOn createBalo
+
+    doLast {
+        copy {
+            def zipFile = zipTree("$buildDir/generated-balo/repo/" + project.ext.orgName + "/" + project.ext.moduleName + "/0.0.0/" + project.ext.moduleName + ".zip").matching {
+                include "**/*.bir"
+            }.files
+            from zipFile
+            into generatedBirDir
+        }
+    }
+
+    inputs.file "$buildDir/generated-balo/repo/" + project.ext.orgName + "/" + project.ext.moduleName + "/0.0.0/" + project.ext.moduleName + ".zip"
+    outputs.dir "$buildDir/generated-bir"
+}
+
+task createCacheEntries {
+    dependsOn createBir
+    dependsOn copyExternalMappingNextToBir
+    dependsOn copyTomlFiles
+}
+
+
+task createBirJar(type: Exec) {
+    dependsOn configurations.birJarCompile
+    dependsOn configurations.bir
+    dependsOn createBir
+    dependsOn createBirCache
+    dependsOn copyExternalMappingNextToBir
+    
+    workingDir "$buildDir/generated-bir-jar"
+
+    onlyIf { file(generatedBirDir + project.ext.moduleName + '.bir').exists() }
+
+    doFirst {
+        def mapPath = OperatingSystem.current().isWindows() ? "\"\"" : ""
+        if (!sourceSets.main.allJava.isEmpty()) {
+            mapPath = generatedBirDir + project.ext.moduleName + '.map.json'
+        }
+
+        configurations.birJarCompile.each {
+            if (OperatingSystem.current().isWindows()) {
+                commandLine 'cmd.exe', '/c',
+
+                        new File(it, '/bin/ballerina.bat'), 'run', new File(it, '/bre/lib/compiler_backend_jvm.jar'),
+
+                        generatedBirDir + project.ext.moduleName + '.bir',
+                        mapPath,
+                        "$buildDir/generated-bir-jar/" + project.ext.moduleName + ".jar",
+                        'false',
+                        "$buildDir/bir-cache"
+            } else {
+                commandLine 'sh',
+
+                        new File(it, '/bin/ballerina'), 'run', new File(it, '/bre/lib/compiler_backend_jvm.jar'),
+
+                        generatedBirDir + project.ext.moduleName + '.bir',
+                        mapPath,
+                        "$buildDir/generated-bir-jar/" + project.ext.moduleName + ".jar",
+                        'false',
+                        "$buildDir/bir-cache"
+            }
+            println commandLine
+        }
+    }
+
+    doLast {
+        if(!file("$buildDir/generated-bir-jar/${project.ext.moduleName}.jar").exists()){
+            println "$buildDir/generated-bir-jar/${project.ext.moduleName}.jar not created."
+            throw new GradleException("error in creating bir jar")
+        }
+    }
+
+    inputs.files(configurations.bir).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("bootstrapVersion", project.bootstrappedOn)
+    inputs.dir("$buildDir/generated-bir").withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir "$buildDir/generated-bir-jar"
+    outputs.cacheIf { true }
+}
+
+task copySelfToBirCache(type: Copy) {
+    dependsOn createCacheEntries
+    from "$buildDir/generated-bir"
+    into "$buildDir/bir-cache"
+}
+
+task createBirZipArtifact(type: Zip) {
+    from "$buildDir/generated-bir"
+    include '**/*'
+    archiveName "$project.name-bir-artifact.zip"
+    destinationDir(file("$buildDir/bir-artifact/"))
+}
+
+publishing {
+    publications {
+        mavenJava {
+            if (file("$buildDir/generated-bir-jar/" + moduleName + ".jar").exists()) {
+                artifact source: file("$buildDir/generated-bir-jar/" + moduleName + ".jar"), classifier: "bir-jar"
+            }
+            if (file("$buildDir/generated-bir/ballerina/" + moduleName + "/0.0.0/" + moduleName + ".bir").exists()) {
+                artifact source: createBirZipArtifact, classifier: "bir", extension: 'zip'
+            }
+            if (file("$buildDir/generated-bir/ballerinax/" + moduleName + "/0.0.0/" + moduleName + ".bir").exists()) {
+                artifact source: createBirZipArtifact, classifier: "bir", extension: 'zip'
+            }
+        }
+    }
+}
+
+test {
+    dependsOn copySelfToBirCache
+    dependsOn createBirJar
+
+
+    classpath += files("$buildDir/generated-bir-jar/" + moduleName + ".jar")
+}
+
+artifacts {
+    bir file("$buildDir/generated-bir/"), { builtBy(createCacheEntries) }
+    birJar file("$buildDir/generated-bir-jar/" + moduleName + ".jar"), { builtBy(createBirJar) }
+}

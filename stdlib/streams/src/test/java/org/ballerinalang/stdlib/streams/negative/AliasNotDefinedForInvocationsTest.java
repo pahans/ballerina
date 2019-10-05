@@ -18,9 +18,9 @@
 
 package org.ballerinalang.stdlib.streams.negative;
 
-import org.ballerinalang.launcher.util.BAssertUtil;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.CompileResult;
+import org.ballerinalang.test.util.BAssertUtil;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -46,7 +46,8 @@ public class AliasNotDefinedForInvocationsTest {
         BAssertUtil.validateError(result, 0,
                 "alias not defined for expression in select clause", 81, 84);
         BAssertUtil.validateError(result, 1,
-                "fields defined in select clause, incompatible with output fields in type" +
-                " 'TeacherOutput', expected '[name, age, sumAge, count]' but found '[sumAge, name, age]'", 83, 9);
+                "fields defined in select clause, incompatible with output fields in type " +
+                "'TeacherOutput', expected '[name(string), age(int), sumAge(int), count(int)]' but found " +
+                "'[sumAge(null), name(string), age(int)]'", 83, 9);
     }
 }

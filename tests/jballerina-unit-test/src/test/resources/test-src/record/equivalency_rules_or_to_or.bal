@@ -41,19 +41,6 @@ function testOpenToOpenAssignment2() returns AnotherPerson2 {
     return ap;
 }
 
-type AnotherPerson3 record {
-    string name;
-    int age;
-    float weight?;
-};
-
-function testOpenToOpenAssignment3() returns AnotherPerson3 {
-    Person1 p = {name:"John Doe", age:25};
-    AnotherPerson3 ap = p;
-    return ap;
-}
-
-
 //////////////////////////////////////////////////////////////////
 // Test for when the LHS type has optional fields which correspond to required fields of the RHS type.
 // This is allowed.
@@ -86,14 +73,14 @@ function testOptFieldToOptField1() returns AnotherPerson4 {
     return ap;
 }
 
-function testOptFieldToOptField2() returns (AnotherPerson4, int) {
+function testOptFieldToOptField2() returns [AnotherPerson4, anydata] {
     Person2 p = {name:"John Doe", age:25};
     AnotherPerson4 ap = p;
 
     p = {name:"Jane Doe"};
     AnotherPerson4 ap2 = p;
 
-    return (ap, ap2.age);
+    return [ap, ap2.get("age")];
 }
 
 // Test for rest fields types.
@@ -109,15 +96,15 @@ type Bar record {|
 |};
 
 function testRestFieldToRestField1() returns Bar {
-    Foo f = {s:"qwerty", rest1:"asdf", rest2:123};
+    Foo f = {s:"qwerty", "rest1": "asdf", "rest2": 123};
     Bar b = f;
     return b;
 }
 
 function testRestFieldToRestField2() returns Bar {
-    Foo f = {s:"qwerty", rest1:"asdf", rest2:123};
+    Foo f = {s:"qwerty", "rest1":"asdf", "rest2":123};
     Bar b = f;
-    b.rest3 = 23.45;
+    b["rest3"] = 23.45;
     return b;
 }
 
@@ -137,4 +124,22 @@ function testAdditionalFieldsToRest() returns AnotherPerson1 {
     Person3 p = {name:"John Doe", age:25, address:"Colombo, Sri Lanka", weight:70.0};
     AnotherPerson1 ap = p;
     return ap;
+}
+
+public type OpenPublicPerson record {
+    string name;
+    int age;
+    string address;
+};
+
+function testHeterogeneousTypedescEq3() returns AnotherPerson1 {
+    OpenPublicPerson p = {name:"John Doe", age:25, address:"Colombo, Sri Lanka"};
+    AnotherPerson1 ap = p;
+    return ap;
+}
+
+function testHeterogeneousTypedescEq4() returns AnotherPerson1 {
+    OpenPublicPerson op = {name:"John Doe", age:25, address:"Colombo, Sri Lanka"};
+    AnotherPerson1 p = op;
+    return p;
 }

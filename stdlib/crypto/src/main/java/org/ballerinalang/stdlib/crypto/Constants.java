@@ -18,6 +18,10 @@
 
 package org.ballerinalang.stdlib.crypto;
 
+import org.ballerinalang.jvm.types.BPackage;
+
+import static org.ballerinalang.jvm.util.BLangConstants.BALLERINA_BUILTIN_PKG_PREFIX;
+
 /**
  * Constants related to Ballerina crypto stdlib.
  *
@@ -28,11 +32,7 @@ public class Constants {
     // Name of the Ballerina crypto module, used to create struct instances.
     public static final String CRYPTO_PACKAGE = "ballerina/crypto";
 
-    // Record used to reference to a key store.
-    public static final String KEY_STORE_RECORD = "KeyStore";
-
-    // Record used to reference to a trust store.
-    public static final String TRUST_STORE_RECORD = "TrustStore";
+    public static final BPackage CRYPTO_PACKAGE_ID = new BPackage(BALLERINA_BUILTIN_PKG_PREFIX, "crypto");
 
     // Record used to reference to a private key.
     public static final String PRIVATE_KEY_RECORD = "PrivateKey";
@@ -57,12 +57,6 @@ public class Constants {
 
     // Password field in KEY_STORE_RECORD record.
     public static final String KEY_STORE_RECORD_PASSWORD_FIELD = "password";
-
-    // Path field in TRUST_STORE_RECORD record.
-    public static final String TRUST_STORE_RECORD_PATH_FIELD = "path";
-
-    // Password field in TRUST_STORE_RECORD record.
-    public static final String TRUST_STORE_RECORD_PASSWORD_FIELD = "password";
 
     // Algorithm field in PRIVATE_KEY_RECORD.
     public static final String PRIVATE_KEY_RECORD_ALGORITHM_FIELD = "algorithm";
@@ -104,7 +98,7 @@ public class Constants {
     public static final String MESSAGE = "message";
 
     // Error code for crypto error
-    public static final String ENCODING_ERROR_CODE = "{ballerina/encoding}CryptoError";
+    public static final String CRYPTO_ERROR_CODE = "{ballerina/crypto}Error";
 
     // PKCS12 keystore type
     public static final String KEYSTORE_TYPE_PKCS12 = "PKCS12";

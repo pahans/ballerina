@@ -3,7 +3,7 @@ import ballerina/log;
 import ballerina/observe;
 import ballerina/runtime;
 
-// Make sure you start the service with `--observe`, or tracing enabled.
+// Make sure you start the service with the '--b7a.observability.enabled=true` property or with tracing enabled.
 service hello on new http:Listener(9234) {
 
     // Invoke all resources with arguments of server connector and request.
@@ -19,8 +19,8 @@ service hello on new http:Listener(9234) {
         // Some actual logic will go here, and for example we have introduced some delay with sleep.
         runtime:sleep(1000);
         //Start a new child span for the span `MyRootParentSpan`.
-        int childSpanId = check observe:startSpan("MyRootChildSpan",
-                                        parentSpanId = rootParentSpanId);
+        int childSpanId = check observe:startSpan("MyRootChildSpan", (),
+                                                            rootParentSpanId);
         // Some actual logic will go here, and for example we have introduced some delay with sleep.
         runtime:sleep(1000);
         //Finish `MyRootChildSpan` span.

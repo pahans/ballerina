@@ -320,8 +320,7 @@ public class TypeCastExprTest {
         Assert.assertTrue(returns[0] instanceof BError);
         BError error = (BError) returns[0];
         String errorMsg = ((BMap) error.getDetails()).get("message").stringValue();
-        Assert.assertEquals(errorMsg, "incompatible convert operation: 'string' value 'hello' cannot be converted as " 
-                + "'int'");
+        Assert.assertEquals(errorMsg, "'string' value 'hello' cannot be converted to 'int'");
     }
 
     @Test
@@ -330,15 +329,7 @@ public class TypeCastExprTest {
         Assert.assertTrue(returns[0] instanceof BError);
         BError error = (BError) returns[0];
         String errorMsg = ((BMap) error.getDetails()).get("message").stringValue();
-        Assert.assertEquals(errorMsg, "incompatible convert operation: 'string' value 'hello' cannot be converted as " 
-                + "'float'");
-    }
-
-    @Test
-    public void testIncompatibleJsonToBoolean() {
-        BValue[] returns = BRunUtil.invoke(result, "testIncompatibleJsonToBoolean");
-        Assert.assertTrue(returns[0] instanceof BBoolean);
-        Assert.assertTrue(!((BBoolean) returns[0]).booleanValue());
+        Assert.assertEquals(errorMsg, "'string' value 'hello' cannot be converted to 'float'");
     }
 
     public void testBooleanInJsonToInt() {
@@ -351,28 +342,28 @@ public class TypeCastExprTest {
 
     @Test(description = "Test casting a null JSON to string",
             expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = ".*incompatible types: 'json' cannot be cast to 'string'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'map<json>' cannot be cast to 'string'.*")
     public void testNullJsonToString() {
         BRunUtil.invoke(result, "testNullJsonToString");
     }
 
     @Test(description = "Test casting a null JSON to int",
             expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = ".*incompatible types: 'json' cannot be cast to 'int'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'map<json>' cannot be cast to 'int'.*")
     public void testNullJsonToInt() {
         BRunUtil.invoke(result, "testNullJsonToInt");
     }
 
     @Test(description = "Test casting a null JSON to float",
             expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = ".*incompatible types: 'json' cannot be cast to 'float'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'map<json>' cannot be cast to 'float'.*")
     public void testNullJsonToFloat() {
         BRunUtil.invoke(result, "testNullJsonToFloat");
     }
 
     @Test(description = "Test casting a null JSON to boolean",
             expectedExceptions = {BLangRuntimeException.class},
-            expectedExceptionsMessageRegExp = ".*incompatible types: 'json' cannot be cast to 'boolean'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: 'map<json>' cannot be cast to 'boolean'.*")
     public void testNullJsonToBoolean() {
         BRunUtil.invoke(result, "testNullJsonToBoolean");
     }
@@ -539,8 +530,9 @@ public class TypeCastExprTest {
 
     @Test(description = "Test casting a struct to another struct in a different package")
     public void testCastToStructInDifferentPkg() {
-        CompileResult res = BCompileUtil.compile(this, "test-src", "expressions.typecast.foo");
-        BValue[] returns = BRunUtil.invoke(res, "testCastToStructInDifferentPkg");
+        CompileResult res = BCompileUtil.compile(this, "test-src/expressions.typecast.foo",
+                "expressions.typecast.foo");
+        BRunUtil.invoke(res, "testCastToStructInDifferentPkg");
     }
 
     @Test
@@ -562,7 +554,7 @@ public class TypeCastExprTest {
         Assert.assertTrue(returns[0] instanceof BError);
         BError error = (BError) returns[0];
         String errorMsg = ((BMap<String, BString>) error.getDetails()).get("message").stringValue();
-        Assert.assertEquals(errorMsg, "incompatible convert operation: 'B' value cannot be converted as 'A'");
+        Assert.assertEquals(errorMsg, "'B' value cannot be converted to 'A'");
     }
 
     @Test (description = "Test any to int casting happens without errors, error struct should be null")
@@ -597,8 +589,7 @@ public class TypeCastExprTest {
         BValue[] returns = BRunUtil.invoke(result, "testAnyNullToString");
 
         // null to string should return string null
-        Assert.assertEquals(returns[0].stringValue(), "{ballerina}ConversionError {\"message\":\"cannot convert " 
-                + "'null' value to type 'string'\"}");
+        Assert.assertEquals(returns[0].stringValue(), "");
     }
 
     @Test

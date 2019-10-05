@@ -1,14 +1,14 @@
 
-function testAnonStructAsFuncParam() returns (int) {
+function testAnonStructAsFuncParam() returns int {
     return testAnonStructFunc(10, {k:14, s:"sameera"});
 }
 
-function testAnonStructFunc(int i, record {int k = 10; string s;} anonSt) returns (int) {
+function testAnonStructFunc(int i, record {int k = 10; string s;} anonSt) returns int {
     return anonSt.k + i;
 }
 
 
-function testAnonStructAsLocalVar() returns (int) {
+function testAnonStructAsLocalVar() returns int {
     record {int k = 11; string s = "";} anonSt = {};
 
     return anonSt.k;
@@ -17,12 +17,12 @@ function testAnonStructAsLocalVar() returns (int) {
 
 record {string fname = ""; string lname = ""; int age = 0;} person = {};
 
-function testAnonStructAsPkgVar() returns (string) {
+function testAnonStructAsPkgVar() returns string {
 
     person = {fname:"sameera", lname:"jaya"};
     person.lname = person.lname + "soma";
     person.age = 100;
-    return person.fname + ":" + person.lname + ":" + person.age;
+    return person.fname + ":" + person.lname + ":" + person.age.toString();
 }
 
 type employee record {
@@ -43,25 +43,23 @@ type employee record {
     } dateOfBirth;
 };
 
-function testAnonStructAsStructField() returns (string) {
+function testAnonStructAsStructField() returns string {
 
     employee e = {fname:"sam", lname:"json", age:100,
                      address:{line01:"12 Gemba St APT 134", city:"Los Altos", state:"CA", zipcode:"95123"},
                     dateOfBirth:{}};
-    return e.dateOfBirth.month + ":" + e.address.line01 + ":" + (e.address["state"] ?: "-") + ":" + e.fname;
+    return e.dateOfBirth.month + ":" + e.address.line01 + ":" + e.address["state"] + ":" + e.fname;
 }
 
-function testRestField() returns person {
-    person p = {fname:"John", lname:"Doe", age:20};
-    p.location = "Colombo";
-    p.height = 5.5;
-    return p;
+function testRestField() returns boolean {
+    person["location"] = "Colombo";
+    person["height"] = 5.5;
+    return person["location"] == "Colombo" && person["height"] == 5.5;
 }
 
 record {| string kind = ""; string name = ""; int...; |} animal = {};
 
-function testAnonRecWithExplicitRestField() returns animal {
-    animal a = {kind:"Cat", name:"Miaw"};
-    a.legs = 4;
-    return a;
+function testAnonRecWithExplicitRestField() returns boolean {
+    animal["legs"] = 4;
+    return animal["legs"] == 4;
 }

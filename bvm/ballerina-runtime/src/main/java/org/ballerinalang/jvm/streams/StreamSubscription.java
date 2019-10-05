@@ -19,15 +19,14 @@
 package org.ballerinalang.jvm.streams;
 
 
-import org.ballerinalang.jvm.values.RefValue;
+import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.jvm.values.StreamValue;
 
 import java.util.Observable;
 import java.util.Observer;
 
 /**
- * The {@link StreamSubscription} is the base abstract class for {@link DefaultStreamSubscription} and
- * {@link SiddhiStreamSubscription}.
+ * The {@link StreamSubscription} is the base abstract class for {@link DefaultStreamSubscription}.
  *
  * @since 0.995.0
  */
@@ -38,12 +37,13 @@ public abstract class StreamSubscription extends Observable {
         addObserver(observer);
     }
 
-    public void send(RefValue data) {
+    public void send(Strand strand, Object data) {
         setChanged();
-        notifyObservers(data);
+        // we need the strand, the real record value published and the boolean saying if we have defaultable fields
+        notifyObservers(new Object[]{strand, data, false});
     }
 
-    public abstract void execute(RefValue data);
+    public abstract void execute(Object[] fpParams);
 
     public abstract StreamValue getStream();
 

@@ -16,14 +16,14 @@
  */
 package org.ballerinalang.test.expressions.typecast;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.model.values.BError;
 import org.ballerinalang.model.values.BMap;
 import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.ballerinalang.launcher.util.BAssertUtil.validateError;
+import static org.ballerinalang.test.util.BAssertUtil.validateError;
 
 /**
  * Class to test type cast expressions.
@@ -80,15 +80,15 @@ public class TypeCastExpressionsTest {
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible " +
-                    "types: 'string\\|int\\|null\\[2\\]' cannot be cast to 'string\\[2\\]'\"\\}.*")
+            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible " +
+                    "types: 'string\\|int\\|\\(\\)\\[2\\]' cannot be cast to 'string\\[2\\]'.*")
     public void testArrayCastNegative() {
         BRunUtil.invoke(result, "testArrayCastNegative");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*incompatible types: '\\(string,int\\|string,float\\)' cannot be cast" +
-                    " to '\\(string,int,float\\)'.*")
+            expectedExceptionsMessageRegExp = ".*incompatible types: '\\[string,int\\|string,float\\]' cannot be cast" +
+                    " to '\\[string,int,float\\]'.*")
     public void testTupleCastNegative() {
         BRunUtil.invoke(result, "testTupleCastNegative");
     }
@@ -151,8 +151,8 @@ public class TypeCastExpressionsTest {
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-        expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible types:" +
-                " 'stream<int>' cannot be cast to 'stream<boolean>'\"\\}.*")
+        expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible types:" +
+                " 'stream<int>' cannot be cast to 'stream<boolean>'.*")
     public void testStreamCastNegative() {
         BRunUtil.invoke(result, "testStreamCastNegative");
     }
@@ -176,22 +176,22 @@ public class TypeCastExpressionsTest {
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible " +
-                    "types: 'stream<int\\|float>' cannot be cast to 'stream<boolean\\|EmployeeObject>'\"\\}.*")
+            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible " +
+                    "types: 'stream<int\\|float>' cannot be cast to 'stream<boolean\\|error>'.*")
     public void testOutOfOrderUnionConstraintCastNegative() {
         BRunUtil.invoke(result, "testOutOfOrderUnionConstraintCastNegative");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible " +
-                    "types: 'int' cannot be cast to 'string\\|boolean'\"\\}.*")
+            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible " +
+                    "types: 'int' cannot be cast to 'string\\|boolean'.*")
     public void testDirectlyUnmatchedUnionToUnionCastNegativeOne() {
         BRunUtil.invoke(result, "testDirectlyUnmatchedUnionToUnionCastNegative_1");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible " +
-                    "types: 'string' cannot be cast to 'Lead\\|int'\"\\}.*")
+            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible " +
+                    "types: 'string' cannot be cast to 'Lead\\|int'.*")
     public void testDirectlyUnmatchedUnionToUnionCastNegativeTwo() {
         BRunUtil.invoke(result, "testDirectlyUnmatchedUnionToUnionCastNegative_2");
     }
@@ -284,12 +284,12 @@ public class TypeCastExpressionsTest {
 
     @Test
     public void testCastNegatives() {
-        Assert.assertEquals(resultNegative.getErrorCount(), 4);
+        Assert.assertEquals(resultNegative.getErrorCount(), 3);
         int errIndex = 0;
         validateError(resultNegative, errIndex++, "incompatible types: 'Def' cannot be cast to 'Abc'", 19, 15);
-        validateError(resultNegative, errIndex++, "type cast not yet supported for type 'future<int>'", 25, 22);
-        validateError(resultNegative, errIndex++, "incompatible types: 'boolean' cannot be cast to 'int|foo'", 30, 16);
-        validateError(resultNegative, errIndex, "incompatible types: 'int|foo' cannot be cast to 'xml'", 35, 13);
+        validateError(resultNegative, errIndex++, "incompatible types: 'boolean' cannot be cast to '(int|foo)'",
+                30, 16);
+        validateError(resultNegative, errIndex, "incompatible types: '(int|foo)' cannot be cast to 'xml'", 35, 13);
     }
 
     @DataProvider
@@ -310,7 +310,7 @@ public class TypeCastExpressionsTest {
                 {"testXmlCastPositive"},
                 {"testErrorCastPositive"},
                 {"testFunctionCastPositive"},
-//                {"testFutureCastPositive"},
+                {"testFutureCastPositive"},
                 {"testObjectCastPositive"},
                 {"testStreamCastPositive"},
                 {"testTypedescCastPositive"},
@@ -339,4 +339,21 @@ public class TypeCastExpressionsTest {
                         .forEach(arg -> result.add(new Object[]{func, arg})));
         return result.toArray(new Object[result.size()][]);
     }
+
+    @Test
+    public void testUntaintedWithoutType() {
+        BValue[] returns = BRunUtil.invoke(result, "testContexuallyExpectedType");
+        Assert.assertSame(returns[0].getClass(), BMap.class);
+        Assert.assertEquals(((BMap) returns[0]).get("name").stringValue(), "Em Zee");
+        Assert.assertEquals(((BMap) returns[0]).get("id").stringValue(), "1100");
+    }
+
+    @Test
+    public void testUntaintedWithoutType2() {
+        BValue[] returns = BRunUtil.invoke(result, "testContexuallyExpectedTypeRecContext");
+        Assert.assertSame(returns[0].getClass(), BMap.class);
+        Assert.assertEquals(((BMap) returns[0]).get("name").stringValue(), "Em Zee");
+        Assert.assertEquals(((BMap) returns[0]).get("id").stringValue(), "1100");
+    }
+
 }

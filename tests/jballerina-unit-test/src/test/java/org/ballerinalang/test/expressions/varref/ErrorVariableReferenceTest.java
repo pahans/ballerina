@@ -18,14 +18,14 @@
  */
 package org.ballerinalang.test.expressions.varref;
 
-import org.ballerinalang.launcher.util.BAssertUtil;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BAssertUtil;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -38,12 +38,11 @@ import java.util.Map;
  * @since 0.990.4
  */
 public class ErrorVariableReferenceTest {
-    private CompileResult result, resultNegative;
+    private CompileResult result;
 
     @BeforeClass
     public void setup() {
         result = BCompileUtil.compile("test-src/expressions/varref/error_variable_reference.bal");
-        resultNegative = BCompileUtil.compile("test-src/expressions/varref/error_variable_reference_negative.bal");
     }
 
     @Test(description = "Test simple error var def with string and map")
@@ -148,43 +147,6 @@ public class ErrorVariableReferenceTest {
     }
 
     @Test(description = "Test simple error var def inside tuple with destructuring error")
-    public void testBasicErrorVariableWithFieldBasedRef() {
-        BValue[] returns = BRunUtil.invoke(result, "testBasicErrorVariableWithFieldBasedRef");
-        Assert.assertEquals(returns.length, 1);
-        Map<String, BValue> results = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(results.get("res1").stringValue(), "Error One");
-        Assert.assertEquals(results.get("rec").stringValue(), "{message:\"Something Wrong\", fatal:true}");
-        Assert.assertEquals(results.get("res2").stringValue(), "Error One");
-        Assert.assertEquals(results.get("message").stringValue(), "Something Wrong");
-        Assert.assertTrue(((BBoolean) results.get("fatal")).booleanValue());
-    }
-
-    @Test(description = "Test simple error var def inside tuple with destructuring error")
-    public void testBasicErrorVariableWithIndexBasedRef() {
-        BValue[] returns = BRunUtil.invoke(result, "testBasicErrorVariableWithIndexBasedRef");
-        Assert.assertEquals(returns.length, 1);
-        Map<String, BValue> results = ((BMap) returns[0]).getMap();
-        Assert.assertEquals(results.get("res1").stringValue(), "Error One");
-        Assert.assertEquals(results.get("rec").stringValue(), "{message:\"Something Wrong\", fatal:true}");
-        Assert.assertEquals(results.get("res2").stringValue(), "Error One");
-        Assert.assertEquals(results.get("message").stringValue(), "Something Wrong");
-        Assert.assertTrue(((BBoolean) results.get("fatal")).booleanValue());
-    }
-
-    @Test(description = "Test simple error var def inside tuple with destructuring error")
-    public void testErrorWithUnionConstrainedDetailMap() {
-        BValue[] returns = BRunUtil.invoke(result, "testErrorWithUnionConstrainedDetailMap");
-        Assert.assertEquals(returns.length, 5);
-        Assert.assertEquals(returns[0].stringValue(), "Error Msg");
-        Assert.assertEquals(returns[1].stringValue(), "Error Msg");
-        Map<String, BValue> results = ((BMap) returns[2]).getMap();
-        Assert.assertEquals(results.get("message").stringValue(), "Failed");
-        Assert.assertEquals(results.get("fatal").stringValue(), "false");
-        Assert.assertEquals(returns[3].stringValue(), "Failed!!");
-        Assert.assertTrue(((BBoolean) returns[4]).booleanValue());
-    }
-
-    @Test(description = "Test simple error var def inside tuple with destructuring error")
     public void testErrorWithRestParam() {
         BValue[] returns = BRunUtil.invoke(result, "testErrorWithRestParam");
         Assert.assertEquals(returns.length, 1);
@@ -203,42 +165,93 @@ public class ErrorVariableReferenceTest {
         Assert.assertEquals(results.get("fatal").stringValue(), "true");
     }
 
-    @Test(description = "Test error variable with ignore as the detail variable")
-    public void testDetailMapConstrainedToJSON() {
-        BValue[] returns = BRunUtil.invoke(result, "testDetailMapConstrainedToJSON");
+    @Test(description = "Test default error var ref with rest underscore")
+    public void testDefaultErrorRefBindingPattern() {
+        BValue[] returns = BRunUtil.invoke(result, "testDefaultErrorRefBindingPattern");
+        Assert.assertEquals(returns[0].stringValue(), "the reason");
+    }
+
+    @Test(description = "Test simple indirect error ref pattern")
+    public void testIndirectErrorRefBindingPattern() {
+        BValue[] returns = BRunUtil.invoke(result, "testIndirectErrorRefBindingPattern");
         Assert.assertEquals(returns.length, 2);
-        Assert.assertEquals(returns[0].stringValue(), "broken");
-        Assert.assertEquals(returns[1].stringValue(), "true");
+        Assert.assertEquals(returns[0].stringValue(), "msg");
+        Assert.assertNull(returns[1]);
+    }
+
+    @Test(description = "Test error ref binding pattern when no error reason ref is given")
+    public void testNoErrorReasonGiven() {
+        BValue[] returns = BRunUtil.invoke(result, "testNoErrorReasonGiven");
+        Assert.assertEquals(returns[0].stringValue(), "message");
+    }
+
+    @Test(description = "Test simple indirect error ref pattern with mandatory detail fields")
+    public void testIndirectErrorRefMandatoryFields() {
+        BValue[] returns = BRunUtil.invoke(result, "testIndirectErrorRefMandatoryFields");
+        int i = 0;
+        Assert.assertEquals(returns[i++].stringValue(), "file open failed");
+        Assert.assertEquals(returns[i++].stringValue(), "/usr/bhah/a.log");
+        Assert.assertEquals(returns[i++].stringValue(), "45221");
+        Assert.assertEquals(returns[i++].stringValue(), "128");
+        Assert.assertEquals(returns[i++].stringValue(), "{\"message\":\"file open failed\", " +
+                "\"targetFileName\":\"/usr/bhah/a.log\", \"errorCode\":45221, \"flags\":128, \"cause\":c {}}");
+        Assert.assertEquals(returns[i++].stringValue(), "file open failed");
+        Assert.assertEquals(returns[i++].stringValue(), "{\"targetFileName\":\"/usr/bhah/a.log\", " +
+                "\"errorCode\":45221, \"flags\":128, \"cause\":c {}}");
     }
 
     @Test
-    public void testNegativeRecordVariables() {
-        Assert.assertEquals(resultNegative.getErrorCount(), 12);
+    public void testErrorVariablesSemanticsNegative() {
+        CompileResult resultNegative = BCompileUtil.compile(
+                "test-src/expressions/varref/error_variable_reference_semantics_negative.bal");
+        Assert.assertEquals(resultNegative.getErrorCount(), 16);
         int i = -1;
         String incompatibleTypes = "incompatible types: ";
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'boolean', found 'string'", 31, 34);
+                incompatibleTypes + "expected 'boolean', found 'string'", 31, 12);
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'map<int>', found 'map<string>'", 31, 34);
+                incompatibleTypes + "expected 'map<int>', found 'map<(string|error)>'", 31, 26);
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'string', found 'string?'", 32, 52);
+                incompatibleTypes + "expected 'string', found 'string?'", 32, 43);
         BAssertUtil.validateError(resultNegative, ++i,
-                                  incompatibleTypes + "expected 'map<string>', found 'map<anydata>'", 41, 34);
+                                  incompatibleTypes + "expected 'map<string>', found 'map<(string|error|boolean)>'",
+                41, 25);
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'string', found 'anydata'", 42, 52);
+                incompatibleTypes + "expected 'string', found '(string|boolean)?'", 42, 43);
         BAssertUtil.validateError(resultNegative, ++i,
-                "error constructor expression is not supported for error binding pattern", 43, 82);
+                "error constructor expression is not supported for error binding pattern", 43, 81);
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'map', found 'Foo'", 63, 25);
-        BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'boolean', found 'string'", 64, 20);
+                incompatibleTypes + "expected 'boolean', found 'string'", 65, 18);
         BAssertUtil.validateError(resultNegative, ++i, incompatibleTypes +
-                "expected '(any,string,map,(error,any))', found '(int,string,error,(error,Foo))'", 78, 58);
+                "expected '[any,string,map,[error,any]]', found '[int,string,error,[error,Foo]]'", 79, 58);
+        BAssertUtil.validateError(resultNegative, ++i, incompatibleTypes + "expected 'Bar', " +
+                "found 'record {| string message?; $error0 cause?; (anydata|error)...; |}'", 93, 32);
         BAssertUtil.validateError(resultNegative, ++i,
-                incompatibleTypes + "expected 'boolean', found 'string'", 91, 40);
-        BAssertUtil.validateError(resultNegative, ++i, incompatibleTypes + "expected 'Bar', found 'map<anydata|error>'",
-                                  91, 40);
+                incompatibleTypes + "expected 'boolean', found 'string'", 94, 20);
+        BAssertUtil.validateError(resultNegative, ++i, "invalid binding pattern, variable reference " +
+                "'results[res1][reason]' cannot be used with binding pattern", 111, 12);
+        BAssertUtil.validateError(resultNegative, ++i, "invalid binding pattern, variable reference " +
+                "'results[res2][reason]' cannot be used with binding pattern", 112, 12);
         BAssertUtil.validateError(resultNegative, ++i,
-                                  incompatibleTypes + "expected 'string?', found 'anydata|error'", 100, 30);
+                                  "invalid binding pattern, variable reference 'results[detail][message]' cannot be " +
+                                          "used with binding pattern", 112, 49);
+        BAssertUtil.validateError(resultNegative, ++i,
+                                  "invalid binding pattern, variable reference 'results[detail][fatal]' cannot be " +
+                                          "used with binding pattern", 112, 87);
+        BAssertUtil.validateError(resultNegative, ++i,
+                                  "incompatible types: expected 'map', found 'map<(error|string|int)>'", 135, 32);
+        BAssertUtil.validateError(resultNegative, ++i,
+                "incompatible types: expected 'string', found 'string?'", 145, 19);
+    }
+
+    @Test
+    public void testNegativeErrorVariables() {
+        CompileResult resultNegative = BCompileUtil.compile(
+                "test-src/expressions/varref/error_variable_reference_negative.bal");
+        Assert.assertEquals(resultNegative.getErrorCount(), 2);
+        BAssertUtil.validateError(resultNegative, 0,
+                "variables in a binding pattern must be distinct; found duplicate variable 's'", 22, 24);
+        BAssertUtil.validateError(resultNegative, 1,
+                "variables in a binding pattern must be distinct; found duplicate variable 's'", 22, 36);
     }
 }

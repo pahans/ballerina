@@ -64,7 +64,7 @@ function testExpressionAsIndex () returns (string) {
     return family.children[a * b - 8];
 }
 
-function testStructExpressionAsIndex () returns (string) {
+function testStructExpressionAsIndex () returns string {
     string country;
     Department dpt = {};
     Family fmly = {};
@@ -83,19 +83,19 @@ function testStructExpressionAsIndex () returns (string) {
     return dpt.employees[0].family.children[dpt.employees[0].family.noOfChildren - 1];
 }
 
-function testDefaultVal () returns (string, string, int) {
+function testDefaultVal () returns [string, string, int] {
     Person p = {};
-    return (p.name, p.lname, p.age);
+    return [p.name, p.lname, p.age];
 }
 
-function testNestedFieldDefaultVal () returns (string, string, int) {
+function testNestedFieldDefaultVal () returns [string, string, int] {
     Department dpt = {};
     dpt.employees = [];
     dpt.employees[0] = {lname:"Smith"};
-    return (dpt.employees[0].name, dpt.employees[0].lname, dpt.employees[0].age);
+    return [dpt.employees[0].name, dpt.employees[0].lname, dpt.employees[0].age];
 }
 
-function testNestedStructInit () returns (Person) {
+function testNestedStructInit () returns Person {
     Person p1 = {name:"aaa", age:25, parent:{name:"bbb", age:50}};
     return p1;
 }
@@ -107,17 +107,17 @@ type NegativeValTest record {|
     float negativeSpaceFloat = -24.99;
 |};
 
-function getStructNegativeValues () returns (int, int, float, float) {
+function getStructNegativeValues () returns [int, int, float, float] {
     NegativeValTest tmp = {};
-    return (tmp.negativeInt, tmp.negativeSpaceInt, tmp.negativeFloat, tmp.negativeSpaceFloat);
+    return [tmp.negativeInt, tmp.negativeSpaceInt, tmp.negativeFloat, tmp.negativeSpaceFloat];
 }
 
-function getStruct () returns (Person) {
+function getStruct () returns Person {
     Person p1 = {name:"aaa", age:25, parent:{name:"bbb", lname:"ccc", age:50}};
     return p1;
 }
 
-function testGetNonInitAttribute () returns (string) {
+function testGetNonInitAttribute () returns string {
     Person emp1 = {};
     Person emp2 = {};
     Person[] emps = [emp1, emp2];
@@ -125,12 +125,12 @@ function testGetNonInitAttribute () returns (string) {
     return dpt.employees[0].family.children[0];
 }
 
-function testGetNonInitArrayAttribute () returns (string) {
+function testGetNonInitArrayAttribute () returns string {
     Department dpt = {dptName:"HR"};
     return dpt.employees[0].family.children[0];
 }
 
-function testGetNonInitLastAttribute () returns (Person) {
+function testGetNonInitLastAttribute () returns Person {
     Department dpt = {};
     return dpt.employees[0];
 }
@@ -163,7 +163,7 @@ function testFuncPtrAsRecordField() returns string {
         return p.lname + ", " + p.fname;
     };
 
-    return p.fullName.call();
+    return p.fullName();
 }
 
 public type InMemoryModeConfig record {|
@@ -184,11 +184,11 @@ public type EmbeddedModeConfig record {|
     *InMemoryModeConfig;
 |};
 
-function testAmbiguityResolution() returns (string, string, string) {
+function testAmbiguityResolution() returns [string, string, string] {
     string s1 = init({});
     string s2 = init({host:"localhost", port:9090});
     string s3 = init({path:"localhost:9090"});
-    return (s1, s2, s3);
+    return [s1, s2, s3];
 }
 
 function init(InMemoryModeConfig|ServerModeConfig|EmbeddedModeConfig rec) returns string {
@@ -199,27 +199,6 @@ function init(InMemoryModeConfig|ServerModeConfig|EmbeddedModeConfig rec) return
     } else {
         return "In-memory mode configuration";
     }
-}
-
-type PersonB record {|
-    string fname = "";
-    string lname = "";
-    (function (string, string) returns string)? getName = ();
-|};
-
-function testNilableFuncPtrInvocation() returns string? {
-    PersonB bob = {fname:"Bob", lname:"White"};
-    bob.getName = function (string fname, string lname) returns string {
-        return fname + " " + lname;
-    };
-    string? x = bob.getName.call(bob.fname, bob.lname);
-    return x;
-}
-
-function testNilableFuncPtrInvocation2() returns string? {
-    PersonB bob = {fname:"Bob", lname:"White"};
-    string? x = bob.getName.call(bob.fname, bob.lname);
-    return x;
 }
 
 public type A record {|
@@ -239,12 +218,12 @@ public type C record {|
     *A;
 |};
 
-function testAmbiguityResolution2() returns (string, string, string, string){
+function testAmbiguityResolution2() returns [string, string, string, string] {
     string s1 = resolve({a:"", b:"", c:""});
     string s2 = resolve({a:"", b:"", c:"", f:""});
     string s3 = resolve({a:"", b:"", c:"", f:"", g:0});
     string s4 = resolve({a:"", b:"", c:"", i:""});
-    return (s1, s2, s3, s4);
+    return [s1, s2, s3, s4];
 }
 
 function resolve(A|B|C rec) returns string {
@@ -276,4 +255,49 @@ function testEmptyClosedRecords() returns record {||}[] {
 
     record {||}[] recArr= [r1, r2, r3, r4];
     return recArr;
+}
+
+type Foo record {|
+    string bar;
+    int baz;
+|};
+
+function testLiteralsAsMappingConstructorKeys() returns boolean {
+    Foo f = { "bar": "hello", baz: 1 };
+    return f.bar == "hello" && f.baz == 1;
+}
+
+type Baz record {|
+    string s;
+    int i?;
+    float? f = ();
+|};
+
+string iValue = "i";
+
+function testExpressionAsKeys() returns boolean {
+    Baz b = { s: "hello", [iValue]: 1, [getChar("f")]: 2.0 };
+    return b.s == "hello" && b?.i == 1 && b?.f == 2.0;
+}
+
+string mapValue = "";
+
+function testExpressionAsKeysWithSameKeysDefinedAsLiteralsOrFieldNames() returns boolean {
+    Baz b = {
+        f: 1.0,
+        [getChar("f")]: 4.0,
+        [getChar("s")]: addStringToMapValue(" world"),
+        [getChar("s")]: addStringToMapValue(" from Ballerina"),
+        s: addStringToMapValue("hello")
+    };
+    return b.s == "hello world from Ballerina" && b?.f == 4.0;
+}
+
+function getChar(string st) returns string {
+    return st;
+}
+
+function addStringToMapValue(string s) returns string {
+    mapValue = mapValue + s;
+    return mapValue;
 }

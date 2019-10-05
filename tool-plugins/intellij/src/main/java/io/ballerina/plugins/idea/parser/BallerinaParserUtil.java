@@ -72,6 +72,14 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
                         && (next3Element == BallerinaTypes.RIGHT_BRACE || next3Element == BallerinaTypes.COMMA
                         || next3Element == BallerinaTypes.DOT)
                 )) {
+
+                    // This is added for following cases.
+                    // { name: "child" };
+                    // { name: "child", age:13 }
+                    if (next3Element == BallerinaTypes.RIGHT_BRACE || next3Element == BallerinaTypes.COMMA) {
+                        return false;
+                    }
+
                     // Note - Another raw lookup is added for situations like below. Second record key value
                     // pair does not get identified correctly otherwise.
                     // {sqlType:sql:Type.INTEGER, value:xmlDataArray};
@@ -117,7 +125,7 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
                                 && !(rawLookup == BallerinaTypes.LEFT_BRACE && rawLookup2 == BallerinaTypes.RETURN)
                                 && !(rawLookup == BallerinaTypes.QUESTION_MARK
                                 && rawLookup2 == BallerinaTypes.QUESTION_MARK)
-                                ) {
+                        ) {
                             IElementType rawLookup3;
                             do {
                                 rawLookup3 = builder.rawLookup(steps--);
@@ -129,7 +137,7 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
                                     return false;
                                 }
                                 return true;
-                            }  while (rawLookup3 != null && isWhiteSpaceOrComment(rawLookup3));
+                            } while (rawLookup3 != null && isWhiteSpaceOrComment(rawLookup3));
                         } else {
                             LighterASTNode latestDoneMarker = builder.getLatestDoneMarker();
                             if (rawLookup == BallerinaTypes.COMMA && rawLookup2 == BallerinaTypes.COLON) {
@@ -188,7 +196,7 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
                                             || tokenType == BallerinaTypes.VARIABLE_REFERENCE_EXPRESSION
                                             || tokenType == BallerinaTypes.SIMPLE_TYPE_NAME
                                             || tokenType == BallerinaTypes.INTEGER_RANGE_EXPRESSION
-                                            ) {
+                                    ) {
                                         return true;
                                     }
                                 }
@@ -274,7 +282,7 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
     }
 
     private static boolean isWhiteSpaceOrComment(IElementType rawLookup) {
-        return rawLookup == TokenType.WHITE_SPACE || rawLookup == BallerinaTypes.COMMENT;
+        return rawLookup == TokenType.WHITE_SPACE || rawLookup == BallerinaTypes.LINE_COMMENT;
     }
 
     public static boolean isNotAResourceDefinition(PsiBuilder builder, int level) {
@@ -308,26 +316,48 @@ public class BallerinaParserUtil extends GeneratedParserUtilBase {
 
     // Need to differentiate between nullable types and ternary expressions.
     public static boolean nullableTypePredicate(PsiBuilder builder, int level) {
-        int steps = 1;
-        IElementType next1Element;
+        int steps = -1;
+        IElementType prev1Element;
+
         do {
-            next1Element = builder.rawLookup(steps++);
-            if (isWhiteSpaceOrComment(next1Element)) {
+            prev1Element = builder.rawLookup(steps--);
+            if (prev1Element == null || isWhiteSpaceOrComment(prev1Element)) {
                 continue;
             }
-            IElementType next2Element;
+            IElementType prev2Element;
             do {
-                next2Element = builder.rawLookup(steps++);
-                if (isWhiteSpaceOrComment(next2Element)) {
+                prev2Element = builder.rawLookup(steps--);
+                if (prev2Element == null || isWhiteSpaceOrComment(prev2Element)) {
                     continue;
                 }
-                if (next2Element != BallerinaTypes.COLON) {
-                    return true;
+                //Eg: x is string ? 1 : 2;
+                if (prev2Element == BallerinaTypes.IS) {
+                    return false;
                 }
-            } while ((next2Element != null && isWhiteSpaceOrComment(next2Element)));
-
-        } while ((next1Element != null && isWhiteSpaceOrComment(next1Element)));
-
-        return false;
+                IElementType prev3Element;
+                do {
+                    prev3Element = builder.rawLookup(steps--);
+                    if (prev3Element == null || isWhiteSpaceOrComment(prev3Element)) {
+                        continue;
+                    }
+                    // Eg: x is () ? 1 : 2;
+                    if (prev3Element == BallerinaTypes.IS) {
+                        return false;
+                    }
+                    IElementType prev4Element;
+                    do {
+                        prev4Element = builder.rawLookup(steps--);
+                        if (prev4Element == null || isWhiteSpaceOrComment(prev4Element)) {
+                            continue;
+                        }
+                        // Eg: x is http:Error ? 1 : 2;
+                        if (prev4Element == BallerinaTypes.IS) {
+                            return false;
+                        }
+                    } while ((prev4Element != null && isWhiteSpaceOrComment(prev4Element)));
+                } while ((prev3Element != null && isWhiteSpaceOrComment(prev3Element)));
+            } while ((prev2Element != null && isWhiteSpaceOrComment(prev2Element)));
+        } while ((prev1Element != null && isWhiteSpaceOrComment(prev1Element)));
+        return true;
     }
 }

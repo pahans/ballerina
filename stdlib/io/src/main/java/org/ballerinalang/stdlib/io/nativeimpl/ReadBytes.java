@@ -18,31 +18,21 @@
 
 package org.ballerinalang.stdlib.io.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
-import org.ballerinalang.model.NativeCallableUnit;
-import org.ballerinalang.model.types.BArrayType;
-import org.ballerinalang.model.types.BTupleType;
-import org.ballerinalang.model.types.BTypes;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BInteger;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.natives.annotations.ReturnType;
 import org.ballerinalang.stdlib.io.channels.base.Channel;
-import org.ballerinalang.stdlib.io.events.EventContext;
-import org.ballerinalang.stdlib.io.events.EventRegister;
-import org.ballerinalang.stdlib.io.events.EventResult;
-import org.ballerinalang.stdlib.io.events.Register;
-import org.ballerinalang.stdlib.io.events.bytes.ReadBytesEvent;
 import org.ballerinalang.stdlib.io.utils.IOConstants;
 import org.ballerinalang.stdlib.io.utils.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -61,70 +51,37 @@ import java.util.Arrays;
                 @ReturnType(type = TypeKind.ERROR)},
         isPublic = true
 )
-public class ReadBytes implements NativeCallableUnit {
+public class ReadBytes {
 
-    private static final BTupleType readTupleType =
-            new BTupleType(Arrays.asList(new BArrayType(BTypes.typeByte), BTypes.typeInt));
+    private static final Logger log = LoggerFactory.getLogger(ReadBytes.class);
 
-    /**
-     * Specifies the index which holds the number of bytes in ballerina.lo#readBytes.
-     */
-    private static final int NUMBER_OF_BYTES_INDEX = 0;
-    /**
-     * Specifies the index which contains the byte channel in ballerina.lo#readBytes.
-     */
-    private static final int BYTE_CHANNEL_INDEX = 0;
-
-    /*
-     * Function which will be notified on the response obtained after the async operation.
-     *
-     * @param result context of the callback.
-     * @return Once the callback is processed we further return back the result.
-     */
-    private static EventResult readResponse(EventResult<Integer, EventContext> result) {
-        BValueArray contentTuple = new BValueArray(readTupleType);
-        EventContext eventContext = result.getContext();
-        Context context = eventContext.getContext();
-        Throwable error = eventContext.getError();
-        CallableUnitCallback callback = eventContext.getCallback();
-        byte[] content = (byte[]) eventContext.getProperties().get(ReadBytesEvent.CONTENT_PROPERTY);
-        if (null != error) {
-            BError errorStruct = IOUtils.createError(context, IOConstants.IO_ERROR_CODE, error.getMessage());
-            context.setReturnValues(errorStruct);
-        } else {
-            Integer numberOfBytes = result.getResponse();
-            contentTuple.add(0, new BValueArray(content));
-            contentTuple.add(1, new BInteger(numberOfBytes));
-            context.setReturnValues(contentTuple);
-        }
-        IOUtils.validateChannelState(eventContext);
-        callback.notifySuccess();
-        return result;
-    }
-
-    /**
-     * <p>
-     * Reads bytes from a given channel.
-     * </p>
-     * <p>
-     * {@inheritDoc}
-     */
-    @Override
-    public void execute(Context context, CallableUnitCallback callback) {
-        BMap<String, BValue> channel = (BMap<String, BValue>) context.getRefArgument(BYTE_CHANNEL_INDEX);
-        int nBytes = (int) context.getIntArgument(NUMBER_OF_BYTES_INDEX);
-        int arraySize = nBytes <= 0 ? IOConstants.CHANNEL_BUFFER_SIZE : nBytes;
+    public static Object read(Strand strand, ObjectValue channel, long nBytes) {
+        int arraySize = nBytes <= 0 ? IOConstants.CHANNEL_BUFFER_SIZE : (int) nBytes;
         Channel byteChannel = (Channel) channel.getNativeData(IOConstants.BYTE_CHANNEL_NAME);
-        byte[] content = new byte[arraySize];
-        EventContext eventContext = new EventContext(context, callback);
-        ReadBytesEvent event = new ReadBytesEvent(byteChannel, content, eventContext);
-        Register register = EventRegister.getFactory().register(event, ReadBytes::readResponse);
-        eventContext.setRegister(register);
-        register.submit();
+        ByteBuffer content = ByteBuffer.wrap(new byte[arraySize]);
+        if (byteChannel.hasReachedEnd()) {
+            return IOUtils.createEoFError();
+        } else {
+            try {
+                byteChannel.read(content);
+                return new ArrayValue(getContentData(content));
+            } catch (Exception e) {
+                String msg = "error occurred while reading bytes from the channel. " + e.getMessage();
+                log.error(msg, e);
+                return IOUtils.createError(msg);
+            }
+        }
     }
 
-    @Override
-    public boolean isBlocking() {
-        return false;
+    private static byte[] getContentData(final ByteBuffer contentBuffer) {
+        int bufferSize = contentBuffer.limit();
+        int readPosition = contentBuffer.position();
+        byte[] content = contentBuffer.array();
+        final int startPosition = 0;
+        if (readPosition == bufferSize) {
+            return content;
+        }
+        return Arrays.copyOfRange(content, startPosition, readPosition);
     }
+
 }

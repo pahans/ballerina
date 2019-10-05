@@ -18,38 +18,28 @@
 
 package org.ballerinalang.stdlib.socket.tcp;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BLangVMErrors;
-import org.ballerinalang.connector.api.BLangConnectorSPIUtil;
-import org.ballerinalang.connector.api.Resource;
-import org.ballerinalang.connector.api.Service;
-import org.ballerinalang.model.types.BTypes;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BInteger;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BString;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.util.codegen.ProgramFile;
+import org.ballerinalang.jvm.BallerinaErrors;
+import org.ballerinalang.jvm.BallerinaValues;
+import org.ballerinalang.jvm.values.ErrorValue;
+import org.ballerinalang.jvm.values.MapValue;
+import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.stdlib.socket.SocketConstants;
 
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.ballerinalang.stdlib.socket.SocketConstants.CLIENT;
+import static org.ballerinalang.stdlib.socket.SocketConstants.ErrorCode.GenericError;
 import static org.ballerinalang.stdlib.socket.SocketConstants.ID;
 import static org.ballerinalang.stdlib.socket.SocketConstants.LOCAL_ADDRESS;
 import static org.ballerinalang.stdlib.socket.SocketConstants.LOCAL_PORT;
 import static org.ballerinalang.stdlib.socket.SocketConstants.REMOTE_ADDRESS;
 import static org.ballerinalang.stdlib.socket.SocketConstants.REMOTE_PORT;
-import static org.ballerinalang.stdlib.socket.SocketConstants.RESOURCE_ON_CONNECT;
-import static org.ballerinalang.stdlib.socket.SocketConstants.RESOURCE_ON_ERROR;
-import static org.ballerinalang.stdlib.socket.SocketConstants.RESOURCE_ON_READ_READY;
 import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_KEY;
-import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_PACKAGE;
+import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_PACKAGE_ID;
 import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_SERVICE;
 
 /**
@@ -59,47 +49,46 @@ import static org.ballerinalang.stdlib.socket.SocketConstants.SOCKET_SERVICE;
  */
 public class SocketUtils {
 
-    private static final String SOCKET_ERROR_CODE = "{ballerina/socket}SocketError";
-    private static final String SOCKET_ERROR = "SocketError";
+    private SocketUtils() {
+    }
+
+    private static final String DETAIL_RECORD_TYPE_NAME = "Detail";
 
     /**
-     * Creates an error message.
+     * Create Generic socket error with given error message.
      *
-     * @param context context which is invoked
-     * @param errMsg  the cause for the error
-     * @return an error which will be propagated to ballerina user
+     * @param errMsg the error message
+     * @return ErrorValue instance which contains the error details
      */
-    public static BError createSocketError(Context context, String errMsg) {
-        BMap<String, BValue> errorRecord = BLangConnectorSPIUtil.createBStruct(context, SOCKET_PACKAGE, SOCKET_ERROR);
-        errorRecord.put("message", new BString(errMsg));
-        return BLangVMErrors.createError(context, true, BTypes.typeError, SOCKET_ERROR_CODE, errorRecord);
+    public static ErrorValue createSocketError(String errMsg) {
+        return BallerinaErrors.createError(GenericError.errorCode(), createDetailRecord(errMsg, null));
     }
 
     /**
-     * Creates an error message.
+     * Create socket error with given error code and message.
      *
-     * @param programFile ProgramFile which is used
-     * @param errMsg      the cause for the error
-     * @return an error which will be propagated to ballerina user
+     * @param code   the error code which cause for this error
+     * @param errMsg the error message
+     * @return ErrorValue instance which contains the error details
      */
-    public static BError createSocketError(ProgramFile programFile, String errMsg) {
-        BMap<String, BValue> errorRecord = BLangConnectorSPIUtil
-                .createBStruct(programFile, SOCKET_PACKAGE, SOCKET_ERROR);
-        errorRecord.put("message", new BString(errMsg));
-        return BLangVMErrors.createError(SOCKET_ERROR_CODE, errorRecord);
+    public static ErrorValue createSocketError(SocketConstants.ErrorCode code, String errMsg) {
+        return BallerinaErrors.createError(code.errorCode(), createDetailRecord(errMsg, null));
+    }
+
+    private static MapValue<String, Object> createDetailRecord(Object... values) {
+        MapValue<String, Object> detail = BallerinaValues.createRecordValue(SOCKET_PACKAGE_ID, DETAIL_RECORD_TYPE_NAME);
+        return BallerinaValues.createRecord(detail, values);
     }
 
     /**
      * Create a `Caller` object that associated with the given SocketChannel.
      *
-     * @param programFile A program file
      * @param socketService {@link SocketService} instance that contains SocketChannel and resource map
      * @return 'Caller' object
      */
-    static BMap<String, BValue> createClient(ProgramFile programFile, SocketService socketService) {
-        BValue[] args = new BValue[] { null };
-        // Passing parameters as null to prevent object init in the socket client.
-        BMap<String, BValue> caller = BLangConnectorSPIUtil.createObject(programFile, SOCKET_PACKAGE, CLIENT, args);
+    static ObjectValue createClient(SocketService socketService) {
+        Object[] args = new Object[] { null };
+        final ObjectValue caller = BallerinaValues.createObjectValue(SOCKET_PACKAGE_ID, CLIENT, args);
         caller.addNativeData(SOCKET_SERVICE, socketService);
         SocketChannel client = null;
         // An error can be thrown during the onAccept function. So there is a possibility of client not
@@ -110,11 +99,11 @@ public class SocketUtils {
         if (client != null) {
             caller.addNativeData(SOCKET_KEY, client);
             Socket socket = client.socket();
-            caller.put(REMOTE_PORT, new BInteger(socket.getPort()));
-            caller.put(LOCAL_PORT, new BInteger(socket.getLocalPort()));
-            caller.put(REMOTE_ADDRESS, new BString(socket.getInetAddress().getHostAddress()));
-            caller.put(LOCAL_ADDRESS, new BString(socket.getLocalAddress().getHostAddress()));
-            caller.put(ID, new BInteger(client.hashCode()));
+            caller.set(REMOTE_PORT, socket.getPort());
+            caller.set(LOCAL_PORT, socket.getLocalPort());
+            caller.set(REMOTE_ADDRESS, socket.getInetAddress().getHostAddress());
+            caller.set(LOCAL_ADDRESS, socket.getLocalAddress().getHostAddress());
+            caller.set(ID, client.hashCode());
         }
         return caller;
     }
@@ -135,51 +124,28 @@ public class SocketUtils {
     }
 
     /**
-     * This will filter out resource information from a given {@link Service} instance.
-     *
-     * @param service Service instance which contains the resource information
-     * @return {@link Map} that contains the {@link Resource} instances
-     */
-    public static Map<String, Resource> getResourceRegistry(Service service) {
-        Map<String, Resource> registry = new HashMap<>(5);
-        byte resourceCount = 0;
-        for (Resource resource : service.getResources()) {
-            switch (resource.getName()) {
-                case RESOURCE_ON_CONNECT:
-                    registry.put(RESOURCE_ON_CONNECT, resource);
-                    resourceCount++;
-                    break;
-                case RESOURCE_ON_READ_READY:
-                    registry.put(RESOURCE_ON_READ_READY, resource);
-                    resourceCount++;
-                    break;
-                case RESOURCE_ON_ERROR:
-                    registry.put(RESOURCE_ON_ERROR, resource);
-                    resourceCount++;
-                    break;
-                default:
-                    // Do nothing.
-            }
-            if (resourceCount == 3) {
-                break;
-            }
-        }
-        return registry;
-    }
-
-    /**
      * This will try to shutdown executor service gracefully.
      *
      * @param executorService {@link ExecutorService} that need shutdown
      */
-    public static void shutdownExecutor(ExecutorService executorService) {
+    public static void shutdownExecutorGracefully(ExecutorService executorService) {
         executorService.shutdown();
         try {
-            if (!executorService.awaitTermination(1, TimeUnit.SECONDS)) {
+            if (!executorService.awaitTermination(1, TimeUnit.MINUTES)) {
                 executorService.shutdownNow();
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             executorService.shutdownNow();
         }
+    }
+
+    /**
+     * This will shutdown executor immediately.
+     *
+     * @param executorService {@link ExecutorService} that need shutdown
+     */
+    public static void shutdownExecutorImmediately(ExecutorService executorService) {
+        executorService.shutdownNow();
     }
 }

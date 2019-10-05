@@ -20,17 +20,12 @@ import org.apache.tools.ant.taskdefs.condition.Os
 apply from: "$rootDir/gradle/jsProject.gradle"
 
 configurations {
-    composerDistribution {
-      transitive false
-    }
-    composerFonts {
-      transitive false
-    }
     ballerinaTools
 }
 
 npmBuild() {
     PatternSet patternSet = new PatternSet();
+    patternSet.exclude("**/dist/**");
 	patternSet.exclude("**/out/**");
     patternSet.exclude("**/*.vsix/**");
     patternSet.exclude("**/coverage/**");
@@ -38,8 +33,8 @@ npmBuild() {
     FileTree src = files('.').asFileTree;
     inputs.files(src.matching(patternSet))
 
-    dependsOn(':composer-library:build')
     outputs.dir("out")
+    outputs.dir("dist")
     outputs.cacheIf { true } 
 
     doFirst {
@@ -54,48 +49,27 @@ npmBuild() {
 }
 
 task copyDistribution() {
-    dependsOn ":ballerina-tools:build"
+    dependsOn ":jballerina-tools:build"
     doFirst {
         copy {
             from file(configurations.ballerinaTools.asPath)
-            into "extractedDistribution/ballerina-tools-${project.version}"
-        }
-    }
-}
-
-task copyComposerDistribution() {
-    dependsOn(':composer-library:assemble')
-    doFirst {
-        copy {
-            from file(configurations.composerDistribution.asPath)
-            exclude '**/*.map'
-            exclude '**/*.d.ts'
-            into "resources/composer"
-        }
-        copy {
-            from file(configurations.composerFonts.asPath)
-            into "resources/composer/font"
+            into "extractedDistribution/jballerina-tools-${project.version}"
         }
     }
 }
 
 task assemble(overwrite: true) {
     dependsOn 'npmBuild'
-    dependsOn 'copyComposerDistribution'
 }
 
 dependencies {
-    composerDistribution project(path: ':composer-library', configuration: 'composer')
-    composerFonts project(path: ':composer-library', configuration: 'fonts')
-    ballerinaTools project(path: ':ballerina-tools', configuration: 'unzipped')
+    ballerinaTools project(path: ':jballerina-tools', configuration: 'unzipped')
 }
 
 task test(type: Exec) {
-    mustRunAfter ':examples-test:test'
+    // mustRunAfter ':examples-test:test'
     dependsOn copyDistribution
-    onlyIf {
-        !assemble.state.upToDate
-    }
+    dependsOn assemble
     doFirst {
         if (Os.isFamily(Os.FAMILY_WINDOWS)) {
             commandLine 'cmd', '/c', 'npm', 'run', 'test'

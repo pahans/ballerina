@@ -41,28 +41,10 @@ function testClosedToOpenAssignment2() returns AnotherPerson2 {
     return ap;
 }
 
-type AnotherPerson3 record {
-    string name;
-    int age;
-    float weight?;
-};
-
-function testClosedToOpenAssignment3() returns AnotherPerson3 {
+function testClosedToOpenAssignment3() {
     Person1 p = {name:"John Doe", age:25};
-    AnotherPerson3 ap = p;
-    return ap;
-}
-
-function testClosedToOpenAssignment4() {
-    Person1 p = {name:"John Doe", age:25};
-    AnotherPerson3 ap = p;
-    ap.weight = 60.5;
-}
-
-function testClosedToOpenAssignment5() {
-    Person1 p = {name:"John Doe", age:25};
-    AnotherPerson3 ap = p;
-    ap.rest = "foo";
+    AnotherPerson2 ap = p;
+    ap["rest"] = "foo";
 }
 
 //////////////////////////////////////////////////////////////////
@@ -96,14 +78,14 @@ function testOptFieldToOptField1() returns AnotherPerson4 {
     return ap;
 }
 
-function testOptFieldToOptField2() returns (AnotherPerson4, int) {
+function testOptFieldToOptField2() returns [AnotherPerson4, anydata] {
     Person2 p = {name:"John Doe", age:25};
     AnotherPerson4 ap = p;
 
     p = {name:"Jane Doe"};
     AnotherPerson4 ap2 = p;
 
-    return (ap, ap2.age);
+    return [ap, ap2.get("age")];
 }
 
 
@@ -122,4 +104,28 @@ function testAdditionalFieldsToRest() returns AnotherPerson1 {
     Person3 p = {name:"John Doe", age:25, address:"Colombo, Sri Lanka", weight:70.0};
     AnotherPerson1 ap = p;
     return ap;
+}
+
+public type PublicPerson record {|
+    string name;
+    int age;
+    string address;
+|};
+
+function testHeterogeneousTypedescEq() returns AnotherPerson1 {
+    PublicPerson p = {name:"John Doe", age:25, address:"Colombo, Sri Lanka"};
+    AnotherPerson1 ap = p;
+    return ap;
+}
+
+public type OpenPublicPerson record {
+    string name;
+    int age;
+    string address;
+};
+
+function testHeterogeneousTypedescEq2() returns OpenPublicPerson {
+    Person3 p = {name:"John Doe", age:25, address:"Colombo, Sri Lanka", weight:70.0};
+    OpenPublicPerson p1 = p;
+    return p1;
 }

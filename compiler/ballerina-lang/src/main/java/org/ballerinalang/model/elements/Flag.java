@@ -82,9 +82,9 @@ public enum Flag {
      */
     RECORD,
     /**
-     * Temporary indicator for compensation variables.
+     * Indicator for ANONYMOUS types.
      */
-    COMPENSATE,
+    ANONYMOUS,
     /**
      * Indicates Flagged node is a abstract node.
      */
@@ -113,4 +113,16 @@ public enum Flag {
      * Indicates flagged node is a constant node.
      */
     CONSTANT,
+    /**
+     * Indicates flagged node is a paramType.
+     */
+    TYPE_PARAM,
+    /**
+     * Indicates flagged node is a lang library function.
+     */
+    LANG_LIB,
+    /**
+     * Indicates flagged node is a worker inside fork stmt.
+     */
+    FORKED
 }

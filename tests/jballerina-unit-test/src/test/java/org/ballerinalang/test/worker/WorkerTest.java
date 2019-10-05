@@ -16,7 +16,6 @@
  */
 package org.ballerinalang.test.worker;
 
-import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.model.values.BError;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
@@ -103,7 +102,7 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n\tat $lambda$";
+        String expected = "error: error: err from panic \n\tat workers:$lambda$";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -116,8 +115,8 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n" + "\tat " +
-                                    "sendToDefaultWithPanicBeforeSendInDefault(workers.bal:";
+        String expected = "error: error: err from panic \n" + "\tat " +
+                                    "workers:sendToDefaultWithPanicBeforeSendInDefault(workers.bal:";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -130,7 +129,7 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n" + "\tat $lambda$";
+        String expected = "error: error: err from panic \n" + "\tat workers:$lambda$";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -143,8 +142,8 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n" +
-                                "\tat sendToDefaultWithPanicAfterSendInDefault(workers.bal:";
+        String expected = "error: error: err from panic \n" +
+                                "\tat workers:sendToDefaultWithPanicAfterSendInDefault(workers.bal:";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -157,8 +156,8 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expectedResult = "error: error: err from panic {}\n" +
-                "\tat receiveFromDefaultWithPanicAfterSendInDefault(workers.bal:";
+        String expectedResult = "error: error: err from panic \n" +
+                "\tat workers:receiveFromDefaultWithPanicAfterSendInDefault(workers.bal:";
         Assert.assertTrue(actualException.getMessage().contains(expectedResult),
                 actualException.getMessage());
     }
@@ -172,8 +171,8 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n" +
-                "\tat receiveFromDefaultWithPanicBeforeSendInDefault(workers.bal:";
+        String expected = "error: error: err from panic \n" +
+                "\tat workers:receiveFromDefaultWithPanicBeforeSendInDefault(workers.bal:";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -186,7 +185,7 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expected = "error: error: err from panic {}\n" + "\tat $lambda$";
+        String expected = "error: error: err from panic \n" + "\tat workers:$lambda$";
         Assert.assertTrue(actualException.getMessage().contains(expected), actualException.getMessage());
     }
 
@@ -199,7 +198,7 @@ public class WorkerTest {
             actualException = e;
         }
         Assert.assertNotNull(actualException);
-        String expectedMessage = "error: error: err from panic {}\n\tat";
+        String expectedMessage = "error: error: err from panic \n\tat";
         String actualMessage = actualException.getMessage();
         Assert.assertTrue(actualMessage.contains(expectedMessage), actualMessage);
     }
@@ -211,10 +210,11 @@ public class WorkerTest {
         Assert.assertEquals("error: err from panic", ((BError) returns[0]).getReason());
     }
 
-    @Test(enabled = false) // Issue with trap
+    @Test()
     public void receiveWithTrapForDefault() {
         BValue[] returns = BRunUtil.invoke(result, "receiveWithTrapForDefault");
         Assert.assertEquals(returns.length, 1);
+        Assert.assertEquals("error: err from panic", ((BError) returns[0]).getReason());
     }
 
     @Test
@@ -231,7 +231,7 @@ public class WorkerTest {
         Assert.assertEquals("error: err from panic", ((BError) returns[0]).getReason());
     }
 
-    @Test
+    @Test(groups = "brokenOnJBallerina")
     public void sameStrandMultipleInvocation() {
         for (int i = 0; i < 20; i++) {
             sameStrandMultipleInvocationTest();
@@ -246,11 +246,11 @@ public class WorkerTest {
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*error: future is already cancelled.*")
+            expectedExceptionsMessageRegExp = ".*error: \\{ballerina/lang.future\\}FutureAlreadyCancelled.*")
     public void workerWithFutureTest1() {
         BValue[] returns = BRunUtil.invoke(result, "workerWithFutureTest1");
         Assert.assertEquals(returns.length, 1);
-        Assert.assertTrue(((BBoolean) returns[0]).booleanValue());
+        Assert.assertEquals(((BInteger) returns[0]).intValue(), 10);
     }
 
     @Test
@@ -267,7 +267,7 @@ public class WorkerTest {
             Assert.assertEquals(returns.length, 1);
             Assert.assertEquals(((BInteger) returns[0]).intValue(), 18);
         } catch (BLangRuntimeException e) {
-            Assert.assertTrue(e.getMessage().contains("error: future is already cancelled {}"));
+            Assert.assertTrue(e.getMessage().contains("error: {ballerina/lang.future}FutureAlreadyCancelled"));
         }
     }
 
@@ -278,7 +278,9 @@ public class WorkerTest {
             System.setOut(new PrintStream(tempOutStream));
             BRunUtil.invoke(result, "sameStrandMultipleInvocation");
             String result = new String(tempOutStream.toByteArray());
-            Assert.assertTrue(result.contains("11 - 11"), result);
+            // we cannot guarantee an ordering between message sends
+            Assert.assertTrue((result.contains("11 - 11") && result.contains("12 - 12")) ||
+                            (result.contains("11 - 12") && result.contains("12 - 11")), result);
         } finally {
             System.setOut(defaultOut);
         }
@@ -297,5 +299,15 @@ public class WorkerTest {
         Assert.assertEquals(returns.length, 1);
         Assert.assertEquals(returns[0].getType().getName(), "Rec");
         Assert.assertEquals(((BMap) returns[0]).get("k"), new BInteger(10));
+    }
+
+    @Test
+    public void innerWorkerPanicTest() {
+        try {
+            BRunUtil.invoke(result, "panicFunc");
+            Assert.fail("Worker did not panic");
+        } catch (BLangRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("worker w5 panic"));
+        }
     }
 }

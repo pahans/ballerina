@@ -17,8 +17,8 @@
  */
 package org.ballerinalang.net.grpc;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.CompileResult;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -48,6 +48,7 @@ public class ResourceReturnTypeTest {
         CompileResult result = BCompileUtil.compile(serviceBalPath.toAbsolutePath().toString());
         Assert.assertEquals(result.getErrorCount(), 5);
         Assert.assertEquals(result.getDiagnostics().length, 5);
-        Assert.assertEquals(result.getDiagnostics()[0].getMessage(), "Invalid return type: expected error?");
+        Assert.assertEquals(result.getDiagnostics()[0].getMessage(), "invalid resource function return type " +
+                "'int', expected a subtype of 'error?' containing '()'");
     }
 }

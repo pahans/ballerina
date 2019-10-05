@@ -17,19 +17,19 @@
  */
 package org.ballerinalang.stdlib.io.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.model.types.BArrayType;
+import org.ballerinalang.jvm.TypeChecker;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.types.BArrayType;
+import org.ballerinalang.jvm.types.BType;
+import org.ballerinalang.jvm.types.TypeTags;
+import org.ballerinalang.jvm.util.exceptions.BLangExceptionHelper;
+import org.ballerinalang.jvm.util.exceptions.RuntimeErrors;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.utils.StringUtils;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.types.TypeTags;
-import org.ballerinalang.model.values.BRefType;
-import org.ballerinalang.model.values.BString;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
-import org.ballerinalang.util.exceptions.BLangExceptionHelper;
-import org.ballerinalang.util.exceptions.RuntimeErrors;
 
 import java.util.IllegalFormatConversionException;
 
@@ -53,11 +53,9 @@ import java.util.IllegalFormatConversionException;
  *      sprintf("%s is awesome!", ["Ballerina"]) -> "Ballerina is awesome!"
  *      sprintf("%10.2f", [12.5678]) -> "     12.57"
  */
-public class Sprintf extends BlockingNativeCallableUnit {
-    @Override
-    public final void execute(final Context context) {
-        String format = context.getStringArgument(0);
-        BValueArray args = (BValueArray) context.getRefArgument(0);
+public class Sprintf {
+
+    public static String sprintf(Strand strand, String format, ArrayValue args) {
         StringBuilder result = new StringBuilder();
 
         /* Special chars in case additional formatting is required later
@@ -95,7 +93,8 @@ public class Sprintf extends BlockingNativeCallableUnit {
                 }
                 try {
                     char formatSpecifier = format.charAt(j);
-                    BRefType ref = args.getRefValue(k);
+                    //TODO : Recheck following casting
+                    Object ref = args.getRefValue(k);
                     switch (formatSpecifier) {
                         case 'b':
                         case 'B':
@@ -105,7 +104,7 @@ public class Sprintf extends BlockingNativeCallableUnit {
                                 throw BLangExceptionHelper.getRuntimeException(RuntimeErrors.ILLEGAL_FORMAT_CONVERSION,
                                         format.charAt(j) + " != ()");
                             }
-                            result.append(String.format("%" + padding + formatSpecifier, ref.value()));
+                            result.append(String.format("%" + padding + formatSpecifier, ref));
                             break;
                         case 'x':
                         case 'X':
@@ -117,7 +116,8 @@ public class Sprintf extends BlockingNativeCallableUnit {
                             break;
                         case 's':
                             if (ref != null) {
-                                result.append(String.format("%" + padding + "s", ref.stringValue()));
+                                result.append(String.format("%" + padding + "s",
+                                        StringUtils.getStringValue(strand, ref)));
                             }
                             break;
                         case '%':
@@ -125,13 +125,12 @@ public class Sprintf extends BlockingNativeCallableUnit {
                             break;
                         default:
                             // format string not supported
-                            throw BLangExceptionHelper.getRuntimeException(
-                                    RuntimeErrors.INVALID_FORMAT_SPECIFIER, format.charAt(j));
+                            throw BLangExceptionHelper.getRuntimeException(RuntimeErrors.INVALID_FORMAT_SPECIFIER,
+                                    format.charAt(j));
                     }
                 } catch (IllegalFormatConversionException e) {
-                    throw BLangExceptionHelper.getRuntimeException(
-                            RuntimeErrors.ILLEGAL_FORMAT_CONVERSION,
-                            format.charAt(j) + " != " + args.getRefValue(k).getType());
+                    throw BLangExceptionHelper.getRuntimeException(RuntimeErrors.ILLEGAL_FORMAT_CONVERSION,
+                            format.charAt(j) + " != " + TypeChecker.getType(args.getRefValue(k)));
                 }
                 if (format.charAt(j) == '%') {
                     // special case %%, don't count as a format specifier
@@ -145,19 +144,19 @@ public class Sprintf extends BlockingNativeCallableUnit {
             // no match, copy and continue
             result.append(format.charAt(i));
         }
-        context.setReturnValues(new BString(result.toString()));
+        return result.toString();
     }
 
-    private void formatHexString(BValueArray args, StringBuilder result, int k, StringBuilder padding, char x) {
-        BRefType ref = args.getRefValue(k);
-        if (TypeTags.ARRAY_TAG == ref.getType().getTag() &&
-                TypeTags.BYTE_TAG == ((BArrayType) ref.getType()).getElementType().getTag()) {
-            BValueArray byteArray = ((BValueArray) ref);
+    private static void formatHexString(ArrayValue args, StringBuilder result, int k, StringBuilder padding, char x) {
+        final Object argsValues = args.get(k);
+        final BType type = TypeChecker.getType(argsValues);
+        if (TypeTags.ARRAY_TAG == type.getTag() && TypeTags.BYTE_TAG == ((BArrayType) type).getElementType().getTag()) {
+            ArrayValue byteArray = ((ArrayValue) argsValues);
             for (int i = 0; i < byteArray.size(); i++) {
                 result.append(String.format("%" + padding + x, byteArray.getByte(i)));
             }
         } else {
-            result.append(String.format("%" + padding + x, ref.value()));
+            result.append(String.format("%" + padding + x, argsValues));
         }
     }
 }

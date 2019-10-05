@@ -16,12 +16,12 @@
 
 function testBasicCheckpanic(int testNumber) returns int|float {
     match testNumber {
-        1 => int i = checkpanic getGenericError();
-        2 => int i = checkpanic getGenericErrorWithDetail();
-        3 => int|boolean i = checkpanic getGenericErrorWithMultiUnion();
-        4 => return checkpanic getFloat();
-        5 => int i = checkpanic returnBallerinaPanicedError();
-        6 => int i = checkpanic getCustomError();
+        1 => {int i = checkpanic getGenericError();}
+        2 => {int i = checkpanic getGenericErrorWithDetail();}
+        3 => {int|boolean i = checkpanic getGenericErrorWithMultiUnion();}
+        4 => {return checkpanic getFloat();}
+        5 => {int i = checkpanic returnBallerinaPanicedError();}
+        6 => {int i = checkpanic getCustomError();}
     }
     return 0.0;
 }
@@ -32,7 +32,7 @@ function getGenericError() returns int|error {
 }
 
 function getGenericErrorWithDetail() returns int|error {
-    error e = error("Generic Error", { fatal: true, message: "Something Went Wrong" });
+    error e = error("Generic Error", fatal = true, message = "Something Went Wrong");
     return e;
 }
 
@@ -53,9 +53,9 @@ function returnBallerinaPanicedError() returns int|error {
     return ret;
 }
 
-public type MyError error<string, record { int code; }>;
+public type MyError error<string, record { int code; string message?; error cause?;}>;
 
 function getCustomError() returns int|MyError {
-    MyError e = error("My Error", { code: 12 });
+    MyError e = error("My Error", code = 12);
     return e;
 }

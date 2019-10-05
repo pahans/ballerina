@@ -18,9 +18,13 @@
 package org.wso2.ballerinalang.compiler.bir.writer;
 
 import io.netty.buffer.ByteBuf;
-import org.wso2.ballerinalang.compiler.bir.model.Visibility;
+import io.netty.buffer.Unpooled;
+import org.ballerinalang.model.elements.MarkdownDocAttachment;
+import org.ballerinalang.model.symbols.SymbolKind;
+import org.wso2.ballerinalang.compiler.bir.writer.CPEntry.ByteCPEntry;
 import org.wso2.ballerinalang.compiler.bir.writer.CPEntry.FloatCPEntry;
 import org.wso2.ballerinalang.compiler.bir.writer.CPEntry.IntegerCPEntry;
+import org.wso2.ballerinalang.compiler.bir.writer.CPEntry.PackageCPEntry;
 import org.wso2.ballerinalang.compiler.bir.writer.CPEntry.StringCPEntry;
 import org.wso2.ballerinalang.compiler.semantics.model.TypeVisitor;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAttachedFunction;
@@ -38,6 +42,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.types.BErrorType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BField;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFiniteType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFutureType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BHandleType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BIntermediateCollectionType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BJSONType;
@@ -53,14 +58,20 @@ import org.wso2.ballerinalang.compiler.semantics.model.types.BStructureType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BTableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BTupleType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BTypedescType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BXMLType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.TypeFlags;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
+import org.wso2.ballerinalang.compiler.util.Names;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
 import org.wso2.ballerinalang.util.Flags;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Writes bType to a Byte Buffer in binary format.
@@ -69,16 +80,25 @@ import java.util.LinkedList;
  * @since 0.995.0
  */
 public class BIRTypeWriter implements TypeVisitor {
-    public static final int TYPE_TAG_SELF = 50;
-    public static final int SERVICE_TYPE_TAG = 51;
     private final ByteBuf buff;
 
     private final ConstantPool cp;
-    private LinkedList<Object> compositeStack = new LinkedList<>();
 
     public BIRTypeWriter(ByteBuf buff, ConstantPool cp) {
         this.buff = buff;
         this.cp = cp;
+    }
+
+    public void visitType(BType type) {
+        buff.writeByte(type.tag);
+        buff.writeInt(addStringCPEntry(type.name.getValue()));
+        buff.writeInt(type.flags);
+        buff.writeInt(TypeFlags.asMask(type.isNullable(), type.isAnydata(), type.isPureType()));
+        type.accept(this);
+    }
+
+    private void writeTypeCpIndex(BType type) {
+        buff.writeInt(cp.addShapeCPEntry(type));
     }
 
     @Override
@@ -88,10 +108,9 @@ public class BIRTypeWriter implements TypeVisitor {
 
     @Override
     public void visit(BArrayType bArrayType) {
-        buff.writeByte(bArrayType.tag);
         buff.writeByte(bArrayType.state.getValue());
         buff.writeInt(bArrayType.size);
-        bArrayType.getElementType().accept(this);
+        writeTypeCpIndex(bArrayType.getElementType());
     }
 
     @Override
@@ -101,30 +120,34 @@ public class BIRTypeWriter implements TypeVisitor {
 
     @Override
     public void visit(BAnyType bAnyType) {
-        buff.writeByte(bAnyType.tag);
     }
 
     @Override
     public void visit(BErrorType bErrorType) {
-        buff.writeByte(bErrorType.tag);
-        BTypeSymbol tsymbol = bErrorType.tsymbol;
-        compositeStack.push(tsymbol);
-        bErrorType.reasonType.accept(this);
-        bErrorType.detailType.accept(this);
-        Object popped = compositeStack.pop();
-        assert popped == tsymbol;
+        // Write the error package and type name
+        int orgCPIndex = addStringCPEntry(bErrorType.tsymbol.pkgID.orgName.value);
+        int nameCPIndex = addStringCPEntry(bErrorType.tsymbol.pkgID.name.value);
+        int versionCPIndex = addStringCPEntry(bErrorType.tsymbol.pkgID.version.value);
+        int pkgIndex = cp.addCPEntry(new PackageCPEntry(orgCPIndex, nameCPIndex, versionCPIndex));
+        buff.writeInt(pkgIndex);
+        buff.writeInt(addStringCPEntry(bErrorType.tsymbol.name.value));
+        // Write reason and detail types.
+        writeTypeCpIndex(bErrorType.reasonType);
+        writeTypeCpIndex(bErrorType.detailType);
     }
 
     @Override
     public void visit(BFiniteType bFiniteType) {
-        buff.writeByte(bFiniteType.tag);
+        BTypeSymbol tsymbol = bFiniteType.tsymbol;
+        buff.writeInt(addStringCPEntry(tsymbol.name.value));
+        buff.writeInt(tsymbol.flags);
         buff.writeInt(bFiniteType.valueSpace.size());
         for (BLangExpression valueLiteral : bFiniteType.valueSpace) {
             if (!(valueLiteral instanceof BLangLiteral)) {
                 throw new AssertionError(
                         "Type serialization is not implemented for finite type with value: " + valueLiteral.getKind());
             }
-            valueLiteral.type.accept(this);
+            writeTypeCpIndex(valueLiteral.type);
             writeValue(((BLangLiteral) valueLiteral).value, valueLiteral.type);
         }
     }
@@ -136,56 +159,61 @@ public class BIRTypeWriter implements TypeVisitor {
 
     @Override
     public void visit(BInvokableType bInvokableType) {
-        buff.writeByte(bInvokableType.tag);
         buff.writeInt(bInvokableType.paramTypes.size());
         for (BType params : bInvokableType.paramTypes) {
-            params.accept(this);
+            writeTypeCpIndex(params);
         }
-        bInvokableType.retType.accept(this);
+        writeTypeCpIndex(bInvokableType.retType);
     }
 
     @Override
     public void visit(BJSONType bjsonType) {
-        buff.writeByte(bjsonType.tag);
+        // Nothing to do
     }
 
     @Override
     public void visit(BMapType bMapType) {
-        buff.writeByte(bMapType.tag);
-        bMapType.constraint.accept(this);
+        writeTypeCpIndex(bMapType.constraint);
     }
 
     @Override
     public void visit(BTableType bTableType) {
-        buff.writeByte(bTableType.tag);
-        bTableType.constraint.accept(this);
+        writeTypeCpIndex(bTableType.constraint);
     }
 
     @Override
     public void visit(BStreamType bStreamType) {
-        buff.writeByte(bStreamType.tag);
-        bStreamType.constraint.accept(this);
+        writeTypeCpIndex(bStreamType.constraint);
+    }
+
+    @Override
+    public void visit(BTypedescType typedescType) {
+
+        writeTypeCpIndex(typedescType.constraint);
     }
 
     @Override
     public void visit(BFutureType bFutureType) {
-        buff.writeByte(bFutureType.tag);
-        bFutureType.constraint.accept(this);
+        writeTypeCpIndex(bFutureType.constraint);
+    }
+
+    @Override
+    public void visit(BHandleType bHandleType) {
     }
 
     @Override
     public void visit(BNilType bNilType) {
-        buff.writeByte(bNilType.tag);
+        // Nothing to do
     }
 
     @Override
     public void visit(BNoType bNoType) {
-        buff.writeByte(bNoType.tag);
+        // Nothing to do
     }
 
     @Override
     public void visit(BAnydataType bAnydataType) {
-        buff.writeByte(bAnydataType.tag);
+        // Nothing to do
     }
 
     @Override
@@ -195,7 +223,12 @@ public class BIRTypeWriter implements TypeVisitor {
 
     @Override
     public void visit(BServiceType bServiceType) {
-        buff.writeByte(SERVICE_TYPE_TAG);
+        //This is to say this is an object, this is a temporary fix object - 1, service - 0,
+        // ideal fix would be to use the type tag to
+        // differentiate. TODO fix later
+        buff.writeByte(1);
+
+        writeObjectAndServiceTypes(bServiceType);
     }
 
     @Override
@@ -205,98 +238,155 @@ public class BIRTypeWriter implements TypeVisitor {
 
     @Override
     public void visit(BTupleType bTupleType) {
-        buff.writeByte(bTupleType.tag);
         buff.writeInt(bTupleType.tupleTypes.size());
         for (BType memberType : bTupleType.tupleTypes) {
-            memberType.accept(this);
+            writeTypeCpIndex(memberType);
+        }
+        if (bTupleType.restType != null) {
+            buff.writeBoolean(true);
+            writeTypeCpIndex(bTupleType.restType);
+        } else {
+            buff.writeBoolean(false);
         }
     }
 
     @Override
     public void visit(BUnionType bUnionType) {
-        buff.writeByte(bUnionType.tag);
         buff.writeInt(bUnionType.getMemberTypes().size());
         for (BType memberType : bUnionType.getMemberTypes()) {
-            if (!writeSelfRef(memberType.tsymbol)) {
-                memberType.accept(this);
-            }
+            writeTypeCpIndex(memberType);
         }
     }
 
     @Override
     public void visit(BRecordType bRecordType) {
         BRecordTypeSymbol tsymbol = (BRecordTypeSymbol) bRecordType.tsymbol;
-        if (writeSelfRef(tsymbol)) {
-            return;
-        }
-        compositeStack.push(tsymbol);
 
-        buff.writeByte(bRecordType.tag);
+        // Write the package details in the form of constant pool entry TODO find a better approach
+        int orgCPIndex = addStringCPEntry(tsymbol.pkgID.orgName.value);
+        int nameCPIndex = addStringCPEntry(tsymbol.pkgID.name.value);
+        int versionCPIndex = addStringCPEntry(tsymbol.pkgID.version.value);
+        int pkgIndex = cp.addCPEntry(new PackageCPEntry(orgCPIndex, nameCPIndex, versionCPIndex));
+        buff.writeInt(pkgIndex);
+
         buff.writeInt(addStringCPEntry(tsymbol.name.value));
         buff.writeBoolean(bRecordType.sealed);
-        bRecordType.restFieldType.accept(this);
+        writeTypeCpIndex(bRecordType.restFieldType);
+
         buff.writeInt(bRecordType.fields.size());
         for (BField field : bRecordType.fields) {
-            // TODO add position
-            buff.writeInt(addStringCPEntry(field.name.value));
-            field.type.accept(this);
+            BSymbol symbol = field.symbol;
+            buff.writeInt(addStringCPEntry(symbol.name.value));
+            buff.writeInt(symbol.flags);
+            writeMarkdownDocAttachment(buff, field.symbol.markdownDocumentation);
+            writeTypeCpIndex(field.type);
         }
 
         BAttachedFunction initializerFunc = tsymbol.initializerFunc;
+        if (initializerFunc == null) {
+            buff.writeByte(0);
+            return;
+        }
 
+        buff.writeByte(1);
         buff.writeInt(addStringCPEntry(initializerFunc.funcName.value));
-        buff.writeByte(getVisibility(initializerFunc.symbol).value());
-        initializerFunc.type.accept(this);
-        
-        compositeStack.pop();
+        buff.writeInt(initializerFunc.symbol.flags);
+        writeTypeCpIndex(initializerFunc.type);
     }
 
     @Override
     public void visit(BObjectType bObjectType) {
-        BObjectTypeSymbol tsymbol = (BObjectTypeSymbol) bObjectType.tsymbol;
-        if (writeSelfRef(bObjectType.tsymbol)) {
-            return;
-        }
-        compositeStack.push(tsymbol);
+        //This is to say this is an object, this is a temporary fix object - 1, service - 0,
+        // ideal fix would be to use the type tag to
+        // differentiate. TODO fix later
+        buff.writeByte(0);
 
-        buff.writeByte(bObjectType.tag);
-        buff.writeInt(addStringCPEntry(tsymbol.name.value));
-        buff.writeBoolean((tsymbol.flags & Flags.ABSTRACT) == Flags.ABSTRACT); // Abstract object or not
+        writeObjectAndServiceTypes(bObjectType);
+    }
+
+    private void writeObjectAndServiceTypes(BObjectType bObjectType) {
+        BTypeSymbol tSymbol = bObjectType.tsymbol;
+
+        // Write the package details in the form of constant pool entry TODO find a better approach
+        int orgCPIndex = addStringCPEntry(tSymbol.pkgID.orgName.value);
+        int nameCPIndex = addStringCPEntry(tSymbol.pkgID.name.value);
+        int versionCPIndex = addStringCPEntry(tSymbol.pkgID.version.value);
+        int pkgIndex = cp.addCPEntry(new PackageCPEntry(orgCPIndex, nameCPIndex, versionCPIndex));
+        buff.writeInt(pkgIndex);
+
+        buff.writeInt(addStringCPEntry(tSymbol.name.value));
+        //TODO below two line are a temp solution, introduce a generic concept
+        buff.writeBoolean(Symbols.isFlagOn(tSymbol.flags, Flags.ABSTRACT)); // Abstract object or not
+        buff.writeBoolean(Symbols.isFlagOn(tSymbol.flags, Flags.CLIENT));
         buff.writeInt(bObjectType.fields.size());
         for (BField field : bObjectType.fields) {
             buff.writeInt(addStringCPEntry(field.name.value));
             // TODO add position
-            buff.writeByte(getVisibility(field.symbol).value());
-            field.type.accept(this);
+            buff.writeInt(field.symbol.flags);
+            writeMarkdownDocAttachment(buff, field.symbol.markdownDocumentation);
+            writeTypeCpIndex(field.type);
         }
-        buff.writeInt(tsymbol.attachedFuncs.size());
-        for (BAttachedFunction attachedFunc : tsymbol.attachedFuncs) {
-            buff.writeInt(addStringCPEntry(attachedFunc.funcName.value));
-            buff.writeByte(getVisibility(attachedFunc.symbol).value());
-            attachedFunc.type.accept(this);
+        List<BAttachedFunction> attachedFuncs;
+        //TODO cleanup, there cannot be objects without attached function list and symbol kind other than object
+        if (tSymbol.kind == SymbolKind.OBJECT) {
+            Map<Boolean, List<BAttachedFunction>> partitions = ((BObjectTypeSymbol) tSymbol).attachedFuncs.stream()
+                    .collect(Collectors.partitioningBy(n -> n.funcName.equals(Names.USER_DEFINED_INIT_SUFFIX)));
+            attachedFuncs = partitions.get(false);
+            List<BAttachedFunction> constructor = partitions.get(true);
+            if (constructor.size() != 0) {
+                buff.writeByte(1); // constructor present
+                writeAttachFunction(partitions.get(true).get(0));
+            } else {
+                buff.writeByte(0); // constructor not present
+            }
+        } else {
+            attachedFuncs = new ArrayList<>();
+            buff.writeByte(0); // constructor not present
         }
-        Object popped = compositeStack.pop();
-        assert popped == tsymbol;
+        buff.writeInt(attachedFuncs.size());
+        for (BAttachedFunction attachedFunc : attachedFuncs) {
+            writeAttachFunction(attachedFunc);
+        }
     }
 
-    private boolean writeSelfRef(BTypeSymbol tsymbol) {
-        int i = compositeStack.indexOf(tsymbol);
-        if (i >= 0) {
-            buff.writeByte(TYPE_TAG_SELF);
-            buff.writeInt(i);
-            return true;
-        }
-        return false;
+    private void writeAttachFunction(BAttachedFunction attachedFunc) {
+        buff.writeInt(addStringCPEntry(attachedFunc.funcName.value));
+        buff.writeInt(attachedFunc.symbol.flags);
+        writeTypeCpIndex(attachedFunc.type);
     }
 
     @Override
     public void visit(BType bType) {
-        buff.writeByte(bType.tag);
+        // Nothing to do
     }
 
     @Override
     public void visit(BXMLType bxmlType) {
-        buff.writeByte(bxmlType.tag);
+        // Nothing to do
+    }
+
+    public void writeMarkdownDocAttachment(ByteBuf buf, MarkdownDocAttachment markdownDocAttachment) {
+        ByteBuf birbuf = Unpooled.buffer();
+        if (markdownDocAttachment == null) {
+            birbuf.writeBoolean(false);
+        } else {
+            birbuf.writeBoolean(true);
+
+            birbuf.writeInt(markdownDocAttachment.description == null ? -1
+                    : addStringCPEntry(markdownDocAttachment.description));
+            birbuf.writeInt(markdownDocAttachment.returnValueDescription == null ? -1
+                    : addStringCPEntry(markdownDocAttachment.returnValueDescription));
+            birbuf.writeInt(markdownDocAttachment.parameters.size());
+            for (MarkdownDocAttachment.Parameter parameter : markdownDocAttachment.parameters) {
+                birbuf.writeInt(parameter.name == null ? -1
+                        : addStringCPEntry(parameter.name));
+                birbuf.writeInt(parameter.description == null ? -1
+                        : addStringCPEntry(parameter.description));
+            }
+        }
+        int length = birbuf.nioBuffer().limit();
+        buf.writeInt(length);
+        buf.writeBytes(birbuf.nioBuffer().array(), 0, length);
     }
 
     private void throwUnimplementedError(BType bType) {
@@ -315,30 +405,28 @@ public class BIRTypeWriter implements TypeVisitor {
         return cp.addCPEntry(new FloatCPEntry(value));
     }
 
-    private Visibility getVisibility(BSymbol symbol) {
-        if (Symbols.isPublic(symbol)) {
-            return Visibility.PUBLIC;
-        } else if (Symbols.isPrivate(symbol)) {
-            return Visibility.PRIVATE;
-        } else {
-            return Visibility.PACKAGE_PRIVATE;
-        }
+    private int addByteCPEntry(int value) {
+        return cp.addCPEntry(new ByteCPEntry(value));
     }
 
     private void writeValue(Object value, BType typeOfValue) {
         switch (typeOfValue.tag) {
             case TypeTags.INT:
-            case TypeTags.BYTE:
                 buff.writeInt(addIntCPEntry((Long) value));
+                break;
+            case TypeTags.BYTE:
+                int byteValue = ((Number) value).intValue();
+                buff.writeInt(addByteCPEntry(byteValue));
                 break;
             case TypeTags.FLOAT:
                 // TODO:Remove the instanceof check by converting the float literal instance in Semantic analysis phase
-                double doubleVal = value instanceof String ? Double.parseDouble((String) value) : (Double) value;
+                double doubleVal =
+                        value instanceof String ? Double.parseDouble((String) value) : ((Number) value).doubleValue();
                 buff.writeInt(addFloatCPEntry(doubleVal));
                 break;
             case TypeTags.STRING:
             case TypeTags.DECIMAL:
-                buff.writeInt(addStringCPEntry((String) value));
+                buff.writeInt(addStringCPEntry(String.valueOf(value)));
                 break;
             case TypeTags.BOOLEAN:
                 buff.writeByte((Boolean) value ? 1 : 0);

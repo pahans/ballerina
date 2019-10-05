@@ -29,5 +29,5 @@ jobs:
       versionSpec: '8.12.0'
   - script: |
       mvn -v
-      ./gradlew build jacocoTestReport --info --stacktrace -scan -Dorg.gradle.parallel=false -x :ballerina-h2:test -x :ballerina-task:test -x :ballerina-socket:test -x :ballerina-tools-integration-test:test -x :ballerina-unit-test:test -x :ballerina-integration-test:test -x :plugin-vscode:test
+      ./gradlew build
     displayName: 'Ballerina Windows Build'

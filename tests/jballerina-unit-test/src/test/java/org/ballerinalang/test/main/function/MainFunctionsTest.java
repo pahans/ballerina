@@ -16,28 +16,15 @@
  */
 package org.ballerinalang.test.main.function;
 
-import org.ballerinalang.BLangProgramRunner;
-import org.ballerinalang.launcher.LauncherUtils;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.types.BTypes;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BValueArray;
-import org.ballerinalang.util.codegen.ProgramFile;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.annotations.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.file.Paths;
-
-import static org.ballerinalang.launcher.util.BAssertUtil.validateError;
+import static org.ballerinalang.test.util.BAssertUtil.validateError;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -48,16 +35,9 @@ import static org.testng.Assert.assertTrue;
  */
 public class MainFunctionsTest {
 
-    private static final String MAIN_FUNCTION_TEST_SRC_DIR = "src/test/resources/test-src/main.function";
+    private static final String MAIN_FUNCTION_TEST_SRC_DIR = "test-src/main.function/";
 
-    private ProgramFile programFile;
-    private ByteArrayOutputStream tempOutStream = new ByteArrayOutputStream();
-    private PrintStream defaultOut;
-
-    @BeforeClass
-    public void setup() {
-        defaultOut = System.out;
-    }
+    private CompileResult compileResult;
 
     @Test
     public void basicMainInvocationTest() {
@@ -70,95 +50,85 @@ public class MainFunctionsTest {
     }
 
     @Test
-    public void testNilReturningMain() throws IOException {
-        programFile = LauncherUtils.compile(Paths.get(MAIN_FUNCTION_TEST_SRC_DIR),
-                                            Paths.get ("test_main_with_nil_return.bal"), false, true);
-        resetTempOut();
-        BValue[] result = runMain(programFile, new String[]{});
-        assertEquals(tempOutStream.toString(), "nil returning main invoked",
+    public void testNilReturningMain() {
+        compileResult = BCompileUtil.compile(MAIN_FUNCTION_TEST_SRC_DIR + "test_main_with_nil_return.bal");
+        String result = runMain(compileResult, new String[]{});
+        assertTrue(result.contains("nil returning main invoked"),
                             "expected the main function to be invoked");
-        assertEquals(result.length, 1, "expected the main function to return a single value");
-        assertTrue(result[0] == null, "expected nil to be returned");
+        assertTrue(result.endsWith("nil returning main invoked"), "expected nil to be returned");
     }
 
     @Test
-    public void testErrorReturningMain() throws IOException {
-        programFile = LauncherUtils.compile(Paths.get(MAIN_FUNCTION_TEST_SRC_DIR),
-                                            Paths.get ("test_main_with_error_return.bal"), false, true);
-        resetTempOut();
-        BValue[] result = runMain(programFile, new String[]{});
-        assertEquals(tempOutStream.toString(), "error returning main invoked",
+    public void testErrorOrNilReturningMainReturningError() {
+        compileResult = BCompileUtil.compile(MAIN_FUNCTION_TEST_SRC_DIR
+                + "test_main_with_error_or_nil_return.bal");
+        BCompileUtil.ExitDetails result = BCompileUtil.run(compileResult, new String[]{"error", "1"});
+        assertTrue(result.consoleOutput.contains("error? returning main invoked"),
                             "expected the main function to be invoked");
-        assertEquals(result.length, 1, "expected the main function to return a single value");
-        assertTrue(result[0] instanceof BError, "expected error to be returned");
-        assertEquals(((BError) result[0]).getReason(), "error return", "invalid error reason");
+        assertTrue(result.errorOutput.contains("generic error"), "invalid error reason");
     }
 
     @Test
-    public void testErrorOrNilReturningMainReturningError() throws IOException {
-        programFile = LauncherUtils.compile(Paths.get(MAIN_FUNCTION_TEST_SRC_DIR),
-                                            Paths.get ("test_main_with_error_or_nil_return.bal"), false, true);
-        resetTempOut();
-        BValue[] result = runMain(programFile, new String[]{"error", "1"});
-        assertEquals(tempOutStream.toString(), "error? returning main invoked",
+    public void testErrorOrNilReturningMainReturningNil() {
+        compileResult = BCompileUtil.compile(MAIN_FUNCTION_TEST_SRC_DIR
+                + "test_main_with_error_or_nil_return.bal");
+        String result = runMain(compileResult, new String[]{"nil", "0"});
+        assertEquals(result, "error? returning main invoked",
                             "expected the main function to be invoked");
-        assertTrue(result[0] instanceof BError, "expected error to be returned");
-        assertEquals(((BError) result[0]).getReason(), "generic error", "invalid error reason");
+        assertTrue(result.endsWith("error? returning main invoked"), "expected nil to be returned");
     }
 
     @Test
-    public void testErrorOrNilReturningMainReturningNil() throws IOException {
-        programFile = LauncherUtils.compile(Paths.get(MAIN_FUNCTION_TEST_SRC_DIR),
-                                            Paths.get ("test_main_with_error_or_nil_return.bal"), false, true);
-        resetTempOut();
-        BValue[] result = runMain(programFile, new String[]{"nil", "0"});
-        assertEquals(tempOutStream.toString(), "error? returning main invoked",
+    public void testErrorOrNilReturningMainReturningCustomError() {
+        compileResult = BCompileUtil.compile(MAIN_FUNCTION_TEST_SRC_DIR
+                + "test_main_with_error_or_nil_return.bal");
+        BCompileUtil.ExitDetails result = BCompileUtil.run(compileResult, new String[]{"user_def_error", "1"});
+        assertTrue(result.consoleOutput.startsWith("error? returning main invoked"),
                             "expected the main function to be invoked");
-        assertTrue(result[0] == null, "expected nil to be returned");
-    }
-
-    @Test
-    public void testErrorOrNilReturningMainReturningCustomError() throws IOException {
-        programFile = LauncherUtils.compile(Paths.get(MAIN_FUNCTION_TEST_SRC_DIR),
-                                            Paths.get ("test_main_with_error_or_nil_return.bal"), false, true);
-        resetTempOut();
-        BValue[] result = runMain(programFile, new String[]{"user_def_error", "1"});
-        assertEquals(tempOutStream.toString(), "error? returning main invoked",
-                            "expected the main function to be invoked");
-        assertTrue(result[0] instanceof BError, "expected error to be returned");
-        assertEquals(((BError) result[0]).getReason(), "const error reason", "invalid error reason");
-        assertEquals(((BString) ((BMap) ((BError) result[0]).getDetails()).get("message")).stringValue(),
-                            "error message", "invalid error message");
+        assertTrue(result.errorOutput.contains("const error reason"), "invalid error reason");
+        assertTrue(result.errorOutput.contains("message=error message"), "invalid error message");
     }
 
     @Test
     public void invalidMainFunctionSignatureTest() {
         CompileResult negativeResult = BCompileUtil.compile("test-src/main.function/test_main_function_negative.bal");
         assertEquals(negativeResult.getErrorCount(), 5);
-        validateError(negativeResult, 0, "the main function should be public", 17, 1);
-        validateError(negativeResult, 1, "invalid type 'typedesc' as main function parameter, expected anydata",
+        validateError(negativeResult, 0, "the 'main' function should be public", 17, 1);
+        validateError(negativeResult, 1, "invalid type 'typedesc' as 'main' function parameter, expected anydata",
                       17, 15);
-        validateError(negativeResult, 2, "invalid type 'int|typedesc' as main function parameter, expected anydata",
-                      17, 27);
-        validateError(negativeResult, 3, "invalid type 'FooObject[]' as main function parameter, expected anydata",
-                      17, 47);
-        validateError(negativeResult, 4, "invalid main function return type 'string', expected a subtype of 'error?'",
-                      17, 71);
+        validateError(negativeResult, 2, "invalid type '(int|typedesc)' as 'main' function parameter, expected anydata",
+                      17, 32);
+        validateError(negativeResult, 3, "invalid type 'FooObject[]' as 'main' function parameter, expected anydata",
+                      17, 57);
+        validateError(negativeResult, 4, "invalid 'main' function return type 'string', expected a subtype of " +
+                              "'error?' containing '()'", 17, 81);
     }
 
-    @AfterClass
-    public void tearDown() throws IOException {
-        tempOutStream.close();
-        System.setOut(defaultOut);
+    @Test
+    public void testInvalidErrorReturningMain() {
+        CompileResult negativeResult = BCompileUtil.compile(MAIN_FUNCTION_TEST_SRC_DIR +
+                                                                    "test_main_with_error_return_negative.bal");
+        assertEquals(negativeResult.getErrorCount(), 1);
+        validateError(negativeResult, 0, "invalid 'main' function return type 'error', expected a subtype of " +
+                "'error?' containing '()'", 17, 32);
     }
 
-    private void resetTempOut() throws IOException {
-        tempOutStream.close();
-        tempOutStream = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(tempOutStream));
+    @Test
+    public void testMainWithStackOverflow() {
+        CompileResult compileResult = BCompileUtil
+                .compile("test-src/main.function/test_main_with_stackoverflow.bal");
+        BCompileUtil.ExitDetails details = BCompileUtil.run(compileResult, new String[]{});
+        assertTrue(details.errorOutput.contains("error: {ballerina}StackOverflow \n\tat $value$Foo:__init" +
+                "(test_main_with_stackoverflow.bal:19)\n\t   $value$Foo:__init(test_main_with_stackoverflow.bal:19)" +
+                "\n\t   $value$Foo:__init(test_main_with_stackoverflow.bal:19)"));
     }
 
-    private BValue[] runMain(ProgramFile programFile, String[] args) {
-        return new BValue[]{BLangProgramRunner.runProgram(programFile, args)};
+
+    private String runMain(CompileResult compileResult, String[] args) {
+        try {
+            return BCompileUtil.runMain(compileResult, args);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 }

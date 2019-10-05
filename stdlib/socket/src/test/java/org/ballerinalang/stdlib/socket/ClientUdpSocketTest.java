@@ -18,12 +18,12 @@
 
 package org.ballerinalang.stdlib.socket;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.stdlib.socket.tcp.SocketUtils;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -72,7 +72,7 @@ public class ClientUdpSocketTest {
     @AfterClass
     public void cleanup() {
         mockUdpServer.stop();
-        SocketUtils.shutdownExecutor(executor);
+        SocketUtils.shutdownExecutorGracefully(executor);
     }
 
     @Test()
@@ -93,7 +93,7 @@ public class ClientUdpSocketTest {
         final BValue[] echoResult = BRunUtil.invoke(socketClient, "contentReceive");
         String echo = echoResult[0].stringValue();
         Assert.assertEquals(echo, serverContent, "Client did not receive expected message");
-        SocketUtils.shutdownExecutor(client);
+        SocketUtils.shutdownExecutorGracefully(client);
     }
 
     @Test(dependsOnMethods = "testContentReceive")
@@ -104,7 +104,7 @@ public class ClientUdpSocketTest {
         final BValue[] echoResult = BRunUtil.invoke(socketClient, "contentReceiveWithLength");
         String echo = echoResult[0].stringValue();
         Assert.assertEquals(echo, serverContent + serverContent, "Client did not receive expected message");
-        SocketUtils.shutdownExecutor(client);
+        SocketUtils.shutdownExecutorGracefully(client);
     }
 
     private void sendContent(String serverContent, int port) {

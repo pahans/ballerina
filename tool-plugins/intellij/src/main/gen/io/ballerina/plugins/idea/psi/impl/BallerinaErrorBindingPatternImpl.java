@@ -43,33 +43,51 @@ public class BallerinaErrorBindingPatternImpl extends ASTWrapperPsiElement imple
   }
 
   @Override
-  @Nullable
-  public BallerinaRecordBindingPattern getRecordBindingPattern() {
-    return findChildByClass(BallerinaRecordBindingPattern.class);
+  @NotNull
+  public List<BallerinaErrorDetailBindingPattern> getErrorDetailBindingPatternList() {
+    return PsiTreeUtil.getChildrenOfTypeAsList(this, BallerinaErrorDetailBindingPattern.class);
   }
 
   @Override
   @Nullable
-  public PsiElement getComma() {
-    return findChildByType(COMMA);
+  public BallerinaErrorFieldBindingPatterns getErrorFieldBindingPatterns() {
+    return findChildByClass(BallerinaErrorFieldBindingPatterns.class);
   }
 
   @Override
   @Nullable
-  public PsiElement getLeftParenthesis() {
-    return findChildByType(LEFT_PARENTHESIS);
+  public BallerinaErrorRestBindingPattern getErrorRestBindingPattern() {
+    return findChildByClass(BallerinaErrorRestBindingPattern.class);
   }
 
   @Override
   @Nullable
-  public PsiElement getRightParenthesis() {
-    return findChildByType(RIGHT_PARENTHESIS);
+  public BallerinaTypeName getTypeName() {
+    return findChildByClass(BallerinaTypeName.class);
   }
 
   @Override
   @NotNull
+  public PsiElement getLeftParenthesis() {
+    return findNotNullChildByType(LEFT_PARENTHESIS);
+  }
+
+  @Override
+  @NotNull
+  public PsiElement getRightParenthesis() {
+    return findNotNullChildByType(RIGHT_PARENTHESIS);
+  }
+
+  @Override
+  @Nullable
   public PsiElement getError() {
-    return findNotNullChildByType(ERROR);
+    return findChildByType(ERROR);
+  }
+
+  @Override
+  @Nullable
+  public PsiElement getIdentifier() {
+    return findChildByType(IDENTIFIER);
   }
 
 }

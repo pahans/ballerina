@@ -17,14 +17,15 @@
 */
 package org.ballerinalang.test.statements.arrays;
 
+import org.ballerinalang.jvm.XMLFactory;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.XMLValue;
 import org.ballerinalang.model.types.BArrayType;
 import org.ballerinalang.model.types.BTypes;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BValueArray;
-import org.ballerinalang.model.values.BXMLItem;
-import org.ballerinalang.test.util.BAssertUtil;
 import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.test.util.BRunUtil;
 import org.ballerinalang.test.util.CompileResult;
@@ -34,7 +35,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.wso2.ballerinalang.compiler.util.BArrayState;
 
-import static java.lang.String.format;
 
 /**
  * Test cases for ballerina.model.arrays.
@@ -42,15 +42,10 @@ import static java.lang.String.format;
 public class ArrayTest {
 
     private CompileResult compileResult;
-    private CompileResult resultNegative;
-    private CompileResult arrayImplicitInitialValueNegative;
 
     @BeforeClass
     public void setup() {
         compileResult = BCompileUtil.compile("test-src/statements/arrays/array-test.bal");
-        resultNegative = BCompileUtil.compile("test-src/statements/arrays/array-negative.bal");
-        arrayImplicitInitialValueNegative =
-                BCompileUtil.compile("test-src/statements/arrays/array-implicit-initial-value-negative.bal");
     }
 
     @Test
@@ -116,30 +111,30 @@ public class ArrayTest {
     public void testArrayStringRepresentationWithANilElement() {
         BValue[] returnVals = BRunUtil.invoke(compileResult, "testArrayWithNilElement");
         String str = returnVals[0].stringValue();
-        Assert.assertEquals(str, "[\"abc\", \"d\", (), \"s\"]");
+        Assert.assertEquals(str, "abc d  s");
     }
-    
+
     @Test
     public void testArrayToString() {
         String[] strArray = { "aaa", "bbb", "ccc" };
-        BValueArray bStringArray = new BValueArray(strArray);
-        Assert.assertEquals(bStringArray.stringValue(), "[\"aaa\", \"bbb\", \"ccc\"]");
+        ArrayValue bStringArray = new ArrayValue(strArray);
+        Assert.assertEquals(bStringArray.stringValue(), "aaa bbb ccc");
 
         long[] longArray = { 6, 3, 8, 4 };
-        BValueArray bIntArray = new BValueArray(longArray);
-        Assert.assertEquals(bIntArray.stringValue(), "[6, 3, 8, 4]");
+        ArrayValue bIntArray = new ArrayValue(longArray);
+        Assert.assertEquals(bIntArray.stringValue(), "6 3 8 4");
 
         double[] doubleArray = { 6.4, 3.7, 8.8, 7.4 };
-        BValueArray bFloatArray = new BValueArray(doubleArray);
-        Assert.assertEquals(bFloatArray.stringValue(), "[6.4, 3.7, 8.8, 7.4]");
+        ArrayValue bFloatArray = new ArrayValue(doubleArray);
+        Assert.assertEquals(bFloatArray.stringValue(), "6.4 3.7 8.8 7.4");
 
-        int[] boolArray = { 1, 1, 0 };
-        BValueArray bBooleanArray = new BValueArray(boolArray);
-        Assert.assertEquals(bBooleanArray.stringValue(), "[true, true, false]");
+        boolean[] boolArray = { true, true, false };
+        ArrayValue bBooleanArray = new ArrayValue(boolArray);
+        Assert.assertEquals(bBooleanArray.stringValue(), "true true false");
 
-        BXMLItem[] xmlArray = { new BXMLItem("<foo> </foo>"), new BXMLItem("<bar>hello</bar>") };
-        BValueArray bXmlArray = new BValueArray(xmlArray, BTypes.typeXML);
-        Assert.assertEquals(bXmlArray.stringValue(), "[<foo> </foo>, <bar>hello</bar>]");
+        XMLValue<?>[] xmlArray = { XMLFactory.parse("<foo> </foo>"), XMLFactory.parse("<bar>hello</bar>") };
+        ArrayValue bXmlArray = new ArrayValue(xmlArray, org.ballerinalang.jvm.types.BTypes.typeXML);
+        Assert.assertEquals(bXmlArray.stringValue(), "<foo> </foo> <bar>hello</bar>");
     }
 
     @Test
@@ -180,15 +175,15 @@ public class ArrayTest {
     public void testArraysOfCyclicDependentTypes() {
         BValue[] retVals = BRunUtil.invokeFunction(compileResult, "testArraysOfCyclicDependentTypes");
         BValueArray arr = (BValueArray) retVals[0];
-        Assert.assertEquals(arr.stringValue(), "[{b:{b1:\"\"}, a1:\"\"}, {b:{b1:\"\"}, a1:\"\"}, {b:{b1:\"\"}, " +
-                "a1:\"\"}, {a1:\"A1\", b:{b1:\"B1\"}}]");
+        Assert.assertEquals(arr.stringValue(),
+                            "[{b:{b1:\"B1\"}}, {b:{b1:\"B1\"}}, {b:{b1:\"B1\"}}, {b:{b1:\"B1\"}, a1:\"A1\"}]");
     }
 
     @Test
     public void testArraysOfCyclicDependentTypes2() {
         BValue[] retVals = BRunUtil.invokeFunction(compileResult, "testArraysOfCyclicDependentTypes2");
         BValueArray arr = (BValueArray) retVals[0];
-        Assert.assertEquals(arr.stringValue(), "[{b1:\"\"}, {b1:\"\"}, {b1:\"\"}, {b1:\"B1\"}]");
+        Assert.assertEquals(arr.stringValue(), "[{b1:\"B1\"}, {b1:\"B1\"}, {b1:\"B1\"}, {b1:\"B1\"}]");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class, expectedExceptionsMessageRegExp = ".*error: " +
@@ -203,77 +198,10 @@ public class ArrayTest {
         BRunUtil.invokeFunction(compileResult, "testArraysOfCyclicDependentTypes4");
     }
 
-    @Test(description = "Test arrays with errors")
-    public void testConnectorNegativeCases() {
-        Assert.assertEquals(resultNegative.getErrorCount(), 2);
-        BAssertUtil.validateError(resultNegative, 0, "function invocation on type 'int[]' is not supported", 3, 18);
-        BAssertUtil.validateError(resultNegative, 1, "function invocation on type 'string[]' is not supported", 8, 21);
-    }
-
-    @Test(description = "Test arrays of types without implicit initial values")
-    public void testArrayImplicitInitialValues() {
-        String errMsgFormat = "array element type '%s' does not have an implicit initial value, use '%s'";
-        Assert.assertEquals(arrayImplicitInitialValueNegative.getErrorCount(), 19);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 0,
-                                  format(errMsgFormat, "ObjInitWithParam", "ObjInitWithParam?"), 53, 41);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 1, format(errMsgFormat, "1|2|3", "1|2|3?"),
-                                  74, 24);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 2,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 89, 16);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 3,
-                                  format(errMsgFormat, "error", "error?"), 103, 18);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 4,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 110, 19);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 5, format(errMsgFormat, "int|float", "int|float?"),
-                                  118, 11);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 6,
-                                  format(errMsgFormat, "error", "error?"), 144, 22);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 7,
-                                  format(errMsgFormat, "(int|string,float)[]", "(int|string,float)[]?"), 159, 33);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 8,
-                                  format(errMsgFormat, "(int|string,float)[]", "(int|string,float)[]?"), 161, 33);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 9,
-                                  format(errMsgFormat, "(int|string,float)", "(int|string,float)?"), 161, 34);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 10,
-                                  format(errMsgFormat, "int|float[]", "int|float[]?"), 163, 25);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 11,
-                                  format(errMsgFormat, "int|float", "int|float?"), 163, 26);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 12,
-                                  format(errMsgFormat, "int|float", "int|float?"), 163, 36);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 13,
-                                  format(errMsgFormat, "boolean|float[]", "boolean|float[]?"), 165, 29);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 14,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 171, 11);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 15,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 179, 25);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 16,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 186, 21);
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 17,
-                                  format(errMsgFormat, "1|2|3", "1|2|3?"), 196, 29);
-
-        BAssertUtil.validateError(arrayImplicitInitialValueNegative, 18,
-                                  format(errMsgFormat, "A", "A?"), 218, 15);
-    }
-
-    @Test(description = "Test arrays of types without implicit initial values")
-    public void testArrayImplicitInitialValuesOfFiniteType() {
-        CompileResult negResult = BCompileUtil.compile(
-                "test-src/statements/arrays/array-implicit-initial-value-finite-type-negative.bal");
-        Assert.assertEquals(negResult.getErrorCount(), 3);
-        BAssertUtil.validateError(negResult, 0,
-                                  "array element type '1|2|3' does not have an implicit initial value, use '1|2|3?'",
-                                  22, 24);
-        BAssertUtil.validateError(negResult, 1,
-                                  "array element type '1.0f|3.143f' does not have an implicit initial value, use " +
-                                          "'1.0f|3.143f?'",
-                                  29, 26);
-        BAssertUtil.validateError(negResult, 2,
-                                  "array element type 'a|b|c' does not have an implicit initial value, use 'a|b|c?'",
-                                  43, 41);
+    @Test
+    public void testGetFromFrozenArray() {
+        BValue[] retVals = BRunUtil.invokeFunction(compileResult, "testGetFromFrozenArray");
+        BInteger value = (BInteger) retVals[0];
+        Assert.assertEquals(value.intValue(), 4);
     }
 }

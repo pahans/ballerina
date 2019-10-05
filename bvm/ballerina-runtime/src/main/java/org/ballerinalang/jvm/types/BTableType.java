@@ -18,7 +18,10 @@
 
 package org.ballerinalang.jvm.types;
 
+import org.ballerinalang.jvm.TypeChecker;
 import org.ballerinalang.jvm.values.TableValue;
+
+import java.util.ArrayList;
 
 /**
  * {@code BTableType} represents a type of a table in Ballerina.
@@ -40,10 +43,10 @@ public class BTableType extends BType {
      *
      * @param typeName string name of the type.
      * @param constraint constraint type which particular table is bound to.
-     * @param pkgPath package for the type.
+     * @param pkg package for the type.
      */
-    public BTableType(String typeName, BType constraint, String pkgPath) {
-        super(typeName, pkgPath, TableValue.class);
+    public BTableType(String typeName, BType constraint, BPackage pkg) {
+        super(typeName, pkg, TableValue.class);
         this.constraint = constraint;
     }
 
@@ -74,12 +77,12 @@ public class BTableType extends BType {
 
     @Override
     public <V extends Object> V getZeroValue() {
-        return null;
+        return (V) new TableValue(this, null, null);
     }
 
     @Override
     public <V extends Object> V getEmptyValue() {
-        return (V) new TableValue((BStructureType) constraint);
+        return getZeroValue();
     }
 
     @Override
@@ -107,6 +110,6 @@ public class BTableType extends BType {
             return true;
         }
 
-        return constraint.equals(other.constraint);
+        return TypeChecker.checkIsType(constraint, other.constraint, new ArrayList<>());
     }
 }

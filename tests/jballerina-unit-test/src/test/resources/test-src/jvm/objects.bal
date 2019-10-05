@@ -14,14 +14,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-public function testSimpleObjectAsStruct () returns (int, string, int, string) {
+public function testSimpleObjectAsStruct () returns [int, string, int, string] {
     Person p = new Person();
-    return (p.age, p.getName(), p.getYear(), p.month);
+    return [p.age, p.getName(), p.getYear(), p.month];
 }
 
-public function testSimpleObjectAsStructWithNew () returns (int, string, int, string) {
+public function testSimpleObjectAsStructWithNew () returns [int, string, int, string] {
     Person p = new;
-    return (p.age, p.getName(), p.getYear(), p.month);
+    return [p.age, p.getName(), p.getYear(), p.month];
 }
 
 type Person object {
@@ -44,9 +44,9 @@ type Person object {
     }
 };
 
-public function testUserInitFunction() returns (int, string, int, string) {
+public function testUserInitFunction() returns [int, string, int, string] {
     Person2 p = new(10, "sample name");
-    return (p.age, p.name, p.year, p.month);
+    return [p.age, p.name, p.year, p.month];
 }
 
 type Person2 object {
@@ -71,4 +71,16 @@ public type Foo object {
 
 public function testSelfReferencingObject() returns Foo {
     return new Foo();
+}
+
+
+type objects object {
+    function getName() returns string {
+        return "works!";
+    }
+};
+
+function testObjectWithSameNameAsFileName() returns string {
+    objects o = new();
+    return o.getName();
 }

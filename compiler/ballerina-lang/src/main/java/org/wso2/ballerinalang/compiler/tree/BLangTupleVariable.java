@@ -30,14 +30,15 @@ import java.util.stream.Collectors;
 /**
  * Represents a tuple variable node.
  * Example:
- *      (string, int, float) (s, i, f) = ("Foo", 12, 4.5);
- *      ((string, boolean), int) ((s, b), i) = expr;
+ *      [string, int, float] [s, i, f] = ["Foo", 12, 4.5];
+ *      [[string, boolean], int] [[s, b], i] = expr;
  *
  * @since 0.985.0
  */
 public class BLangTupleVariable extends BLangVariable implements TupleVariableNode {
 
     public List<BLangVariable> memberVariables;
+    public BLangVariable restVariable;
 
     public BLangTupleVariable() {
         this.annAttachments = new ArrayList<>();
@@ -61,13 +62,19 @@ public class BLangTupleVariable extends BLangVariable implements TupleVariableNo
     }
 
     @Override
+    public BLangVariable getRestVariable() {
+        return this.restVariable;
+    }
+
+    @Override
     public NodeKind getKind() {
         return NodeKind.TUPLE_VARIABLE;
     }
 
     @Override
     public String toString() {
-        return "(" + memberVariables.stream().map(BLangVariable::toString).collect(Collectors.joining(",")) + ") " +
-                (expr != null ? " = " + String.valueOf(expr) : "");
+        return "[" + memberVariables.stream().map(BLangVariable::toString).collect(Collectors.joining(",")) +
+                ((restVariable != null) ? (memberVariables.size() > 0 ? ",..." : "...") +
+                        restVariable.toString() : "") + "] " + (expr != null ? " = " + String.valueOf(expr) : "");
     }
 }

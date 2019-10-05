@@ -17,10 +17,10 @@
  */
 package org.ballerinalang.test.balo.constant;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.test.balo.BaloCreator;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -41,37 +41,25 @@ public class MapConstantPanicInBaloTest {
     // boolean ----------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
-    public void updateNestedConstantBooleanMapValueWithExistingKey() {
-        BRunUtil.invoke(compileResult, "updateNestedConstantBooleanMapValueWithExistingKey");
-    }
-
-    @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
-    public void updateNestedConstantBooleanMapValueWithNewKey() {
-        BRunUtil.invoke(compileResult, "updateNestedConstantBooleanMapValueWithNewKey");
-    }
-
-    @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantBooleanMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantBooleanMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantBooleanMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantBooleanMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantBooleanMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantBooleanMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantBooleanMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantBooleanMapValueInArrayWithNewKey");
     }
@@ -79,37 +67,37 @@ public class MapConstantPanicInBaloTest {
     // int ---------------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantIntMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantIntMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantIntMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantIntMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantIntMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantIntMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantIntMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantIntMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantIntMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantIntMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantIntMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantIntMapValueInArrayWithNewKey");
     }
@@ -117,37 +105,37 @@ public class MapConstantPanicInBaloTest {
     // byte --------------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantByteMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantByteMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantByteMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantByteMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantByteMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantByteMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantByteMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantByteMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantByteMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantByteMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantByteMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantByteMapValueInArrayWithNewKey");
     }
@@ -155,37 +143,37 @@ public class MapConstantPanicInBaloTest {
     // float -------------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantFloatMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantFloatMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantFloatMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantFloatMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantFloatMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantFloatMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantFloatMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantFloatMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantFloatMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantFloatMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantFloatMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantFloatMapValueInArrayWithNewKey");
     }
@@ -193,37 +181,37 @@ public class MapConstantPanicInBaloTest {
     // decimal -----------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantDecimalMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantDecimalMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantDecimalMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantDecimalMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantDecimalMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantDecimalMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantDecimalMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantDecimalMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantDecimalMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantDecimalMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantDecimalMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantDecimalMapValueInArrayWithNewKey");
     }
@@ -231,37 +219,37 @@ public class MapConstantPanicInBaloTest {
     // string ------------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantStringMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantStringMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantStringMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantStringMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantStringMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantStringMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantStringMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantStringMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantStringMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantStringMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantStringMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantStringMapValueInArrayWithNewKey");
     }
@@ -269,37 +257,37 @@ public class MapConstantPanicInBaloTest {
     // nil ---------------------------------------------------
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantNilMapValueWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantNilMapValueWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateNestedConstantNilMapValueWithNewKey() {
         BRunUtil.invoke(compileResult, "updateNestedConstantNilMapValueWithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantNilMapWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantNilMapWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateReturnedConstantNilMap2WithNewKey() {
         BRunUtil.invoke(compileResult, "updateReturnedConstantNilMap2WithNewKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantNilMapValueInArrayWithExistingKey() {
         BRunUtil.invoke(compileResult, "updateConstantNilMapValueInArrayWithExistingKey");
     }
 
     @Test(expectedExceptions = BLangRuntimeException.class,
-            expectedExceptionsMessageRegExp = ".*modification not allowed on frozen value.*")
+            expectedExceptionsMessageRegExp = ".*modification not allowed on readonly value.*")
     public void updateConstantNilMapValueInArrayWithNewKey() {
         BRunUtil.invoke(compileResult, "updateConstantNilMapValueInArrayWithNewKey");
     }

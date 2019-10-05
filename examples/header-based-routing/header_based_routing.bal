@@ -1,8 +1,14 @@
 import ballerina/http;
 import ballerina/log;
 
-http:ClientEndpointConfig weatherEPConfig = {
-    followRedirects: { enabled: true, maxCount: 5 }
+http:ClientConfiguration weatherEPConfig = {
+    followRedirects: { enabled: true, maxCount: 5 },
+    secureSocket: {
+        trustStore: {
+            path: "${ballerina.home}/bre/security/ballerinaTruststore.p12",
+            password: "ballerina"
+        }
+    }
 };
 
 //Service is invoked using `basePath` value "/hbr".
@@ -20,7 +26,7 @@ service headerBasedRouting on new http:Listener(9090) {
 
     resource function hbrResource(http:Caller caller, http:Request req) {
         http:Client weatherEP = new("http://samples.openweathermap.org",
-                                    config = weatherEPConfig);
+                                    weatherEPConfig);
         http:Client locationEP = new("http://www.mocky.io");
         // Create a new outbound request to handle client call.
         http:Request newRequest = new;
@@ -53,7 +59,7 @@ service headerBasedRouting on new http:Listener(9090) {
             //`get()` remote function can be used to make an http GET call.
             response =
                 weatherEP->get("/data/2.5/weather?lat=35&lon=139&appid=b1b1",
-                                message = newRequest);
+                                 newRequest);
 
         }
 
@@ -70,7 +76,7 @@ service headerBasedRouting on new http:Listener(9090) {
         } else {
             http:Response errorResponse = new;
             errorResponse.statusCode = 500;
-            errorResponse.setPayload(<string> response.detail().message);
+            errorResponse.setPayload(<string> response.detail()?.message);
             var result = caller->respond(errorResponse);
 
             if (result is error){

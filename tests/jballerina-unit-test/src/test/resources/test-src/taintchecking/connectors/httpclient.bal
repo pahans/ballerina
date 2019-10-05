@@ -9,16 +9,18 @@ public function main (string... args) {
     http:Request req = new;
     req.setHeader(headerName, headerValue);
 
-    var response = clientEndpoint -> get("/get?test=" + param, message = req);
+    var response = clientEndpoint -> get("/get?test=" + param, req);
     if (response is http:Response) {
         var msg = response.getTextPayload();
         if (msg is string) {
             normalFunction(msg);
         } else {
-            panic msg;
+            error err = msg;
+            panic err;
         }
     } else {
-        panic response;
+        error err = response;
+        panic err;
     }
 }
 

@@ -25,12 +25,15 @@ import org.ballerinalang.toml.model.Manifest;
 import org.wso2.ballerinalang.compiler.util.Name;
 import org.wso2.ballerinalang.compiler.util.Names;
 import org.wso2.ballerinalang.compiler.util.ProjectDirConstants;
+import org.wso2.ballerinalang.compiler.util.ProjectDirs;
+import org.wso2.ballerinalang.util.RepoUtils;
 import org.wso2.ballerinalang.util.TomlParserUtils;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
@@ -44,13 +47,29 @@ import java.util.stream.Stream;
 public class PathConverter implements Converter<Path> {
 
     private final Path root;
+    private PathMatcher isResourceFile;
+    private PathMatcher isTestResourceFile;
 
     public PathConverter(Path root) {
         this.root = root;
+        this.isResourceFile = root.getFileSystem()
+                // glob:src/*/resources/**
+                .getPathMatcher("glob:" + ProjectDirConstants.SOURCE_DIR_NAME
+                        + "/*/" + ProjectDirConstants.RESOURCE_DIR_NAME + "/**");
+        this.isTestResourceFile = root.getFileSystem()
+                // glob:src/*/tests/resources/**
+                .getPathMatcher("glob:" + ProjectDirConstants.SOURCE_DIR_NAME
+                        + "/*/" + ProjectDirConstants.TEST_DIR_NAME + "/"
+                        + ProjectDirConstants.RESOURCE_DIR_NAME + "/**");
     }
 
-    private static boolean isBalWithTest(Path path, BasicFileAttributes attributes) {
+    private boolean isBalWithTest(Path path, BasicFileAttributes attributes) {
         Path fileName = path.getFileName();
+        // Ignore bal files in resources directory.
+        Path relativeToRoot = root.relativize(path);
+        if (isResourceFile.matches(relativeToRoot) || isTestResourceFile.matches(relativeToRoot)) {
+            return false;
+        }
         return attributes.isRegularFile() && fileName != null && fileName.toString().endsWith(".bal");
     }
 
@@ -63,13 +82,15 @@ public class PathConverter implements Converter<Path> {
     public Stream<Path> getLatestVersion(Path path, PackageID packageID) {
         if (Files.isDirectory(path)) {
             try {
-                List<Path> pathList = Files.list(path)
-                                           .map(SortablePath::new)
-                                           .filter(SortablePath::valid)
-                                           .sorted(Comparator.reverseOrder())
-                                           .limit(1)
-                                           .map(SortablePath::getPath)
-                                           .collect(Collectors.toList());
+                List<Path> pathList;
+                try (Stream<Path> stream = Files.list(path)) {
+                    pathList = stream.map(SortablePath::new)
+                            .filter(SortablePath::valid)
+                            .sorted(Comparator.reverseOrder())
+                            .limit(1)
+                            .map(SortablePath::getPath)
+                            .collect(Collectors.toList());
+                }
                 if (packageID != null) {
                     if (packageID.version.value.isEmpty() && !packageID.orgName.equals(Names.BUILTIN_ORG)
                             && !packageID.orgName.equals(Names.ANON_ORG) && pathList.size() > 0) {
@@ -88,7 +109,7 @@ public class PathConverter implements Converter<Path> {
     public Stream<Path> expandBalWithTest(Path path) {
         if (Files.isDirectory(path)) {
             try {
-                return Files.find(path, Integer.MAX_VALUE, PathConverter::isBalWithTest).sorted();
+                return Files.find(path, Integer.MAX_VALUE, this::isBalWithTest).sorted();
             } catch (IOException ignore) {
             }
         }
@@ -119,11 +140,16 @@ public class PathConverter implements Converter<Path> {
         if (pkgId.version.value.isEmpty() && !pkgId.orgName.equals(Names.BUILTIN_ORG)
                 && !pkgId.orgName.equals(Names.ANON_ORG)) {
             Manifest manifest = TomlParserUtils.getManifest(root);
-            pkgId.version = new Name(manifest.getVersion());
+            pkgId.version = new Name(manifest.getProject().getVersion());
         }
-    
-        if (Files.isRegularFile(path)) {
-            return Stream.of(new FileSystemSourceInput(path, root.resolve(Paths.get(pkgId.name.value))));
+
+        if ((!ProjectDirs.isProject(root) || RepoUtils.isBallerinaStandaloneFile(path))
+                && Files.isRegularFile(path)) {
+            return Stream.of(new FileSystemSourceInput(path, root.resolve(pkgId.name.value)));
+        } else if (Files.isRegularFile(path)) {
+            return Stream.of(new FileSystemSourceInput(path,
+                    root.resolve(ProjectDirConstants.SOURCE_DIR_NAME)
+                            .resolve(pkgId.name.value)));
         } else {
             return Stream.of();
         }

@@ -1,13 +1,13 @@
+import ballerina/auth;
 import ballerina/http;
 
-http:ClientEndpointConfig conf = {
+auth:OutboundBasicAuthProvider basicAuthProvider = new({ username: "postman", password: "password" });
+http:BasicAuthHandler basicAuthHandler = new(basicAuthProvider);
+
+http:ClientConfiguration conf = {
    url: "https://postman-echo.com/basic-auth",
    auth: {
-       scheme: http:BASIC_AUTH,
-       config: {
-           username: "postman",
-           password: "password"
-       }
+       authHandler: basicAuthHandler
    }
 };
 

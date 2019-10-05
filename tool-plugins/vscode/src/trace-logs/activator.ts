@@ -21,8 +21,9 @@ import { commands, window, ViewColumn, ExtensionContext, WebviewPanel, StatusBar
 import { render, renderDetailView } from './renderer';
 import { ExtendedLangClient } from '../core/extended-language-client';
 import { BallerinaExtension } from '../core';
-import { WebViewRPCHandler, WebViewMethod } from '../utils';
+import { WebViewRPCHandler, WebViewMethod, getCommonWebViewOptions } from '../utils';
 import Traces from './traces';
+import { TM_EVENT_OPEN_NETWORK_LOGS, CMP_TRACE_LOGS } from '../telemetry';
 
 let traceLogsPanel: WebviewPanel | undefined;
 let traceDetailsPanel: WebviewPanel | undefined;
@@ -37,12 +38,9 @@ function showTraces(context: ExtensionContext, langClient: ExtendedLangClient) {
     // Create and show a new webview
     traceLogsPanel = window.createWebviewPanel(
         'ballerinaNetworkLogs',
-        "Ballerina Network logs",
+        "Ballerina HTTP Trace Logs",
         { viewColumn: ViewColumn.Two, preserveFocus: true } ,
-        {
-            enableScripts: true,
-            retainContextWhenHidden: false,
-        }
+        getCommonWebViewOptions()
     );
 
     const html = render(context, langClient);
@@ -68,10 +66,7 @@ function showTraces(context: ExtensionContext, langClient: ExtendedLangClient) {
                     'ballerinaNetworkLogsDetails',
                     "Ballerina Network Log Details",
                     { viewColumn: ViewColumn.Beside } ,
-                    {
-                        enableScripts: true,
-                        retainContextWhenHidden: false,
-                    }
+                    getCommonWebViewOptions()
                 );
                 const html = renderDetailView(context, langClient, trace);
                 traceDetailsPanel.webview.html = html;
@@ -103,7 +98,7 @@ function showTraces(context: ExtensionContext, langClient: ExtendedLangClient) {
         
     ];
 
-    WebViewRPCHandler.create(traceLogsPanel.webview, langClient, remoteMethods);
+    WebViewRPCHandler.create(traceLogsPanel, langClient, remoteMethods);
 
     traceLogsPanel.onDidDispose(() => {
         traceDetailsPanel!.dispose();
@@ -112,8 +107,9 @@ function showTraces(context: ExtensionContext, langClient: ExtendedLangClient) {
 }
 
 export function activate(ballerinaExtInstance: BallerinaExtension) {
-    let context = <ExtensionContext> ballerinaExtInstance.context;
-    let langClient = <ExtendedLangClient> ballerinaExtInstance.langClient;
+    const reporter = ballerinaExtInstance.telemetryReporter;
+    const context = <ExtensionContext> ballerinaExtInstance.context;
+    const langClient = <ExtendedLangClient> ballerinaExtInstance.langClient;
 
     status = window.createStatusBarItem(StatusBarAlignment.Left, 100);
 	status.command = 'ballerina.showTraces';
@@ -131,10 +127,11 @@ export function activate(ballerinaExtInstance: BallerinaExtension) {
         });
     })
     .catch((e) => {
-        window.showErrorMessage('Could not start network logs feature',e.message);
+        window.showErrorMessage('Could not start HTTP logs feature', e.message);
     });
 
     const traceRenderer = commands.registerCommand('ballerina.showTraces', () => {
+        reporter.sendTelemetryEvent(TM_EVENT_OPEN_NETWORK_LOGS, { component: CMP_TRACE_LOGS });
         showTraces(context, langClient);
     });
     
@@ -150,6 +147,6 @@ function updateStatus() {
         return;
     }
     const count = traces.getTraces().length;
-    status!.text = `$(mirror) ${count} Ballerina network logs`;
+    status!.text = `$(mirror) ${count} Ballerina HTTP Trace Logs`;
     status!.show();
 }

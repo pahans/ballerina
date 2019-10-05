@@ -19,12 +19,14 @@ package org.ballerinalang.langserver.completions.util;
 
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.BlockStatementScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.CursorPositionResolver;
+import org.ballerinalang.langserver.completions.util.positioning.resolvers.ForkJoinStatementScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.FunctionNodeScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.InvocationParameterScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.MatchExpressionScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.MatchStatementScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.ObjectTypeScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.PackageNodeScopeResolver;
+import org.ballerinalang.langserver.completions.util.positioning.resolvers.RecordLiteralScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.RecordScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.ResourceParamScopeResolver;
 import org.ballerinalang.langserver.completions.util.positioning.resolvers.ServiceScopeResolver;
@@ -58,6 +60,10 @@ public enum CursorPositionResolvers {
     RECORD_NODE_SCOPE(RecordScopeResolver.class, new RecordScopeResolver()),
 
     OBJECT_TYPE_SCOPE(ObjectTypeScopeResolver.class, new ObjectTypeScopeResolver()),
+
+    RECORD_LITERAL_SCOPE(RecordLiteralScopeResolver.class, new RecordLiteralScopeResolver()),
+
+    FORK_JOIN_SCOPE(ForkJoinStatementScopeResolver.class, new ForkJoinStatementScopeResolver()),
 
     FUNCTION_SCOPE_RESOLVER(FunctionNodeScopeResolver.class, new FunctionNodeScopeResolver());
 

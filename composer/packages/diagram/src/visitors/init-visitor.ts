@@ -1,70 +1,20 @@
 import {
-    Assignment, ASTKindChecker, ASTNode, ASTUtil, Block,
-    ExpressionStatement, Function as BalFunction, Return, VariableDef, VisibleEndpoint, Visitor, WorkerSend
+    Assignment, ASTNode, ASTUtil, Block, ExpressionStatement, Function as BalFunction,
+    Return, VariableDef, VisibleEndpoint, Visitor, WorkerSend
 } from "@ballerina/ast-model";
 import { EndpointViewState, FunctionViewState, StmntViewState, ViewState } from "../view-model";
 import { BlockViewState } from "../view-model/block";
-import { ExpandContext } from "../view-model/expand-context";
 import { ReturnViewState } from "../view-model/return";
 import { WorkerViewState } from "../view-model/worker";
 import { WorkerSendViewState } from "../view-model/worker-send";
 
-let visibleEndpoints: VisibleEndpoint[] = [];
+let visibleEPsInCurrentFunc: VisibleEndpoint[] = [];
+let envEndpoints: VisibleEndpoint[] = [];
+let currentWorker: VariableDef | undefined;
 
 function initStatement(node: ASTNode) {
     if (!node.viewState) {
         node.viewState = new StmntViewState();
-    }
-
-    const viewState = node.viewState as StmntViewState;
-    if (viewState.expandContext && viewState.expandContext.expandedSubTree) {
-        const expandedFunction = viewState.expandContext.expandedSubTree;
-        expandedFunction.viewState = new FunctionViewState();
-        expandedFunction.viewState.isExpandedFunction = true;
-        ASTUtil.traversNode(expandedFunction, visitor);
-        handleEndpointParams(viewState.expandContext);
-    }
-}
-
-// This function processes endpoint parameters of expanded functions
-// so that actions to these parameters can be drawn to the original endpoint passed to them
-function handleEndpointParams(expandContext: ExpandContext) {
-    const invocation = expandContext.expandableNode;
-    const expandedFunction = expandContext.expandedSubTree;
-
-    if (!expandedFunction || !expandedFunction.VisibleEndpoints || !expandedFunction.allParams) {
-        return;
-    }
-
-    const params = expandedFunction.allParams;
-
-    expandedFunction.VisibleEndpoints.forEach((ep) => {
-        // Find of one of the visible endpoints is actually a parameter to the function
-        params.forEach((p, i) => {
-            if (ASTKindChecker.isVariable(p)) {
-                if (p.name.value === ep.name) {
-                    // visible endpoint is a parameter
-                    const arg = invocation.argumentExpressions[i];
-                    if (ASTKindChecker.isSimpleVariableRef(arg)) {
-                        // This parameter actually refers to an endpoint with name in arg.variableName
-                        (ep.viewState as EndpointViewState).actualEpName = arg.variableName.value;
-                    }
-                }
-            }
-        });
-    });
-}
-
-function handleExpanding(expression: ASTNode, viewState: StmntViewState) {
-    if (viewState.expandContext) {
-        return;
-    }
-
-    if (ASTKindChecker.isInvocation(expression)) {
-            viewState.expandContext = new ExpandContext(expression);
-    } else if (ASTKindChecker.isCheckExpr(expression) &&
-        ASTKindChecker.isInvocation(expression.expression)) {
-            viewState.expandContext = new ExpandContext(expression.expression);
     }
 }
 
@@ -81,17 +31,33 @@ export const visitor: Visitor = {
             node.viewState = new BlockViewState();
         }
         node.parent = parent;
+        if (!node.parent) {
+            return;
+        }
+        if (node.VisibleEndpoints) {
+            envEndpoints = [...envEndpoints, ...node.VisibleEndpoints];
+        }
     },
 
-    // tslint:disable-next-line:ban-types
-    beginVisitFunction(node: BalFunction) {
-        if (node.VisibleEndpoints) {
-            visibleEndpoints = [...node.VisibleEndpoints, ...visibleEndpoints];
+    endVisitBlock(node: Block, parent: ASTNode) {
+        if (!node.parent) {
+            return;
         }
+        if (node.VisibleEndpoints) {
+            const parentsVisibleEndpoints = node.VisibleEndpoints;
+            envEndpoints = envEndpoints.filter((ep) => (!parentsVisibleEndpoints.includes(ep)));
+        }
+    },
+
+    beginVisitFunction(node: BalFunction) {
         if (!node.viewState) {
-            node.viewState = new FunctionViewState();
+            const viewState = new FunctionViewState();
+            node.viewState = viewState;
         }
         if (node.body) {
+            if (node.body.VisibleEndpoints) {
+                visibleEPsInCurrentFunc = [...node.body.VisibleEndpoints, ...visibleEPsInCurrentFunc];
+            }
             node.body.statements.forEach((statement, index) => {
                 // Hide All worker nodes.
                 if (ASTUtil.isWorker(statement)) {
@@ -108,6 +74,14 @@ export const visitor: Visitor = {
                     }
                 }
             });
+            // fix go to source position of caller EP
+            if (node.resource && node.body.VisibleEndpoints) {
+                const callerEP = node.body.VisibleEndpoints.find((vEP) => vEP.caller);
+                if (callerEP) {
+                    // update position to match caller definition (which is the first param)
+                    callerEP.position = node.parameters[0].position;
+                }
+            }
         }
     },
 
@@ -117,7 +91,7 @@ export const visitor: Visitor = {
         if (viewState.isExpandedFunction) {
             const toAdd: VisibleEndpoint[] = [];
             const added: any = {};
-            visibleEndpoints.forEach((ep) => {
+            visibleEPsInCurrentFunc.forEach((ep) => {
                 if (!added[ep.name]) {
                     toAdd.push(ep);
                     added[ep.name] = true;
@@ -125,7 +99,7 @@ export const visitor: Visitor = {
             });
             viewState.containingVisibleEndpoints = toAdd;
         } else {
-            visibleEndpoints = [];
+            visibleEPsInCurrentFunc = [];
         }
     },
 
@@ -139,28 +113,27 @@ export const visitor: Visitor = {
         if (ASTUtil.isActionInvocation(node)) {
             return;
         }
+    },
 
-        const viewState = node.viewState as StmntViewState;
-        if (ASTKindChecker.isInvocation(node.expression) && !viewState.expandContext) {
-            viewState.expandContext = new ExpandContext(node.expression);
+    beginVisitVariableDef(node: VariableDef) {
+        if (ASTUtil.isWorker(node)) {
+            if (!node.viewState) {
+                node.viewState = new WorkerViewState();
+            }
+            currentWorker = node;
+            (currentWorker.viewState as WorkerViewState).returnStatements = [];
         }
     },
 
     endVisitVariableDef(node: VariableDef) {
         initStatement(node);
-
-        if (ASTUtil.isActionInvocation(node)) {
-            return;
-        }
-
-        if (ASTKindChecker.isVariable(node.variable) && node.variable.initialExpression) {
-            handleExpanding(node.variable.initialExpression, node.viewState as StmntViewState);
+        if (ASTUtil.isWorker(node)) {
+            currentWorker = undefined;
         }
     },
 
     endVisitAssignment(node: Assignment) {
         initStatement(node);
-        handleExpanding(node.expression, node.viewState as StmntViewState);
     },
 
     beginVisitVisibleEndpoint(node: VisibleEndpoint) {
@@ -175,9 +148,14 @@ export const visitor: Visitor = {
         if (!node.viewState) {
             node.viewState = new ReturnViewState();
         }
+        if (currentWorker) {
+            const viewState = (node.viewState as ReturnViewState);
+            viewState.containingWokerViewState = currentWorker.viewState;
+            (currentWorker.viewState as WorkerViewState).returnStatements.push(node);
+        }
     },
 
     beginVisitWorkerSend(node: WorkerSend) {
         node.viewState = new WorkerSendViewState();
-    }
+    },
 };

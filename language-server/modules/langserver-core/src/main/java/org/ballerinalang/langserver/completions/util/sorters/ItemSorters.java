@@ -47,6 +47,8 @@ public enum ItemSorters {
             new ConditionalStatementItemSorter()),
     MATCH_STMT_CONTEXT_ITEM_SORTER(MatchContextItemSorter.class,
             new MatchContextItemSorter()),
+    TOP_LEVEL_MATCH_STMT_CONTEXT_ITEM_SORTER(TopLevelContextSorter.class,
+            new TopLevelContextSorter()),
     ACTION_AND_FIELD_ITEM_SORTER(ActionAndFieldAccessContextItemSorter.class,
             new ActionAndFieldAccessContextItemSorter());
     
@@ -74,7 +76,7 @@ public enum ItemSorters {
      * @return {@link CompletionItemSorter} - Item sorter for the given context
      */
     public static CompletionItemSorter get(Class context) {
-        if (!resolverMap.containsKey(context)) {
+        if (context == null || !resolverMap.containsKey(context)) {
             return resolverMap.get(DefaultItemSorter.class);
         }
         return resolverMap.get(context);

@@ -18,10 +18,8 @@
 
 package org.ballerinalang.net.websub.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BBoolean;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
 import org.ballerinalang.net.websub.BallerinaWebSubException;
@@ -38,22 +36,18 @@ import org.ballerinalang.net.websub.hub.Hub;
         returnType = {@ReturnType(type = TypeKind.BOOLEAN)},
         isPublic = true
 )
-public class StopHubService extends BlockingNativeCallableUnit {
+public class StopHubService {
 
-    @Override
-    public void execute(Context context) {
+    public static boolean stopHubService(Strand strand, String hubUrl) {
         Hub hubInstance = Hub.getInstance();
         if (hubInstance.isStarted()) {
             try {
-                hubInstance.stopHubService(context);
+                hubInstance.stopHubService();
+                return true;
             } catch (BallerinaWebSubException e) {
-                context.setReturnValues(new BBoolean(false));
-                return;
+                return false;
             }
-            context.setReturnValues(new BBoolean(true));
-        } else {
-            context.setReturnValues(new BBoolean(false));
         }
+        return false;
     }
-
 }

@@ -17,9 +17,9 @@
  */
 package org.ballerinalang.testerina.test;
 
-import org.ballerinalang.launcher.BLauncherException;
 import org.ballerinalang.testerina.core.BTestRunner;
 import org.ballerinalang.testerina.core.TesterinaRegistry;
+import org.ballerinalang.tool.BLauncherException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -62,7 +62,6 @@ public class DependsOnTest {
 
     @AfterMethod
     private void cleanup() {
-        TesterinaRegistry.getInstance().setProgramFiles(new ArrayList<>());
         TesterinaRegistry.getInstance().setTestSuites(new HashMap<>());
     }
 }

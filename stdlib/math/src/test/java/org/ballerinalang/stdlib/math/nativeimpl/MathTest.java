@@ -17,12 +17,12 @@
 */
 package org.ballerinalang.stdlib.math.nativeimpl;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BFloat;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -240,10 +240,10 @@ public class MathTest {
         Assert.assertEquals(((BFloat) returns[0]).floatValue(), 60986.133234122164, DELTA);
     }
 
-    @Test(description = "Test 'IEEEremainder' function in ballerina.lang.math package")
+    @Test(description = "Test 'remainder' function in ballerina.lang.math package")
     public void testIEEEremainder() {
         BValue[] args = { new BFloat(60984.1), new BFloat(-497.99) };
-        BValue[] returns = BRunUtil.invoke(compileResult, "IEEEremainderTest", args);
+        BValue[] returns = BRunUtil.invoke(compileResult, "remainderTest", args);
 
         Assert.assertEquals(returns.length, 1);
         Assert.assertEquals(((BFloat) returns[0]).floatValue(), 229.31999999999744, DELTA);

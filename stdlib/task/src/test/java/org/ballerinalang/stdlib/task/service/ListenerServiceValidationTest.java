@@ -18,22 +18,20 @@
 
 package org.ballerinalang.stdlib.task.service;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
+import org.ballerinalang.test.util.BCompileUtil;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.annotations.Test;
 
-/*
- * TODO: We check resources at runtime for now. Hence need to use compile and setup.
- *      If compiler plugin works, replace BCompileUtil.compileAndSetup() with BCompileUtil.compile().
- *      Issue: https://github.com/ballerina-platform/ballerina-lang/issues/14148
- */
+import java.nio.file.Paths;
+
+import static org.ballerinalang.stdlib.task.utils.TaskTestUtils.getFilePath;
 
 /**
  * Tests for Ballerina Task Service validation.
  */
 @Test
 public class ListenerServiceValidationTest {
-
+    private static final String TEST_DIRECTORY = "service-validation";
     @Test(
             description = "Tests compiler error for a task with more than two resource functions.",
             expectedExceptions = BLangRuntimeException.class,
@@ -41,7 +39,7 @@ public class ListenerServiceValidationTest {
                     + "Task service should include only one resource.*"
     )
     public void testMoreThanTwoResourceFunctions() {
-        BCompileUtil.compileAndSetup("service-validation/more_than_one_resource.bal");
+        BCompileUtil.compile(getFilePath(Paths.get(TEST_DIRECTORY, "more_than_one_resource.bal")));
     }
 
     @Test(
@@ -51,7 +49,7 @@ public class ListenerServiceValidationTest {
                     + "Task service should include only one resource.*"
     )
     public void testNoResourceFunctions() {
-        BCompileUtil.compileAndSetup("service-validation/no_resource_functions.bal");
+        BCompileUtil.compile(getFilePath(Paths.get(TEST_DIRECTORY, "no_resource_functions.bal")));
     }
 
     @Test(
@@ -61,6 +59,6 @@ public class ListenerServiceValidationTest {
                     ".*Invalid resource function found: timerStart. Expected: 'onTrigger'.*"
     )
     public void testInvalidResourceName() {
-        BCompileUtil.compileAndSetup("service-validation/invalid_resource.bal");
+        BCompileUtil.compile(getFilePath(Paths.get(TEST_DIRECTORY, "invalid_resource.bal")));
     }
 }

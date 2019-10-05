@@ -18,8 +18,7 @@ import ballerina/log;
 // if the same is set as a CLI parameter, it replaces the environment
 // variable value.
 //
-// The configuration file format is a subset of the TOML file format. It
-// supports `string`, `int`, `float` and `boolean` value types.
+// The configuration file is in TOML(v0.4) format.
 //
 // The configuration API is particularly useful for configuring services.
 // In this example, the port and keystore password are read through the
@@ -30,7 +29,7 @@ import ballerina/log;
 // optional configurations are the default values of the return types of
 // the functions.
 listener http:Listener helloWorldEP
-    = new(config:getAsInt("hello.http.port", defaultValue = 9095), config = {
+    = new(config:getAsInt("hello.http.port", 9095), config = {
         secureSocket: {
             keyStore: {
                 path: "${ballerina.home}/bre/security/ballerinaKeystore.p12",

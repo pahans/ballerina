@@ -1,4 +1,4 @@
-public type InvalidNameError error<string, record { string companyName; }>;
+public type InvalidNameError error<string, record { string companyName; string message?; error cause?; }>;
 
 function getQuote(string name) returns (float|InvalidNameError) {
 
@@ -8,11 +8,11 @@ function getQuote(string name) returns (float|InvalidNameError) {
         return 11.5;
     }
 
-    InvalidNameError err = error("invalid name", {companyName: name });
+    InvalidNameError err = error("invalid name", companyName = name);
     return err;
 }
 
-function testReturnError() returns (string, string, string, string)|error {
+function testReturnError() returns [string, string, string, string]|error {
 
     string a;
     string b;
@@ -23,13 +23,13 @@ function testReturnError() returns (string, string, string, string)|error {
     // Special identifier "=?" will be used to ignore values.
 
     quoteValue = check getQuote("FOO");
-    a = "FOO:" + quoteValue;
+    a = "FOO:" + quoteValue.toString();
 
     // Ignore error.
     var r = getQuote("QUX");
 
     if (r is float) {
-        b = "QUX:" + r;
+        b = "QUX:" + r.toString();
     } else {
         b = "QUX:ERROR";
     }
@@ -39,22 +39,22 @@ function testReturnError() returns (string, string, string, string)|error {
     var q = getQuote("BAZ");
 
     if (q is float) {
-        c = "BAZ:" + quoteValue;
+        c = "BAZ:" + quoteValue.toString();
     } else {
         quoteValue = 0.0;
-        c = "BAZ:" + quoteValue;
+        c = "BAZ:" + quoteValue.toString();
     }
 
     var p = getQuote("BAR");
 
     if (p is float) {
-        d = "BAR:" + p;
+        d = "BAR:" + p.toString();
     } else {
         quoteValue = 0.0;
         d = "BAR:ERROR";
     }
 
-    return (a,b,c,d);
+    return [a,b,c,d];
 }
 
 function testReturnAndThrowError() returns (string){

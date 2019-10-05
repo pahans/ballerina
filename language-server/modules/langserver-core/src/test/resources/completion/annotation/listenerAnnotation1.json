@@ -1,30 +1,30 @@
 {
   "position": {
-    "line": 2,
-    "character": 1
+    "line": 3,
+    "character": 2
   },
   "source": "annotation/source/listenerAnnotation1.bal",
   "items": [
     {
-      "label":"openapi:ClientEndpoint",
-      "kind":"Property",
-      "detail":"Annotation",
-      "sortText":"110",
-      "insertText":"openapi:ClientEndpoint",
-      "insertTextFormat":"Snippet",
-      "additionalTextEdits":[
+      "label": "openapi:ClientEndpoint",
+      "kind": "Property",
+      "detail": "Annotation",
+      "sortText": "120",
+      "insertText": "openapi:ClientEndpoint",
+      "insertTextFormat": "Snippet",
+      "additionalTextEdits": [
         {
-          "range":{
-            "start":{
-              "line":1,
-              "character":0
+          "range": {
+            "start": {
+              "line": 2,
+              "character": 0
             },
-            "end":{
-              "line":1,
-              "character":0
+            "end": {
+              "line": 2,
+              "character": 0
             }
           },
-          "newText":"import ballerina/openapi;\n"
+          "newText": "import ballerina/openapi;\n"
         }
       ]
     }

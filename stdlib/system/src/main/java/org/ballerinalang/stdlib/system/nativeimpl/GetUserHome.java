@@ -17,8 +17,7 @@
  */
 package org.ballerinalang.stdlib.system.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
 import org.ballerinalang.model.types.TypeKind;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
@@ -35,12 +34,11 @@ import org.ballerinalang.stdlib.system.utils.SystemUtils;
         returnType = {@ReturnType(type = TypeKind.STRING)},
         isPublic = true
 )
-public class GetUserHome extends BlockingNativeCallableUnit {
+public class GetUserHome {
 
     private static final String PROPERTY_NAME = "user.home";
 
-    @Override
-    public void execute(Context context) {
-        context.setReturnValues(SystemUtils.getSystemProperty(PROPERTY_NAME));
+    public static String getUserHome(Strand strand) {
+        return SystemUtils.getSystemProperty(PROPERTY_NAME);
     }
 }

@@ -18,6 +18,10 @@
 
 package org.ballerinalang.stdlib.socket;
 
+import org.ballerinalang.jvm.types.BPackage;
+
+import static org.ballerinalang.jvm.util.BLangConstants.BALLERINA_BUILTIN_PKG_PREFIX;
+
 /**
  * Constant variable for socket related operations.
  */
@@ -28,6 +32,7 @@ public class SocketConstants {
     public static final String SERVER_SOCKET_KEY = "ServerSocket";
     public static final String SOCKET_KEY = "Socket";
     public static final String SOCKET_PACKAGE = "ballerina/socket";
+    public static final BPackage SOCKET_PACKAGE_ID = new BPackage(BALLERINA_BUILTIN_PKG_PREFIX, "socket");
     public static final String RESOURCE_ON_CONNECT = "onConnect";
     public static final String RESOURCE_ON_READ_READY = "onReadReady";
     public static final String RESOURCE_ON_ERROR = "onError";
@@ -53,8 +58,24 @@ public class SocketConstants {
     public static final int DEFAULT_EXPECTED_READ_LENGTH = -100;
 
     // Default read timeout set as 5 min.
-    public static final long DEFAULT_READ_TIMEOUT_VALUE = 1000 * 60 * 5;
-    public static final String READ_TIMEOUT = "readTimeout";
-    public static final String CONFIG_READ_TIMEOUT = "b7a.socket.read.timeout";
+    public static final String READ_TIMEOUT = "readTimeoutInMillis";
+
+    /**
+     * Specifies the error code for socket module.
+     */
+    public enum ErrorCode {
+
+        GenericError("{ballerina/socket}GenericError"), ReadTimedOutError("{ballerina/socket}ReadTimedOut");
+
+        private String errorCode;
+
+        ErrorCode(String errorCode) {
+            this.errorCode = errorCode;
+        }
+
+        public String errorCode() {
+            return errorCode;
+        }
+    }
 
 }

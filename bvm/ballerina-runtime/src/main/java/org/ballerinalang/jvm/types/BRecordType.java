@@ -17,11 +17,12 @@
  */
 package org.ballerinalang.jvm.types;
 
+import org.ballerinalang.jvm.BallerinaValues;
+import org.ballerinalang.jvm.util.Flags;
+import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.jvm.values.MapValueImpl;
 
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.StringJoiner;
 
 /**
  * {@code BRecordType} represents a user defined record type in Ballerina.
@@ -32,46 +33,58 @@ public class BRecordType extends BStructureType {
 
     public boolean sealed;
     public BType restFieldType;
+    public int typeFlags;
 
     /**
      * Create a {@code BRecordType} which represents the user defined record type.
      *
      * @param typeName string name of the record type
-     * @param pkgPath package of the record type
+     * @param pkg package of the record type
      * @param flags of the record type
      * @param sealed flag indicating the sealed status
+     * @param typeFlags flags associated with the type
      */
-    public BRecordType(String typeName, String pkgPath, int flags, boolean sealed) {
-        super(typeName, pkgPath, flags, MapValueImpl.class);
+    public BRecordType(String typeName, BPackage pkg, int flags, boolean sealed, int typeFlags) {
+        super(typeName, pkg, flags, MapValueImpl.class);
         this.sealed = sealed;
+        this.typeFlags = typeFlags;
     }
 
     /**
      * Create a {@code BRecordType} which represents the user defined record type.
      *
      * @param typeName string name of the record type
-     * @param pkgPath package of the record type
+     * @param pkg package of the record type
      * @param flags of the record type
      * @param fields record fields
      * @param restFieldType type of the rest field
      * @param sealed flag to indicate whether the record is sealed
+     * @param typeFlags flags associated with the type
      */
-    public BRecordType(String typeName, String pkgPath, int flags, Map<String, BField> fields, BType restFieldType,
-            boolean sealed) {
-        super(typeName, pkgPath, flags, MapValueImpl.class, fields);
+    public BRecordType(String typeName, BPackage pkg, int flags, Map<String, BField> fields, BType restFieldType,
+            boolean sealed, int typeFlags) {
+        super(typeName, pkg, flags, MapValueImpl.class, fields);
         this.restFieldType = restFieldType;
         this.sealed = sealed;
+        this.typeFlags = typeFlags;
     }
 
     @Override
     public <V extends Object> V getZeroValue() {
-        return null;
+        return (V) BallerinaValues.createRecordValue(this.pkg, this.typeName);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <V extends Object> V getEmptyValue() {
-        return (V) new MapValueImpl<>(this);
+        MapValue<String, Object> implicitInitValue = new MapValueImpl<>(this);
+        this.fields.entrySet().stream()
+                .filter(entry -> !Flags.isFlagOn(entry.getValue().flags, Flags.OPTIONAL))
+                .forEach(entry -> {
+                    Object value = entry.getValue().getFieldType().getEmptyValue();
+                    implicitInitValue.put(entry.getKey(), value);
+                });
+        return (V) implicitInitValue;
     }
 
     @Override
@@ -79,17 +92,18 @@ public class BRecordType extends BStructureType {
         return TypeTags.RECORD_TYPE_TAG;
     }
 
-    public String toString() {
-        String name = (pkgPath == null || pkgPath.equals(".")) ? typeName : pkgPath + ":" + typeName;
-        StringJoiner sj = new StringJoiner(",\n\t", name + " {\n\t", "\n}");
-        for (Entry<String, BField> field : getFields().entrySet()) {
-            sj.add(field.getKey() + " : " + field.getValue().type);
-        }
-        return sj.toString();
-    }
-
     @Override
     public String getAnnotationKey() {
         return this.typeName;
+    }
+
+    @Override
+    public boolean isAnydata() {
+        return TypeFlags.isFlagOn(this.typeFlags, TypeFlags.ANYDATA);
+    }
+
+    @Override
+    public boolean isPureType() {
+        return TypeFlags.isFlagOn(this.typeFlags, TypeFlags.PURETYPE);
     }
 }

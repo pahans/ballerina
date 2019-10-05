@@ -18,8 +18,8 @@
 
 package org.wso2.ballerinalang.compiler.desugar;
 
-import org.ballerinalang.util.diagnostic.DiagnosticCode;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BPackageSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BField;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BMapType;
@@ -28,16 +28,16 @@ import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.tree.BLangNode;
 import org.wso2.ballerinalang.compiler.tree.BLangNodeVisitor;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangBinaryExpr;
-import org.wso2.ballerinalang.compiler.tree.expressions.BLangBracedOrTupleExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangFieldBasedAccess;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangGroupExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangListConstructorExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangTypeConversionExpr;
 import org.wso2.ballerinalang.compiler.util.CompilerContext;
-import org.wso2.ballerinalang.compiler.util.TypeTags;
-import org.wso2.ballerinalang.compiler.util.diagnotic.BLangDiagnosticLog;
 
 import java.util.List;
 import java.util.Map;
@@ -54,7 +54,6 @@ public class StreamsPostSelectDesugar extends BLangNodeVisitor {
             new CompilerContext.Key<>();
     private final SymbolTable symTable;
     private final Desugar desugar;
-    private final BLangDiagnosticLog dlog;
 
     private BLangNode result;
     private BSymbol mapVarSymbol;
@@ -64,7 +63,6 @@ public class StreamsPostSelectDesugar extends BLangNodeVisitor {
         context.put(STREAMING_DESUGAR_KEY, this);
         this.symTable = SymbolTable.getInstance(context);
         this.desugar = Desugar.getInstance(context);
-        this.dlog = BLangDiagnosticLog.getInstance(context);
     }
 
     public static StreamsPostSelectDesugar getInstance(CompilerContext context) {
@@ -112,15 +110,44 @@ public class StreamsPostSelectDesugar extends BLangNodeVisitor {
                     ASTBuilderUtil.createLiteral(varRef.pos, symTable.stringType, getEquivalentOutputMapField(key)));
             result = desugar.addConversionExprIfRequired((BLangExpression) result, varRef.type);
         } else {
+            if (!(varRef.symbol.owner instanceof BPackageSymbol)) {
+                varRef.symbol.closure = true;
+            }
             result = varRef;
         }
     }
 
     @Override
-    public void visit(BLangBracedOrTupleExpr bracedOrTupleExpr) {
-        IntStream.range(0, bracedOrTupleExpr.expressions.size()).forEach(i -> bracedOrTupleExpr.expressions
-                .set(i, (BLangExpression) rewrite(bracedOrTupleExpr.expressions.get(i))));
-        result = bracedOrTupleExpr;
+    public void visit(BLangTypeConversionExpr conversionExpr) {
+        result = desugar.addConversionExprIfRequired((BLangExpression) rewrite(conversionExpr.expr),
+                conversionExpr.type);
+    }
+
+    @Override
+    public void visit(BLangIndexBasedAccess indexBasedAccess) {
+        indexBasedAccess.expr = (BLangExpression) rewrite(indexBasedAccess.expr);
+        indexBasedAccess.indexExpr = (BLangExpression) rewrite(indexBasedAccess.indexExpr);
+        result = desugar.addConversionExprIfRequired(indexBasedAccess, indexBasedAccess.type);
+    }
+
+    @Override
+    public void visit(BLangGroupExpr groupExpr) {
+        groupExpr.expression = (BLangExpression) rewrite(groupExpr.expression);
+        result = groupExpr;
+    }
+
+    @Override
+    public void visit(BLangListConstructorExpr listConstructorExpr) {
+        IntStream.range(0, listConstructorExpr.exprs.size()).forEach(i -> listConstructorExpr.exprs
+                .set(i, (BLangExpression) rewrite(listConstructorExpr.exprs.get(i))));
+        result = listConstructorExpr;
+    }
+
+    @Override
+    public void visit(BLangListConstructorExpr.BLangTupleLiteral tupleLiteral) {
+        IntStream.range(0, tupleLiteral.exprs.size()).forEach(i -> tupleLiteral.exprs
+                .set(i, (BLangExpression) rewrite(tupleLiteral.exprs.get(i))));
+        result = tupleLiteral;
     }
 
     @Override
@@ -132,15 +159,8 @@ public class StreamsPostSelectDesugar extends BLangNodeVisitor {
 
     @Override
     public void visit(BLangFieldBasedAccess expr) {
-
-        result = desugar.addConversionExprIfRequired(createMapVariableIndexAccessExpr(expr), expr.type);
-
-        BType type = expr.expr.type;
-        if (type != null && type.tag == TypeTags.STREAM) {
-            dlog.error(expr.pos, DiagnosticCode.STREAM_ATTR_NOT_ALLOWED_IN_HAVING_ORDER_BY, expr.field.value);
-        }
+        result = desugar.addConversionExprIfRequired((BLangExpression) rewrite(expr), expr.type);
     }
-
 
     private String getEquivalentOutputMapField(String key) {
         return "OUTPUT." + key;

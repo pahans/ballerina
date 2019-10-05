@@ -5,6 +5,12 @@ const float someFloat = true; // Invalid RHS value.
 const decimal someDeciaml = true; // Invalid RHS value.
 const string someString = 120; // Invalid RHS value.
 
+// Invalid identifier
+const string _ = "PUT";
+const _ = 11;
+
+const invalidType someValue = 1;
+
 // Assigning var ref.
 string s = "Ballerina";
 public const string name2 = "";
@@ -261,3 +267,14 @@ const map<string> m3 = { "m3k": "m3v" };
 function updateConstantMapValue() {
     m3.m3k = "m3nv";
 }
+
+// -----------------------------------------------------------
+
+type Foo record {
+    string s;
+    int i;
+};
+
+const Foo f = { s: "const string", i: 1 };
+
+const json j = 1;

@@ -1,43 +1,46 @@
 /*
-*  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
-*
-*  WSO2 Inc. licenses this file to you under the Apache License,
-*  Version 2.0 (the "License"); you may not use this file except
-*  in compliance with the License.
-*  You may obtain a copy of the License at
-*
-*    http://www.apache.org/licenses/LICENSE-2.0
-*
-*  Unless required by applicable law or agreed to in writing,
-*  software distributed under the License is distributed on an
-*  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-*  KIND, either express or implied.  See the License for the
-*  specific language governing permissions and limitations
-*  under the License.
-*/
+ *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ *  WSO2 Inc. licenses this file to you under the Apache License,
+ *  Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
 
 package org.ballerinalang.mime.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
+import org.ballerinalang.jvm.BallerinaErrors;
+import org.ballerinalang.jvm.values.ErrorValue;
+import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.connector.NonBlockingCallback;
 import org.ballerinalang.mime.util.EntityBodyHandler;
 import org.ballerinalang.mime.util.MimeUtil;
-import org.ballerinalang.model.NativeCallableUnit;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.stdlib.io.utils.BallerinaIOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wso2.transport.http.netty.message.FullHttpMessageListener;
 import org.wso2.transport.http.netty.message.HttpCarbonMessage;
 import org.wso2.transport.http.netty.message.HttpMessageDataStreamer;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
 import static org.ballerinalang.mime.util.EntityBodyHandler.constructBlobDataSource;
 import static org.ballerinalang.mime.util.EntityBodyHandler.constructJsonDataSource;
 import static org.ballerinalang.mime.util.EntityBodyHandler.constructStringDataSource;
 import static org.ballerinalang.mime.util.EntityBodyHandler.constructXmlDataSource;
 import static org.ballerinalang.mime.util.MimeConstants.ENTITY_BYTE_CHANNEL;
+import static org.ballerinalang.mime.util.MimeConstants.NO_CONTENT_ERROR_CODE;
+import static org.ballerinalang.mime.util.MimeConstants.PARSING_ENTITY_BODY_FAILED;
 import static org.ballerinalang.mime.util.MimeConstants.TRANSPORT_MESSAGE;
 
 /**
@@ -46,71 +49,114 @@ import static org.ballerinalang.mime.util.MimeConstants.TRANSPORT_MESSAGE;
  * @since 0.995-r1
  */
 
-public abstract class AbstractGetPayloadHandler implements NativeCallableUnit {
+public abstract class AbstractGetPayloadHandler {
 
-    @Override
-    public boolean isBlocking() {
-        return false;
-    }
+    private static final Logger log = LoggerFactory.getLogger(AbstractGetPayloadHandler.class);
 
-    void constructNonBlockingDataSource(Context context, CallableUnitCallback callback, BMap<String, BValue> entity,
-                                        SourceType sourceType) {
+    static void constructNonBlockingDataSource(NonBlockingCallback callback, ObjectValue entity,
+                                               SourceType sourceType) {
         HttpCarbonMessage inboundMessage = extractTransportMessageFromEntity(entity);
         inboundMessage.getFullHttpCarbonMessage().addListener(new FullHttpMessageListener() {
             @Override
             public void onComplete(HttpCarbonMessage inboundMessage) {
-                BValue dataSource = null;
+                Object dataSource = null;
                 HttpMessageDataStreamer dataStreamer = new HttpMessageDataStreamer(inboundMessage);
                 InputStream inputStream = dataStreamer.getInputStream();
-                switch (sourceType) {
-                    case JSON:
-                        dataSource = constructJsonDataSource(entity, inputStream);
-                        break;
-                    case TEXT:
-                        dataSource = constructStringDataSource(entity, inputStream);
-                        break;
-                    case XML:
-                        dataSource = constructXmlDataSource(entity, inputStream);
-                        break;
-                    case BLOB:
-                        dataSource = constructBlobDataSource(inputStream);
-                        break;
+                try {
+                    switch (sourceType) {
+                        case JSON:
+                            dataSource = constructJsonDataSource(entity, inputStream);
+                            updateJsonDataSourceAndNotify(callback, entity, dataSource);
+                            return;
+                        case TEXT:
+                            dataSource = constructStringDataSource(entity, inputStream);
+                            break;
+                        case XML:
+                            dataSource = constructXmlDataSource(entity, inputStream);
+                            break;
+                        case BLOB:
+                            dataSource = constructBlobDataSource(inputStream);
+                            break;
+                    }
+                    updateDataSourceAndNotify(callback, entity, dataSource);
+                } catch (Exception e) {
+                    createParsingEntityBodyFailedErrorAndNotify(callback,
+                            "Error occurred while extracting " + sourceType.toString().toLowerCase(Locale.ENGLISH)
+                                    + " data from entity: " + getErrorMsg(e), null);
+                } finally {
+                    try {
+                        inputStream.close();
+                    } catch (IOException ex) {
+                        log.error("Error occurred while closing the inbound data stream", ex);
+                    }
                 }
-                updateDataSourceAndNotify(context, callback, entity, dataSource);
             }
 
             @Override
             public void onError(Exception ex) {
-                createErrorAndNotify(context, callback,
-                                     "Error occurred while extracting content from message : " + ex.getMessage());
+                createParsingEntityBodyFailedErrorAndNotify(callback,
+                        "Error occurred while extracting content from message : " + ex.getMessage(), null);
             }
         });
     }
 
-    void setReturnValuesAndNotify(Context context, CallableUnitCallback callback, BValue result) {
-        context.setReturnValues(result);
+    private static void setReturnValuesAndNotify(NonBlockingCallback callback, Object result) {
+        callback.setReturnValues(result);
         callback.notifySuccess();
     }
 
-    void createErrorAndNotify(Context context, CallableUnitCallback callback, String errMsg) {
-        BError error = MimeUtil.createError(context, errMsg);
-        setReturnValuesAndNotify(context, callback, error);
+    static Object createParsingEntityBodyFailedErrorAndNotify(NonBlockingCallback callback, String errMsg,
+            ErrorValue errorValue) {
+        ErrorValue error = MimeUtil.createError(PARSING_ENTITY_BODY_FAILED, errMsg, errorValue);
+        return returnErrorValue(callback, error);
     }
 
-    void updateDataSourceAndNotify(Context context, CallableUnitCallback callback, BMap<String, BValue> entityObj,
-                                   BValue result) {
+    private static Object returnErrorValue(NonBlockingCallback callback, Object err) {
+        if (callback != null) {
+            setReturnValuesAndNotify(callback, err);
+            return null;
+        }
+        return err;
+    }
+
+    static String getErrorMsg(Throwable err) {
+        return err instanceof ErrorValue ? err.toString() : err.getMessage();
+    }
+
+    static void updateDataSource(ObjectValue entityObj, Object result) {
         EntityBodyHandler.addMessageDataSource(entityObj, result);
+        removeByteChannel(entityObj);
+    }
+
+    static void updateJsonDataSource(ObjectValue entityObj, Object result) {
+        EntityBodyHandler.addJsonMessageDataSource(entityObj, result);
+        removeByteChannel(entityObj);
+    }
+
+    private static void removeByteChannel(ObjectValue entityObj) {
         //Set byte channel to null, once the message data source has been constructed
         entityObj.addNativeData(ENTITY_BYTE_CHANNEL, null);
-        setReturnValuesAndNotify(context, callback, result);
     }
 
-    private HttpCarbonMessage extractTransportMessageFromEntity(BMap<String, BValue> entityObj) {
+    private static void updateDataSourceAndNotify(NonBlockingCallback callback, ObjectValue entityObj,
+                                          Object result) {
+        updateDataSource(entityObj, result);
+        setReturnValuesAndNotify(callback, result);
+    }
+
+
+    private static void updateJsonDataSourceAndNotify(NonBlockingCallback callback, ObjectValue entityObj,
+                                              Object result) {
+        updateJsonDataSource(entityObj, result);
+        setReturnValuesAndNotify(callback, result);
+    }
+
+    private static HttpCarbonMessage extractTransportMessageFromEntity(ObjectValue entityObj) {
         HttpCarbonMessage message = (HttpCarbonMessage) entityObj.getNativeData(TRANSPORT_MESSAGE);
         if (message != null) {
             return message;
         } else {
-            throw new BallerinaIOException("Empty content");
+            throw BallerinaErrors.createError(NO_CONTENT_ERROR_CODE, "Empty content");
         }
     }
 

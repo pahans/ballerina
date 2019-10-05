@@ -17,14 +17,16 @@
 */
 package org.ballerinalang.model.tree;
 
+import org.wso2.ballerinalang.compiler.tree.BLangVariable;
+
 import java.util.List;
 
 /**
  *
  * Represents a tuple variable node.
  * Example:
- *      (string, int, float) (s, i, f) = ("Foo", 12, 4.5);
- *      ((string, boolean), int) ((s, b), i) = expr;
+ *      [string, int, float] [s, i, f] = ["Foo", 12, 4.5];
+ *      [[string, boolean], int] [[s, b], i] = expr;
  *
  * @since 0.985.0
  */
@@ -33,5 +35,7 @@ public interface TupleVariableNode extends VariableNode, AnnotatableNode, Docume
     List<? extends VariableNode> getVariables();
     
     void addVariable(VariableNode node);
+
+    BLangVariable getRestVariable();
 
 }

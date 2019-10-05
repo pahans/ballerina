@@ -20,8 +20,10 @@ package org.ballerinalang.langserver.completions.providers.contextproviders;
 import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.Token;
 import org.ballerinalang.annotation.JavaSPIService;
+import org.ballerinalang.langserver.common.CommonKeys;
 import org.ballerinalang.langserver.compiler.LSContext;
 import org.ballerinalang.langserver.completions.CompletionKeys;
+import org.ballerinalang.langserver.completions.SymbolInfo;
 import org.ballerinalang.langserver.completions.spi.LSCompletionProvider;
 import org.ballerinalang.langserver.completions.util.Snippet;
 import org.eclipse.lsp4j.CompletionItem;
@@ -50,11 +52,7 @@ public class DefinitionContextProvider extends LSCompletionProvider {
                 .filter(commonToken -> commonToken.getChannel() == Token.DEFAULT_CHANNEL)
                 .map(CommonToken::getType)
                 .collect(Collectors.toList());
-        
-        if (lhsDefaultTokens.contains(BallerinaParser.FUNCTION)) {
-            // proxy to function definition context
-            return this.getProvider(BallerinaParser.FunctionDefinitionContext.class).getCompletions(context);
-        }
+
         switch (lhsDefaultTokens.get(0)) {
             case BallerinaParser.PUBLIC:
                 completionItems.addAll(this.getItemsAfterPublic(context));
@@ -77,13 +75,15 @@ public class DefinitionContextProvider extends LSCompletionProvider {
         completionItems.add(getStaticItem(context, Snippet.DEF_RECORD));
         completionItems.add(getStaticItem(context, Snippet.KW_LISTENER));
         completionItems.add(getStaticItem(context, Snippet.KW_TYPE));
+        completionItems.add(getStaticItem(context, Snippet.KW_CONST));
         completionItems.add(getStaticItem(context, Snippet.KW_ANNOTATION));
+        completionItems.add(getStaticItem(context, Snippet.KW_FUNCTION));
         return completionItems;
     }
 
     private List<CompletionItem> getTypesAndPackages(LSContext ctx) {
-        List<CompletionItem> completionItems =
-                new ArrayList<>(this.getBasicTypes(ctx.get(CompletionKeys.VISIBLE_SYMBOLS_KEY)));
+        List<SymbolInfo> visibleSymbols = new ArrayList<>(ctx.get(CommonKeys.VISIBLE_SYMBOLS_KEY));
+        List<CompletionItem> completionItems = new ArrayList<>(this.getBasicTypes(visibleSymbols));
         completionItems.addAll(this.getPackagesCompletionItems(ctx));
 
         return completionItems;

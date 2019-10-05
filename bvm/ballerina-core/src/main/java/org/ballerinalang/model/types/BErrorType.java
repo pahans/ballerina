@@ -19,7 +19,6 @@ package org.ballerinalang.model.types;
 
 import org.ballerinalang.model.values.BError;
 import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.util.codegen.ErrorTypeInfo;
 
 /**
  * Represents runtime type of an error.
@@ -28,19 +27,13 @@ import org.ballerinalang.util.codegen.ErrorTypeInfo;
  */
 public class BErrorType extends BType {
 
-    public ErrorTypeInfo errorTypeInfo;
     public BType reasonType;
     public BType detailType;
 
-    BErrorType(String typeName, BType reasonType, BType detailType, String pkgPath) {
+    public BErrorType(String typeName, BType reasonType, BType detailType, String pkgPath) {
         super(typeName, pkgPath, BError.class);
         this.reasonType = reasonType;
         this.detailType = detailType;
-    }
-
-    public BErrorType(ErrorTypeInfo errorTypeInfo, String typeName, String pkgPath) {
-        super(typeName, pkgPath, BError.class);
-        this.errorTypeInfo = errorTypeInfo;
     }
 
     public BErrorType(BType reasonType, BType detailType) {

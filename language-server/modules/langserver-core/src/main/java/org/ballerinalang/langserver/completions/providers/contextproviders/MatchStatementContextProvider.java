@@ -20,7 +20,7 @@ package org.ballerinalang.langserver.completions.providers.contextproviders;
 import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.Token;
 import org.ballerinalang.annotation.JavaSPIService;
-import org.ballerinalang.langserver.common.UtilSymbolKeys;
+import org.ballerinalang.langserver.common.CommonKeys;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.FilterUtils;
 import org.ballerinalang.langserver.compiler.LSContext;
@@ -30,10 +30,12 @@ import org.ballerinalang.langserver.completions.builder.BFunctionCompletionItemB
 import org.ballerinalang.langserver.completions.builder.BTypeCompletionItemBuilder;
 import org.ballerinalang.langserver.completions.builder.BVariableCompletionItemBuilder;
 import org.ballerinalang.langserver.completions.spi.LSCompletionProvider;
-import org.ballerinalang.langserver.completions.util.sorters.ItemSorters;
+import org.ballerinalang.langserver.completions.util.filters.DelimiterBasedContentFilter;
+import org.ballerinalang.langserver.completions.util.filters.SymbolFilters;
 import org.ballerinalang.langserver.completions.util.sorters.MatchContextItemSorter;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.InsertTextFormat;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.wso2.ballerinalang.compiler.parser.antlr4.BallerinaParser;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BPackageSymbol;
@@ -66,41 +68,34 @@ public class MatchStatementContextProvider extends LSCompletionProvider {
     @Override
     public List<CompletionItem> getCompletions(LSContext ctx) {
         ArrayList<CompletionItem> completionItems = new ArrayList<>();
-        List<CommonToken> lhsTokens = ctx.get(CompletionKeys.LHS_TOKENS_KEY).stream()
+        List<CommonToken> defaultTokens = ctx.get(CompletionKeys.LHS_TOKENS_KEY).stream()
                 .filter(commonToken -> commonToken.getChannel() == Token.DEFAULT_CHANNEL)
                 .collect(Collectors.toList());
-        List<SymbolInfo> symbolInfoList = ctx.get(CompletionKeys.VISIBLE_SYMBOLS_KEY);
-        if (isInvocationOrInteractionOrFieldAccess(ctx)) {
-            String delimiter = "";
-            String variableName = "";
-            for (int i = 0; i < lhsTokens.size(); i++) {
-                if (lhsTokens.get(i).getType() == BallerinaParser.DOT
-                        || lhsTokens.get(i).getType() == BallerinaParser.COLON
-                        || lhsTokens.get(i).getType() == BallerinaParser.RARROW) {
-                    delimiter = lhsTokens.get(i).getText();
-                    variableName = lhsTokens.get(i - 1).getText();
-                    break;
-                }
-            }
-            List<SymbolInfo> filteredList = FilterUtils.getInvocationAndFieldSymbolsOnVar(ctx,
-                    variableName,
-                    delimiter,
-                    ctx.get(CompletionKeys.VISIBLE_SYMBOLS_KEY),
-                    false);
+        List<Integer> defaultTokenTypes = defaultTokens.stream().map(CommonToken::getType).collect(Collectors.toList());
+        List<SymbolInfo> visibleSymbols = new ArrayList<>(ctx.get(CommonKeys.VISIBLE_SYMBOLS_KEY));
+        int delimiter = ctx.get(CompletionKeys.INVOCATION_TOKEN_TYPE_KEY);
+        if (delimiter == BallerinaParser.COLON) {
+            Either<List<CompletionItem>, List<SymbolInfo>> moduleContent = 
+                    SymbolFilters.get(DelimiterBasedContentFilter.class).filterItems(ctx);
+            return this.getCompletionItemList(moduleContent, ctx);
+        } else if (delimiter > -1) {
+            String varName = defaultTokens.get(defaultTokenTypes.indexOf(delimiter) - 1).getText();
+            List<SymbolInfo> filteredList = FilterUtils.filterVariableEntriesOnDelimiter(ctx, varName, delimiter
+                    , defaultTokens, defaultTokenTypes.lastIndexOf(delimiter));
             filteredList.removeIf(CommonUtil.invalidSymbolsPredicate());
             filteredList.forEach(symbolInfo -> {
                 if (CommonUtil.isValidInvokableSymbol(symbolInfo.getScopeEntry().symbol)) {
                     BSymbol scopeEntrySymbol = symbolInfo.getScopeEntry().symbol;
-                    completionItems.add(this.fillInvokableSymbolMatchSnippet((BInvokableSymbol) scopeEntrySymbol));
+                    completionItems.add(this.fillInvokableSymbolMatchSnippet((BInvokableSymbol) scopeEntrySymbol, ctx));
                 }
             });
         } else {
-            symbolInfoList.removeIf(CommonUtil.invalidSymbolsPredicate());
-            symbolInfoList.forEach(symbolInfo -> {
+            visibleSymbols.removeIf(CommonUtil.invalidSymbolsPredicate());
+            visibleSymbols.forEach(symbolInfo -> {
                 BSymbol bSymbol = symbolInfo.getScopeEntry().symbol;
                 if (CommonUtil.isValidInvokableSymbol(symbolInfo.getScopeEntry().symbol)
                         && ((bSymbol.flags & Flags.ATTACHED) != Flags.ATTACHED)) {
-                    completionItems.add(this.fillInvokableSymbolMatchSnippet((BInvokableSymbol) bSymbol));
+                    completionItems.add(this.fillInvokableSymbolMatchSnippet((BInvokableSymbol) bSymbol, ctx));
                 } else if (!(symbolInfo.getScopeEntry().symbol instanceof BInvokableSymbol)
                         && bSymbol instanceof BVarSymbol) {
                     fillVarSymbolMatchSnippet((BVarSymbol) bSymbol, completionItems);
@@ -108,12 +103,11 @@ public class MatchStatementContextProvider extends LSCompletionProvider {
                     completionItems.add(BVariableCompletionItemBuilder.build((BVarSymbol) bSymbol,
                                                                              symbolInfo.getSymbolName(), typeName));
                 } else if (bSymbol instanceof BPackageSymbol) {
-                    completionItems.add(
-                            BTypeCompletionItemBuilder.build((BPackageSymbol) bSymbol, symbolInfo.getSymbolName()));
+                    completionItems.add(BTypeCompletionItemBuilder.build(bSymbol, symbolInfo.getSymbolName()));
                 }
             });
         }
-        ItemSorters.get(MatchContextItemSorter.class).sortItems(ctx, completionItems);
+        ctx.put(CompletionKeys.ITEM_SORTER_KEY, MatchContextItemSorter.class);
 
         return completionItems;
     }
@@ -130,21 +124,20 @@ public class MatchStatementContextProvider extends LSCompletionProvider {
         String[] nameComps = func.getName().getValue().split("\\.");
         StringBuilder signature = new StringBuilder(nameComps[nameComps.length - 1]);
         List<String> params = new ArrayList<>();
-        signature.append(UtilSymbolKeys.OPEN_PARENTHESES_KEY);
+        signature.append(CommonKeys.OPEN_PARENTHESES_KEY);
         func.getParameters().forEach(bVarSymbol -> params.add(bVarSymbol.getName().getValue()));
-        func.getDefaultableParameters().forEach(bVarSymbol -> params.add(bVarSymbol.getName().getValue()));
         signature.append(String.join(",", params)).append(")");
 
         return signature.toString();
     }
 
-    private CompletionItem fillInvokableSymbolMatchSnippet(BInvokableSymbol func) {
+    private CompletionItem fillInvokableSymbolMatchSnippet(BInvokableSymbol func, LSContext ctx) {
         String functionSignature = getFunctionSignature(func);
         String variableValuePattern = getVariableValueDestructurePattern();
         String variableValueSnippet = this.generateMatchSnippet(variableValuePattern);
 
         return BFunctionCompletionItemBuilder.build(func, functionSignature,
-                                                    functionSignature + " " + variableValueSnippet);
+                                                    functionSignature + " " + variableValueSnippet, ctx);
     }
 
     private void fillVarSymbolMatchSnippet(BVarSymbol varSymbol, List<CompletionItem> completionItems) {
@@ -162,7 +155,7 @@ public class MatchStatementContextProvider extends LSCompletionProvider {
     }
 
     private String generateMatchSnippet(String patternClause) {
-        return UtilSymbolKeys.OPEN_BRACE_KEY + LINE_SEPARATOR + patternClause + LINE_SEPARATOR
-                + UtilSymbolKeys.CLOSE_BRACE_KEY;
+        return CommonKeys.OPEN_BRACE_KEY + LINE_SEPARATOR + patternClause + LINE_SEPARATOR
+                + CommonKeys.CLOSE_BRACE_KEY;
     }
 }

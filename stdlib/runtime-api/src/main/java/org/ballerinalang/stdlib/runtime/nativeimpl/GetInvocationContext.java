@@ -18,13 +18,9 @@
 
 package org.ballerinalang.stdlib.runtime.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.model.types.TypeKind;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.MapValue;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
-import org.ballerinalang.natives.annotations.ReturnType;
-
-import static org.ballerinalang.util.BLangConstants.BALLERINA_RUNTIME_PKG;
 
 /**
  * Extern function to get authentication context.
@@ -34,14 +30,11 @@ import static org.ballerinalang.util.BLangConstants.BALLERINA_RUNTIME_PKG;
 @BallerinaFunction(
         orgName = "ballerina", packageName = "runtime",
         functionName = "getInvocationContext",
-        returnType = {@ReturnType(type = TypeKind.OBJECT, structType = "InvocationContext",
-                structPackage = BALLERINA_RUNTIME_PKG)},
         isPublic = true
 )
-public class GetInvocationContext extends BlockingNativeCallableUnit {
+public class GetInvocationContext {
 
-    @Override
-    public void execute(Context context) {
-        context.setReturnValues(InvocationContextUtils.getInvocationContextStruct(context));
+    public static MapValue<String, Object> getInvocationContext(Strand strand) {
+        return InvocationContextUtils.getInvocationContextRecord(strand);
     }
 }

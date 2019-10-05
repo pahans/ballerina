@@ -76,6 +76,11 @@ public class BallerinaDocUtils {
      * @return html representation
      */
     public static String mdToHtml(String mdContent) {
+        // TODO: Handle this properly at grammar level
+        // TODO: ```ballerina ``` sections in markdown shouldn't contain '#' at the beginning of each line
+        mdContent = mdContent != null
+               ? mdContent.replaceAll("\n[\\s]*#", "\n")
+               : null;
         List<Extension> extensions = Arrays.asList(TablesExtension.create());
         Parser parser = Parser.builder().extensions(extensions).enabledBlockTypes(new HashSet<>(Arrays.asList(Heading
                 .class, HtmlBlock.class, ThematicBreak.class, FencedCodeBlock.class, BlockQuote.class, ListBlock
@@ -83,6 +88,20 @@ public class BallerinaDocUtils {
         Node document = parser.parse(mdContent != null ? mdContent.trim() : "");
         HtmlRenderer renderer = HtmlRenderer.builder().extensions(extensions).build();
         return renderer.render(document);
+    }
+
+    /**
+     * Parse a given markdown.
+     *
+     * @param mdContent content
+     * @return Node parse tree
+     */
+    public static Node parseMD(String mdContent) {
+        List<Extension> extensions = Arrays.asList(TablesExtension.create());
+        Parser parser = Parser.builder().extensions(extensions).enabledBlockTypes(new HashSet<>(Arrays.asList(Heading
+                .class, HtmlBlock.class, ThematicBreak.class, FencedCodeBlock.class, BlockQuote.class, ListBlock
+                .class))).build();
+       return parser.parse(mdContent != null ? mdContent.trim() : "");
     }
 
     /**

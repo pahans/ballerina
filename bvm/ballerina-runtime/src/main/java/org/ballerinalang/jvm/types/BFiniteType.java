@@ -18,8 +18,10 @@
 
 package org.ballerinalang.jvm.types;
 
+import org.ballerinalang.jvm.TypeChecker;
 import org.ballerinalang.jvm.values.RefValue;
 
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -31,29 +33,90 @@ import java.util.Set;
 public class BFiniteType extends BType {
 
     public Set<Object> valueSpace;
+    private int typeFlags;
 
-    public BFiniteType() {
-        super(null, null, RefValue.class);
+    public BFiniteType(String typeName) {
+        super(typeName, null, RefValue.class);
         this.valueSpace = new LinkedHashSet<>();
     }
 
-    public BFiniteType(Set<Object> values) {
-        super(null, null, RefValue.class);
+    public BFiniteType(String typeName, Set<Object> values, int typeFlags) {
+        super(typeName, null, RefValue.class);
         this.valueSpace = values;
+        this.typeFlags = typeFlags;
     }
 
     @Override
     public <V extends Object> V getZeroValue() {
+        if (valueSpace.stream().anyMatch(val -> val == null || TypeChecker.getType(val).isNilable())) {
+            return null;
+        }
+
+        Iterator<Object> valueIterator = valueSpace.iterator();
+        Object firstVal = valueIterator.next();
+
+        if (isSingletonType()) {
+            return (V) firstVal;
+        }
+
+        Object implicitInitValOfType = TypeChecker.getType(firstVal).getZeroValue();
+        if (implicitInitValOfType.equals(firstVal)) {
+            return (V) implicitInitValOfType;
+        }
+
+        while (valueIterator.hasNext()) {
+            Object value = valueIterator.next();
+            if (implicitInitValOfType.equals(value)) {
+                return (V) implicitInitValOfType;
+            }
+        }
+
         return null;
     }
 
     @Override
     public <V extends Object> V getEmptyValue() {
+        if (valueSpace.stream().anyMatch(val -> val == null || TypeChecker.getType(val).isNilable())) {
+            return null;
+        }
+
+        Iterator<Object> valueIterator = valueSpace.iterator();
+        Object firstVal = valueIterator.next();
+
+        if (isSingletonType()) {
+            return (V) firstVal;
+        }
+
+        Object implicitInitValOfType = TypeChecker.getType(firstVal).getEmptyValue();
+        if (implicitInitValOfType.equals(firstVal)) {
+            return (V) implicitInitValOfType;
+        }
+
+        while (valueIterator.hasNext()) {
+            Object value = valueIterator.next();
+            if (implicitInitValOfType.equals(value)) {
+                return (V) implicitInitValOfType;
+            }
+        }
+
         return null;
     }
-
     @Override
     public int getTag() {
         return TypeTags.FINITE_TYPE_TAG;
+    }
+
+    private boolean isSingletonType() {
+        return valueSpace.size() == 1;
+    }
+
+    @Override
+    public boolean isAnydata() {
+        return TypeFlags.isFlagOn(this.typeFlags, TypeFlags.ANYDATA);
+    }
+
+    @Override
+    public boolean isPureType() {
+        return TypeFlags.isFlagOn(this.typeFlags, TypeFlags.PURETYPE);
     }
 }

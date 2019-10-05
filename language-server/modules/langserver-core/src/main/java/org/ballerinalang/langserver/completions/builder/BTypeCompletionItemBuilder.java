@@ -19,12 +19,17 @@ package org.ballerinalang.langserver.completions.builder;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BErrorTypeSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BObjectTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BPackageSymbol;
-import org.wso2.ballerinalang.compiler.semantics.model.symbols.BTypeSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BRecordTypeSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BFiniteType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
-import org.wso2.ballerinalang.compiler.util.Names;
+import org.wso2.ballerinalang.compiler.util.TypeTags;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 /**
@@ -43,7 +48,7 @@ public class BTypeCompletionItemBuilder {
      * @param label   label
      * @return {@link CompletionItem}
      */
-    public static CompletionItem build(BTypeSymbol bSymbol, String label) {
+    public static CompletionItem build(BSymbol bSymbol, String label) {
         CompletionItem item = new CompletionItem();
         item.setLabel(label);
         String[] delimiterSeparatedTokens = (label).split("\\.");
@@ -52,7 +57,7 @@ public class BTypeCompletionItemBuilder {
         return item;
     }
 
-    private static void setMeta(CompletionItem item, BTypeSymbol bSymbol) {
+    private static void setMeta(CompletionItem item, BSymbol bSymbol) {
         if (bSymbol == null) {
             item.setKind(CompletionItemKind.Class);
             return;
@@ -61,16 +66,39 @@ public class BTypeCompletionItemBuilder {
         if (bSymbol instanceof BPackageSymbol) {
             // package
             item.setKind(CompletionItemKind.Module);
+        } else if (bSymbol.type instanceof BFiniteType) {
+            // Finite types
+            item.setKind(CompletionItemKind.TypeParameter);
+        } else if (bSymbol.type instanceof BUnionType) {
+            // Union types
+            ArrayList<BType> memberTypes = new ArrayList(((BUnionType) bSymbol.type).getMemberTypes());
+            boolean allMatch = memberTypes.stream().allMatch(bType -> bType.tag == memberTypes.get(0).tag);
+            if (allMatch) {
+                switch (memberTypes.get(0).tag) {
+                    case TypeTags.ERROR:
+                        item.setKind(CompletionItemKind.Event);
+                        break;
+                    case TypeTags.RECORD:
+                        item.setKind(CompletionItemKind.Struct);
+                        break;
+                    case TypeTags.OBJECT:
+                        item.setKind(CompletionItemKind.Interface);
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                item.setKind(CompletionItemKind.Enum);
+            }
+        } else if (bSymbol instanceof BRecordTypeSymbol) {
+            item.setKind(CompletionItemKind.Struct);
+        } else if (bSymbol instanceof BObjectTypeSymbol) {
+            item.setKind(CompletionItemKind.Interface);
+        }  else if (bSymbol instanceof BErrorTypeSymbol) {
+            item.setKind(CompletionItemKind.Event);
         } else if (bSymbol.kind != null) {
             // class / objects
             item.setKind(CompletionItemKind.Class);
-        } else if (bSymbol.type instanceof BFiniteType || bSymbol.type instanceof BUnionType) {
-            // enums
-            item.setKind(CompletionItemKind.Enum);
-        } else if (bSymbol.pkgID.orgName.equals(Names.BUILTIN_ORG) &&
-                bSymbol.pkgID.name.equals(Names.BUILTIN_PACKAGE)) {
-            // keyword
-            item.setKind(CompletionItemKind.Keyword);
         } else {
             // default
             item.setKind(CompletionItemKind.Unit);

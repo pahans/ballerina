@@ -25,21 +25,21 @@ function getFullName (string f, string l) returns (string) {
     return l + ", " + f;
 }
 
-function test1() returns (string, string){
+function test1() returns [string, string]{
     Person bob = {fname:"bob", lname:"white", getName: function (string fname, string lname) returns (string){
                                                               return fname + " " + lname;
                                                           }};
     Person tom = {fname:"tom", lname:"smith", getName: getFullName};
 
-    string x = bob.getName.call(bob.fname, bob.lname );
-    string y = tom.getName.call(tom.fname, tom.lname );
-    return (x, y);
+    string x = bob.getName(bob.fname, bob.lname );
+    string y = tom.getName(tom.fname, tom.lname );
+    return [x, y];
 }
 
 function test2() returns (string){
     Person bob = {fname:"bob", lname:"white"};
 
-    string x = bob.getName.call(bob.fname, bob.lname );
+    string x = bob.getName(bob.fname, bob.lname );
     return x;
 }
 
@@ -49,6 +49,6 @@ function getPersonNameFullName (Person p) returns (string){
 
 function test3() returns (string){
     Person bob = {fname:"bob", lname:"white", getPersonName : getPersonNameFullName };
-    string x = bob.getPersonName.call(bob);
+    string x = bob.getPersonName(bob);
     return x;
 }

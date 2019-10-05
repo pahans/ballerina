@@ -26,8 +26,8 @@ public class LockFileConstants {
 
     static final String LOCK_FILE_PACKAGE_VERSION = "version";
     static final String LOCK_FILE_PACKAGE_NAME = "name";
-    static final String LOCK_FILE_NAME = "Ballerina.lock";
     static final String BALLERINA = "ballerina";
+    static final String BALLERINAX = "ballerinax";
     static final String LOCK_FILE_PROJECT = "project";
     static final String LOCK_FILE_VERSION = "lockfileversion";
     static final String LOCK_FILE_PACKAGES = "modules";

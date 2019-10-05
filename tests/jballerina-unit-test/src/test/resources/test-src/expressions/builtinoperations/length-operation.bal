@@ -62,9 +62,7 @@ function arrayLengthAccessTestMapInitializerCase (int x, int y) returns (int|err
     arr[1] = y;
     arr[2] = arr[0] + arr[1];
     map<any> tempMap = {"length": arr.length()};
-    int length;
-    length =check int.convert(tempMap.length);
-    return length;
+    return <int> tempMap["length"];
 }
 
 function arrayLengthAccessTestReturnStatementCase (int x, int y) returns (int) {
@@ -75,7 +73,7 @@ function arrayLengthAccessTestReturnStatementCase (int x, int y) returns (int) {
     return arr.length();
 }
 
-function arrayLengthAccessTestMultiReturnStatementCase (int x, int y) returns (int,int,int) {
+function arrayLengthAccessTestMultiReturnStatementCase (int x, int y) returns [int,int,int] {
     int[] arr = [];
     arr[0] = x;
     arr[1] = y;
@@ -85,7 +83,7 @@ function arrayLengthAccessTestMultiReturnStatementCase (int x, int y) returns (i
     int[] crr = [];
     crr[0] = 1;
     crr[1] = x + y;
-    return (arr.length(), brr.length(), crr.length());
+    return [arr.length(), brr.length(), crr.length()];
 }
 
 function arrayLengthAccessTestTypeCastExpressionCase (int x, int y) returns (int) {
@@ -149,7 +147,7 @@ type Employee record {
 type Empty record {};
 
 function arrayLengthAccessTestJSONArrayCase (int x, int y) returns (int) {
-    json arr = [x,y,5,5,6,6];
+    json[] arr = [x,y,5,5,6,6];
     int length;
     length = arr.length();
     return length;
@@ -184,28 +182,8 @@ function lengthOfMultipleXmlElements() returns (int) {
 }
 
 function lengthOfTuple() returns (int) {
-    (int, string) a = (10, "John");
+    [int, string] a = [10, "John"];
     int length = a.length();
-    return length;
-}
-
-function lengthOfTable() returns (int) {
-    table<Employee> tbEmployee = table {
-        { key id, name, salary },
-        [ { 1, "Mary",  300.5 },
-        { 2, "John",  200.5 },
-        { 3, "Jim", 330.5 }
-        ]
-    };
-    int length = tbEmployee.length();
-    return length;
-}
-
-function lengthOfEmptyTable() returns (int) {
-    table<Employee> tbEmployee = table {
-        { key id, name, salary }
-    };
-    int length = tbEmployee.length();
     return length;
 }
 
@@ -233,14 +211,8 @@ function accessLengthOfNullMap() returns (int) {
     return length;
 }
 
-function accessLengthOfNullJson() returns (int) {
-    json j = null;
-    int length = j.length();
-    return length;
-}
-
 function accessLengthOfNullTuple() returns (int) {
-    (int, int )a = (0, 0);
+    [int, int ]a = [0, 0];
     int length = a.length();
     return length;
 }

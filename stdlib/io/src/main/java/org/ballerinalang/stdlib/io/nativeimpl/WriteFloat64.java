@@ -19,25 +19,20 @@
 
 package org.ballerinalang.stdlib.io.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
-import org.ballerinalang.model.NativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.stdlib.io.channels.base.DataChannel;
 import org.ballerinalang.stdlib.io.channels.base.Representation;
-import org.ballerinalang.stdlib.io.events.EventContext;
-import org.ballerinalang.stdlib.io.events.EventRegister;
-import org.ballerinalang.stdlib.io.events.EventResult;
-import org.ballerinalang.stdlib.io.events.Register;
-import org.ballerinalang.stdlib.io.events.data.WriteFloatEvent;
 import org.ballerinalang.stdlib.io.utils.IOConstants;
 import org.ballerinalang.stdlib.io.utils.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * Extern function ballerina/io#writeFloat64.
@@ -52,48 +47,19 @@ import org.ballerinalang.stdlib.io.utils.IOUtils;
         args = {@Argument(name = "value", type = TypeKind.FLOAT)},
         isPublic = true
 )
-public class WriteFloat64 implements NativeCallableUnit {
-    /**
-     * Represents data channel.
-     */
-    private static final int DATA_CHANNEL_INDEX = 0;
-    /**
-     * Index which holds the value of the data to be written.
-     */
-    private static final int VALUE_INDEX = 0;
+public class WriteFloat64 {
 
-    /**
-     * Triggers upon receiving the response.
-     *
-     * @param result the response received after writing double.
-     */
-    private static EventResult writeFloatResponse(EventResult<Integer, EventContext> result) {
-        EventContext eventContext = result.getContext();
-        Context context = eventContext.getContext();
-        Throwable error = eventContext.getError();
-        CallableUnitCallback callback = eventContext.getCallback();
-        if (null != error) {
-            BError errorStruct = IOUtils.createError(context, IOConstants.IO_ERROR_CODE, error.getMessage());
-            context.setReturnValues(errorStruct);
+    private static final Logger log = LoggerFactory.getLogger(WriteFloat64.class);
+
+    public static Object writeFloat64(Strand strand, ObjectValue dataChannelObj, double value) {
+        DataChannel channel = (DataChannel) dataChannelObj.getNativeData(IOConstants.DATA_CHANNEL_NAME);
+        try {
+            channel.writeDouble(value, Representation.BIT_64);
+        } catch (IOException e) {
+            log.error("Error occurred while writing float64.", e);
+            return IOUtils.createError(e);
         }
-        callback.notifySuccess();
-        return result;
+        return null;
     }
 
-    @Override
-    public void execute(Context context, CallableUnitCallback callback) {
-        BMap<String, BValue> dataChannelStruct = (BMap<String, BValue>) context.getRefArgument(DATA_CHANNEL_INDEX);
-        DataChannel channel = (DataChannel) dataChannelStruct.getNativeData(IOConstants.DATA_CHANNEL_NAME);
-        double value = context.getFloatArgument(VALUE_INDEX);
-        EventContext eventContext = new EventContext(context, callback);
-        WriteFloatEvent writeFloatEvent = new WriteFloatEvent(channel, value, Representation.BIT_64, eventContext);
-        Register register = EventRegister.getFactory().register(writeFloatEvent, WriteFloat64::writeFloatResponse);
-        eventContext.setRegister(register);
-        register.submit();
-    }
-
-    @Override
-    public boolean isBlocking() {
-        return false;
-    }
 }

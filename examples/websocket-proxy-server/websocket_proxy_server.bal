@@ -8,7 +8,7 @@ final string REMOTE_BACKEND = "ws://echo.websocket.org";
 @http:WebSocketServiceConfig {
     path: "/proxy/ws"
 }
-service SimpleProxyService on new http:WebSocketListener(9090) {
+service SimpleProxyService on new http:Listener(9090) {
 
     // This resource gets invoked when a new client connects.
     // Since messages to the server are not read by the service until the execution of the `onOpen` resource finishes,
@@ -17,20 +17,20 @@ service SimpleProxyService on new http:WebSocketListener(9090) {
 
         http:WebSocketClient wsClientEp = new(
             REMOTE_BACKEND,
-            config = {callbackService: ClientService,
+            {callbackService: ClientService,
             // When creating client endpoint, if `readyOnConnect` flag is set to
             // `false` client endpoint does not start reading frames automatically.
             readyOnConnect: false
         });
         //Associate connections before starting to read messages.
-        wsClientEp.attributes[ASSOCIATED_CONNECTION] = caller;
-        caller.attributes[ASSOCIATED_CONNECTION] = wsClientEp;
+        wsClientEp.setAttribute(ASSOCIATED_CONNECTION, caller);
+        caller.setAttribute(ASSOCIATED_CONNECTION, wsClientEp);
 
         // Once the client is ready to receive frames the remote function `ready`
         // of the client need to be called separately.
         var err = wsClientEp->ready();
-        if (err is error) {
-            log:printError("Error calling ready on client", err = err);
+        if (err is http:WebSocketError) {
+            log:printError("Error calling ready on client", err);
         }
     }
 
@@ -40,10 +40,9 @@ service SimpleProxyService on new http:WebSocketListener(9090) {
 
         http:WebSocketClient clientEp =
                     getAssociatedClientEndpoint(caller);
-        var err = clientEp->pushText(text, finalFrame = finalFrame);
-        if (err is error) {
-            log:printError("Error occurred when sending text message",
-                            err = err);
+        var err = clientEp->pushText(text, finalFrame);
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when sending text message", err);
         }
     }
 
@@ -53,10 +52,9 @@ service SimpleProxyService on new http:WebSocketListener(9090) {
 
         http:WebSocketClient clientEp =
                         getAssociatedClientEndpoint(caller);
-        var err = clientEp->pushBinary(data, finalFrame = finalFrame);
-        if (err is error) {
-            log:printError("Error occurred when sending binary message",
-                            err = err);
+        var err = clientEp->pushBinary(data, finalFrame);
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when sending binary message", err);
         }
     }
 
@@ -67,13 +65,11 @@ service SimpleProxyService on new http:WebSocketListener(9090) {
                         getAssociatedClientEndpoint(caller);
         var e = clientEp->close(statusCode = 1011,
                         reason = "Unexpected condition");
-        if (e is error) {
-            log:printError("Error occurred when closing the connection",
-                            err = e);
+        if (e is http:WebSocketError) {
+            log:printError("Error occurred when closing the connection", e);
         }
-        _ = caller.attributes.remove(ASSOCIATED_CONNECTION);
-        log:printError("Unexpected error hense closing the connection",
-                        err = err);
+        _ = caller.removeAttribute(ASSOCIATED_CONNECTION);
+        log:printError("Unexpected error hence closing the connection", err);
     }
 
     //This resource gets invoked when a client connection is closed from the client side.
@@ -83,11 +79,10 @@ service SimpleProxyService on new http:WebSocketListener(9090) {
         http:WebSocketClient clientEp =
                         getAssociatedClientEndpoint(caller);
         var err = clientEp->close(statusCode = statusCode, reason = reason);
-        if (err is error) {
-            log:printError("Error occurred when closing the connection",
-                            err = err);
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when closing the connection", err);
         }
-        _ = caller.attributes.remove(ASSOCIATED_CONNECTION);
+        _ = caller.removeAttribute(ASSOCIATED_CONNECTION);
     }
 }
 
@@ -100,10 +95,9 @@ service ClientService = @http:WebSocketServiceConfig {} service {
 
         http:WebSocketCaller serverEp =
                         getAssociatedServerEndpoint(caller);
-        var err = serverEp->pushText(text, finalFrame = finalFrame);
-        if (err is error) {
-            log:printError("Error occurred when sending text message",
-                            err = err);
+        var err = serverEp->pushText(text, finalFrame);
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when sending text message", err);
         }
     }
 
@@ -113,10 +107,9 @@ service ClientService = @http:WebSocketServiceConfig {} service {
 
         http:WebSocketCaller serverEp =
                         getAssociatedServerEndpoint(caller);
-        var err = serverEp->pushBinary(data, finalFrame = finalFrame);
-        if (err is error) {
-           log:printError("Error occurred when sending binary message",
-                            err = err);
+        var err = serverEp->pushBinary(data, finalFrame);
+        if (err is http:WebSocketError) {
+           log:printError("Error occurred when sending binary message", err);
         }
     }
 
@@ -127,13 +120,12 @@ service ClientService = @http:WebSocketServiceConfig {} service {
                         getAssociatedServerEndpoint(caller);
         var e = serverEp->close(statusCode = 1011,
                         reason = "Unexpected condition");
-        if (e is error) {
+        if (e is http:WebSocketError) {
             log:printError("Error occurred when closing the connection",
                             err = e);
         }
-        _ = caller.attributes.remove(ASSOCIATED_CONNECTION);
-        log:printError("Unexpected error hense closing the connection",
-                        err = err);
+        _ = caller.removeAttribute(ASSOCIATED_CONNECTION);
+        log:printError("Unexpected error hense closing the connection", err);
     }
 
     //This resource gets invoked when a client connection is closed by the remote backend.
@@ -143,11 +135,10 @@ service ClientService = @http:WebSocketServiceConfig {} service {
         http:WebSocketCaller serverEp =
                         getAssociatedServerEndpoint(caller);
         var err = serverEp->close(statusCode = statusCode, reason = reason);
-            if (err is error) {
-                log:printError("Error occurred when closing the connection",
-                                err = err);
+            if (err is http:WebSocketError) {
+                log:printError("Error occurred when closing the connection", err);
             }
-        _ = caller.attributes.remove(ASSOCIATED_CONNECTION);
+        _ = caller.removeAttribute(ASSOCIATED_CONNECTION);
     }
 };
 
@@ -155,7 +146,7 @@ service ClientService = @http:WebSocketServiceConfig {} service {
 function getAssociatedClientEndpoint(http:WebSocketCaller ep)
                                         returns (http:WebSocketClient) {
     http:WebSocketClient wsClient =
-            <http:WebSocketClient>ep.attributes[ASSOCIATED_CONNECTION];
+            <http:WebSocketClient>ep.getAttribute(ASSOCIATED_CONNECTION);
     return wsClient;
 }
 
@@ -163,6 +154,6 @@ function getAssociatedClientEndpoint(http:WebSocketCaller ep)
 function getAssociatedServerEndpoint(http:WebSocketClient ep)
                                         returns (http:WebSocketCaller) {
     http:WebSocketCaller wsEndpoint =
-            <http:WebSocketCaller>ep.attributes[ASSOCIATED_CONNECTION];
+            <http:WebSocketCaller>ep.getAttribute(ASSOCIATED_CONNECTION);
     return wsEndpoint;
 }

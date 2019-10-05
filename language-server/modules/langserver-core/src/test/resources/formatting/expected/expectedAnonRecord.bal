@@ -98,7 +98,38 @@ type RecordName11 record {
     string s;
     record {|
         int hd = 0;
-        string
-        ...;
+        string...;
     |} sdd;
 };
+
+type Record12 record {
+    record {
+        string name;
+        record {
+            string sunrise;
+            string sunset;
+        } inner;
+    }[] outter;
+};
+
+function testRecordTypes3() returns [typedesc<RecordA>, typedesc<record {}>] {
+    typedesc<RecordA> a = RecordA;
+    typedesc<record {}> b = record {
+        string c;
+        int d;
+    };
+    typedesc<record {}> b1 =
+    record {string c; int d;};
+    return [a, b];
+}
+
+function testRecordTypes4() returns [typedesc<RecordA>, typedesc<record {}>] {
+    typedesc<RecordA> a = RecordA;
+    typedesc<record {}> b = record {string c; int d;};
+    typedesc<record {}> b1 =
+    record {
+        string c;
+        int d;
+    };
+    return [a, b];
+}

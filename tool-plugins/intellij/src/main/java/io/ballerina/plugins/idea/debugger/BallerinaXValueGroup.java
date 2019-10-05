@@ -20,8 +20,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.xdebugger.frame.XCompositeNode;
 import com.intellij.xdebugger.frame.XValueChildrenList;
 import com.intellij.xdebugger.frame.XValueGroup;
-import io.ballerina.plugins.idea.debugger.dto.Frame;
-import io.ballerina.plugins.idea.debugger.dto.Variable;
+import org.eclipse.lsp4j.debug.Variable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,23 +33,20 @@ import javax.swing.Icon;
  */
 public class BallerinaXValueGroup extends XValueGroup {
 
-    private final BallerinaDebugProcess myProcess;
-    private final Frame myFrame;
-    private final Variable myVariable;
+    private final BallerinaDebugProcess process;
+    private final List<Variable> variables;
 
-    protected BallerinaXValueGroup(@NotNull BallerinaDebugProcess myProcess, @NotNull Frame myFrame,
-                                   @NotNull String name, @NotNull Variable myVariable) {
+    BallerinaXValueGroup(@NotNull BallerinaDebugProcess myProcess,
+                         @NotNull String name, @NotNull List<Variable> myVariables) {
         super(name);
-        this.myVariable = myVariable;
-        this.myProcess = myProcess;
-        this.myFrame = myFrame;
+        this.variables = myVariables;
+        this.process = myProcess;
     }
 
-    // Todo - Uncomment after required IDEA version is changed to 2017.
-    //    @Override
-    //    public boolean isRestoreExpansion() {
-    //        return true;
-    //    }
+    @Override
+    public boolean isRestoreExpansion() {
+        return true;
+    }
 
     @Nullable
     @Override
@@ -60,14 +56,12 @@ public class BallerinaXValueGroup extends XValueGroup {
 
     @Override
     public void computeChildren(@NotNull XCompositeNode node) {
-        List<Variable> children = myVariable.getChildren();
-        if (children == null) {
+        if (variables.isEmpty()) {
             super.computeChildren(node);
         } else {
             XValueChildrenList list = new XValueChildrenList();
-            for (Variable child : children) {
-                list.add(child.getName(), new BallerinaXValue(myProcess, myFrame.getFrameName(), child,
-                        AllIcons.Nodes.Field));
+            for (Variable variable : variables) {
+                list.add(variable.getName(), new BallerinaXValue(process, variable, AllIcons.Nodes.Field));
             }
             node.addChildren(list, true);
         }

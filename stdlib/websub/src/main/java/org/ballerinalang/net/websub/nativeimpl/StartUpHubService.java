@@ -18,12 +18,11 @@
 
 package org.ballerinalang.net.websub.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.BlockingNativeCallableUnit;
-import org.ballerinalang.connector.api.BLangConnectorSPIUtil;
+import org.ballerinalang.jvm.BallerinaValues;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.MapValue;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.ReturnType;
@@ -31,7 +30,7 @@ import org.ballerinalang.net.websub.BallerinaWebSubException;
 import org.ballerinalang.net.websub.hub.Hub;
 
 import static org.ballerinalang.net.websub.WebSubSubscriberConstants.STRUCT_WEBSUB_BALLERINA_HUB_STARTED_UP_ERROR;
-import static org.ballerinalang.net.websub.WebSubSubscriberConstants.WEBSUB_PACKAGE;
+import static org.ballerinalang.net.websub.WebSubSubscriberConstants.WEBSUB_PACKAGE_ID;
 
 /**
  * Extern function to start up the default Ballerina WebSub Hub.
@@ -47,30 +46,26 @@ import static org.ballerinalang.net.websub.WebSubSubscriberConstants.WEBSUB_PACK
         returnType = {@ReturnType(type = TypeKind.OBJECT)},
         isPublic = true
 )
-public class StartUpHubService extends BlockingNativeCallableUnit {
+public class StartUpHubService {
 
-    @Override
-    public void execute(Context context) {
+    public static Object startUpHubService(Strand strand, boolean topicRegistrationRequired, String publicUrl,
+                                           ObjectValue hubListener) {
         Hub hubInstance = Hub.getInstance();
         if (hubInstance.isStarted()) {
-            context.setReturnValues(getHubStartedUpError(context, hubInstance));
-        } else {
-
-            try {
-                hubInstance.startUpHubService(context);
-            } catch (BallerinaWebSubException e) {
-                context.setReturnValues(getHubStartedUpError(context, hubInstance));
-                return;
-            }
-            context.setReturnValues(hubInstance.getHubObject());
+            return getHubStartedUpError(hubInstance);
         }
+        try {
+            hubInstance.startUpHubService(strand, topicRegistrationRequired, publicUrl, hubListener);
+        } catch (BallerinaWebSubException e) {
+            return getHubStartedUpError(hubInstance);
+        }
+        return hubInstance.getHubObject();
     }
 
-    private BMap<String, BValue> getHubStartedUpError(Context context, Hub hubInstance) {
-        return BLangConnectorSPIUtil.createBStruct(context, WEBSUB_PACKAGE,
-                                                    STRUCT_WEBSUB_BALLERINA_HUB_STARTED_UP_ERROR,
-                                                    "Ballerina Hub already started up", null,
-                                                    hubInstance.getHubObject());
+    private static MapValue<String, Object> getHubStartedUpError(Hub hubInstance) {
+        MapValue<String, Object> hubStartedUpError = BallerinaValues.createRecordValue(WEBSUB_PACKAGE_ID,
+                STRUCT_WEBSUB_BALLERINA_HUB_STARTED_UP_ERROR);
+        return BallerinaValues.createRecord(hubStartedUpError, "Ballerina Hub already started up", null,
+                                            hubInstance.getHubObject());
     }
-
 }

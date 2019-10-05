@@ -148,7 +148,7 @@ public class NotSoBasicWorkerTest {
         Assert.assertEquals(vals[0].stringValue(), "W3: data1, W4: data2");
     }
 
-    @Test(enabled = false)
+    @Test()
     public void testForkJoinWorkersWithNonBlockingConnector() {
         CompileResult result = BCompileUtil.compile("test-src/workers/fork-join-blocking.bal");
         BValue[] vals = BRunUtil.invoke(result, "testForkJoin", new BValue[0]);
@@ -163,8 +163,9 @@ public class NotSoBasicWorkerTest {
         BValue[] vals = BRunUtil.invoke(result, "testVoidFunction", new BValue[0]);
         Assert.assertEquals(vals.length, 1);
         Assert.assertTrue((((BInteger) vals[0]).intValue() == 10) || ((BInteger) vals[0]).intValue() == 5);
-        int pkgIndex = result.getProgFile().getEntryPackage().pkgIndex;
-        Assert.assertTrue((result.getProgFile().globalMemArea.getIntField(pkgIndex, 0) == 5) ||
-                (result.getProgFile().globalMemArea.getIntField(pkgIndex, 0) == 10));
+        // Not applicable for jBallerina
+//        int pkgIndex = result.getProgFile().getEntryPackage().pkgIndex;
+//        Assert.assertTrue((result.getProgFile().globalMemArea.getIntField(pkgIndex, 0) == 5) ||
+//                (result.getProgFile().globalMemArea.getIntField(pkgIndex, 0) == 10));
     }
 }

@@ -17,26 +17,18 @@
 
 package org.ballerinalang.stdlib.io.nativeimpl;
 
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
-import org.ballerinalang.model.NativeCallableUnit;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ObjectValue;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BError;
-import org.ballerinalang.model.values.BInteger;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.natives.annotations.ReturnType;
 import org.ballerinalang.stdlib.io.channels.base.CharacterChannel;
-import org.ballerinalang.stdlib.io.events.EventContext;
-import org.ballerinalang.stdlib.io.events.EventRegister;
-import org.ballerinalang.stdlib.io.events.EventResult;
-import org.ballerinalang.stdlib.io.events.Register;
-import org.ballerinalang.stdlib.io.events.characters.WriteCharactersEvent;
 import org.ballerinalang.stdlib.io.utils.IOConstants;
 import org.ballerinalang.stdlib.io.utils.IOUtils;
+
+import java.io.IOException;
 
 /**
  * Extern function ballerina/io#writeCharacters.
@@ -54,66 +46,16 @@ import org.ballerinalang.stdlib.io.utils.IOUtils;
                 @ReturnType(type = TypeKind.ERROR)},
         isPublic = true
 )
-public class WriteCharacters implements NativeCallableUnit {
-    /**
-     * Index of the content provided in ballerina/io#writeCharacters.
-     */
-    private static final int CONTENT_INDEX = 0;
+public class WriteCharacters {
 
-    /**
-     * Index of the character channel in ballerina/io#writeCharacters.
-     */
-    private static final int CHAR_CHANNEL_INDEX = 0;
-
-    /**
-     * Index of the start offset in ballerina/io#writeCharacters.
-     */
-    private static final int START_OFFSET_INDEX = 0;
-
-    /**
-     * Processors the response after reading characters.
-     *
-     * @param result the response returned after reading characters.
-     * @return the response returned from the event.
-     */
-    private static EventResult writeResponse(EventResult<Integer, EventContext> result) {
-        EventContext eventContext = result.getContext();
-        Context context = eventContext.getContext();
-        CallableUnitCallback callback = eventContext.getCallback();
-        Throwable error = eventContext.getError();
-        if (null != error) {
-            BError errorStruct = IOUtils.createError(context, IOConstants.IO_ERROR_CODE, error.getMessage());
-            context.setReturnValues(errorStruct);
-        } else {
-            Integer numberOfCharactersWritten = result.getResponse();
-            context.setReturnValues(new BInteger(numberOfCharactersWritten));
+    public static Object write(Strand strand, ObjectValue channel, String content, long startOffset) {
+        CharacterChannel characterChannel = (CharacterChannel) channel.getNativeData(
+                IOConstants.CHARACTER_CHANNEL_NAME);
+        try {
+            return characterChannel.write(content, (int) startOffset);
+        } catch (IOException e) {
+            return IOUtils.createError(e);
         }
-        callback.notifySuccess();
-        return result;
     }
 
-    /**
-     * Writes characters to a given file.
-     * <p>
-     * {@inheritDoc}
-     */
-    @Override
-    public void execute(Context context, CallableUnitCallback callback) {
-        BMap<String, BValue> channel = (BMap<String, BValue>) context.getRefArgument(CHAR_CHANNEL_INDEX);
-        String content = context.getStringArgument(CONTENT_INDEX);
-        long startOffset = context.getIntArgument(START_OFFSET_INDEX);
-        CharacterChannel characterChannel = (CharacterChannel) channel.getNativeData(IOConstants
-                .CHARACTER_CHANNEL_NAME);
-        EventContext eventContext = new EventContext(context, callback);
-        WriteCharactersEvent event = new WriteCharactersEvent(characterChannel, content, (int) startOffset,
-                eventContext);
-        Register register = EventRegister.getFactory().register(event, WriteCharacters::writeResponse);
-        eventContext.setRegister(register);
-        register.submit();
-    }
-
-    @Override
-    public boolean isBlocking() {
-        return false;
-    }
 }

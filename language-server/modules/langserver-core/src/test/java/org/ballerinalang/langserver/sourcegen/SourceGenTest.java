@@ -16,13 +16,13 @@
 package org.ballerinalang.langserver.sourcegen;
 
 import com.google.gson.JsonObject;
+import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.compiler.DocumentServiceKeys;
-import org.ballerinalang.langserver.compiler.LSCompiler;
 import org.ballerinalang.langserver.compiler.LSServiceOperationContext;
 import org.ballerinalang.langserver.compiler.format.TextDocumentFormatUtil;
+import org.ballerinalang.langserver.compiler.sourcegen.FormattingSourceGen;
 import org.ballerinalang.langserver.compiler.workspace.WorkspaceDocumentManager;
 import org.ballerinalang.langserver.compiler.workspace.WorkspaceDocumentManagerImpl;
-import org.ballerinalang.langserver.formatting.FormattingSourceGen;
 import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
 import org.slf4j.Logger;
@@ -53,7 +53,7 @@ import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
  */
 public class SourceGenTest {
     private Path examples = Paths.get("../../../examples").toAbsolutePath();
-    private Path unitTestResources = Paths.get("../../../tests/ballerina-unit-test/src/test/resources/test-src")
+    private Path unitTestResources = Paths.get("../../../tests/jballerina-unit-test/src/test/resources/test-src")
             .toAbsolutePath();
     private List<File> ballerinaTestResources;
     private Endpoint serviceEndpoint;
@@ -67,7 +67,7 @@ public class SourceGenTest {
 
     @Test(description = "Source gen test suit for formatting source gen", dataProvider = "unitTestFiles")
     public void formattingSourceGenTests(File file) {
-        LSServiceOperationContext formatContext = new LSServiceOperationContext();
+        LSServiceOperationContext formatContext = new LSServiceOperationContext(LSContextOperation.TXT_FORMATTING);
         try {
             Path filePath = Paths.get(file.getPath());
             formatContext.put(DocumentServiceKeys.FILE_URI_KEY, filePath.toUri().toString());
@@ -76,9 +76,7 @@ public class SourceGenTest {
             byte[] encoded1 = Files.readAllBytes(filePath);
             String expected = new String(encoded1, StandardCharsets.UTF_8);
             TestUtil.openDocument(serviceEndpoint, filePath);
-            LSCompiler lsCompiler = new LSCompiler(documentManager);
-            JsonObject ast = TextDocumentFormatUtil.getAST(filePath, lsCompiler, documentManager,
-                    formatContext);
+            JsonObject ast = TextDocumentFormatUtil.getAST(filePath, documentManager, formatContext);
             FormattingSourceGen.build(ast.getAsJsonObject("model"), "CompilationUnit");
             String actual = FormattingSourceGen.getSourceOf(ast.getAsJsonObject("model"));
             TestUtil.closeDocument(serviceEndpoint, filePath);

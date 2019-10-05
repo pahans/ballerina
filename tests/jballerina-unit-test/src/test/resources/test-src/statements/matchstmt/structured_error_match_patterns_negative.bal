@@ -14,72 +14,75 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/io;
+
 
 type ClosedFoo record {|
     string s;
+    string message?;
+    error cause?;
 |};
 
 function testErrorPattern1() returns string {
     any|error a = 13;
     match a {
-        var error (reason) => return "A";
-        var error (reason, detail) => return "A"; // unreachable
+        var error (reason, ... rest) => {return "A";}
+        var error (reason, detail = detail) => {return "A";} // unreachable
     }
 
     match a {
-        var error (reason, detail) => return "A";
-        var error (reason) => return "A"; // unreachable
+        var error (reason, detail = detail) => {return "A";}
+        var error (reason) => {return "A";} // unreachable
     }
     return "Default";
 }
 
 function testErrorPattern2() returns string {
-    error <string, ClosedFoo> err = error("Err Code 1", { s: "error" });
+    error <string, ClosedFoo> err = error("Err Code 1", s = "error");
 
     match err {
-        var error (reason) => return "A";
-        var error (reason, detail) => return "A"; // unreachable
+        var error (reason, ...rest) => {return "A";}
+        var error (reason, s = s) => {return "A";} // unreachable
     }
 
     match err {
-        var error (reason, detail) => return "A";
-        var error (reason, { detail }) => return "A"; // unknown field 'detail' in record type 'ClosedFoo'
-        var error (reason, { s }) => return "A"; // unreachable
+        var error (reason, s = s) => {return "A";}
+        var error (reason, s = s, ...rest) => {return "A";} // unknown field 'detail' in record type 'ClosedFoo'
+        var error (reason, s = s) => {return "A";} // unreachable
     }
     return "Default";
 }
 
 function testErrorPattern3() returns string {
-    error <string, ClosedFoo> err = error("Err Code 1", { s: "error" });
+    error <string, ClosedFoo> err = error("Err Code 1", s = "error");
 
     match err {
-        var error (reason) => return "A";
-        var error (reason, _) => return "A"; // unreachable
+        var error (reason, ...rest) => {return "A";}
+        var error (reason, s = _) => {return "A";} // unreachable
     }
 
     match err {
-        var error (reason, _) => return "A";
-        var error (reason) => return "A"; // unreachable
+        var error (reason, ...rest) => {return "A";}
+        var error (reason) => {return "A";} // unreachable
     }
     return "Default";
 }
 
 type OpenedFoo record {
     string message;
+    error cause?;
 };
 
 function testErrorPattern5() returns string {
-    error <string, OpenedFoo> err = error("Err Code 1", { message: "error" });
+    error <string, OpenedFoo> err = error("Err Code 1", message = "error");
     any|error a = err;
     match a {
-        var error (reason, { message }) => return "A";
-        var error (reason, { extra }) => return "A"; // unreachable
+        var error (reason, message = message, ...rest) => {return "A";}
+        var error (reason, extra = extra) => {return "A";} // unreachable
     }
 
     match a {
-        var error (reason, detail) => return "A";
-        var error (reason, { message }) => return "A"; // unreachable
+        var error (reason, message = message, ...rest) => {return "A";}
+        var error (reason, message = message) => {return "A";} // unreachable
     }
     return "Default";
 }

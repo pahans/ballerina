@@ -35,14 +35,17 @@ import org.testng.annotations.Test;
  */
 public class FunctionPointersTest {
 
-    private CompileResult fpProgram, privateFPProgram, globalProgram, structProgram;
+    private CompileResult fpProgram, privateFPProgram, globalProgram, structProgram, closureFPProgram;
 
     @BeforeClass
     public void setup() {
         fpProgram = BCompileUtil.compile("test-src/expressions/lambda/function-pointers.bal");
-        privateFPProgram = BCompileUtil.compile(this, "test-src/expressions/lambda", "private-function-pointers");
+        privateFPProgram = BCompileUtil.compile(this, "test-src/expressions/lambda/FunctionPointersProject",
+                "private-function-pointers");
         globalProgram = BCompileUtil.compile("test-src/expressions/lambda/global-function-pointers.bal");
         structProgram = BCompileUtil.compile("test-src/expressions/lambda/struct-function-pointers.bal");
+        closureFPProgram =
+                BCompileUtil.compile("test-src/expressions/lambda/function-pointer-with-closure.bal");
     }
 
     @Test
@@ -95,6 +98,11 @@ public class FunctionPointersTest {
     @Test
     public void testFuncWithArrayParams() {
         invokeFunctionPointerProgram(fpProgram, "testFuncWithArrayParams", 0);
+    }
+
+    @Test
+    public void testInTypeGuard() {
+        invokeFunctionPointerProgram(fpProgram, "testInTypeGuard", 0);
     }
 
     @Test
@@ -185,8 +193,7 @@ public class FunctionPointersTest {
         Assert.assertEquals(returns[1].stringValue(), "smith, tom");
     }
 
-    @Test(expectedExceptions = BLangRuntimeException.class, expectedExceptionsMessageRegExp = "" +
-            ".*cannot find key 'getName'.*")
+    @Test(expectedExceptions = BLangRuntimeException.class)
     public void testStructFPNullReference() {
         BRunUtil.invoke(structProgram, "test2");
     }
@@ -200,7 +207,7 @@ public class FunctionPointersTest {
         Assert.assertEquals(returns[0].stringValue(), "white, bob");
     }
 
-    @Test()
+    @Test
     public void testFunctionPointerNative() {
         CompileResult result = BCompileUtil.compile("test-src/expressions/lambda/function-pointer-native.bal");
         BValue[] returns = BRunUtil.invoke(result, "test1");
@@ -208,22 +215,6 @@ public class FunctionPointersTest {
         Assert.assertEquals(returns.length, 1);
         Assert.assertNotNull(returns[0]);
         Assert.assertEquals(returns[0].stringValue(), "1500526800000");
-    }
-
-    @Test()
-    public void testFunctionPointerNullCheck() {
-        CompileResult result = BCompileUtil.compile("test-src/expressions/lambda/function-pointer-null-check.bal");
-        BValue[] returns = BRunUtil.invoke(result, "checkFunctionPointerNullEqual");
-        Assert.assertNotNull(returns);
-        Assert.assertEquals(returns.length, 1);
-        Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 0);
-
-        returns = BRunUtil.invoke(result, "checkFunctionPointerNullNotEqual");
-        Assert.assertNotNull(returns);
-        Assert.assertEquals(returns.length, 1);
-        Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 1);
     }
 
     @Test
@@ -247,13 +238,13 @@ public class FunctionPointersTest {
     public void testFuncPointerConversion() {
         BValue[] returns = BRunUtil.invoke(fpProgram, "testFuncPointerConversion");
         Assert.assertNotNull(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 20);
+        Assert.assertEquals(((BInteger) returns[0]).intValue(), 40);
     }
 
     @Test(expectedExceptions = { BLangRuntimeException.class },
-            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError \\{\"message\":\"incompatible " +
-                    "types: 'function \\(Student\\) returns \\(int\\)' cannot be cast to 'function \\(Person\\) " +
-                    "returns \\(int\\)'\"\\}.*")
+            expectedExceptionsMessageRegExp = "error: \\{ballerina\\}TypeCastError message=incompatible types: " +
+                    "'function \\(Student\\) returns \\(int\\)' cannot be cast to 'function \\(Person\\)" +
+                    " returns \\(int\\)'.*")
     public void testAnyToFuncPointerConversion_2() {
         BRunUtil.invoke(fpProgram, "testAnyToFuncPointerConversion_2");
     }
@@ -267,5 +258,23 @@ public class FunctionPointersTest {
         Assert.assertEquals(returns.length, 1);
         Assert.assertNotNull(returns[0]);
         Assert.assertEquals(returns[0].stringValue(), "test1");
+    }
+
+    @Test
+    public void testFunctionPointerWithAClosure() {
+        BValue[] returns = BRunUtil.invoke(closureFPProgram, "testArrayFunctionInfer");
+        Assert.assertEquals(returns[0].stringValue(), "abccde");
+    }
+
+    @Test
+    public void testInvoke() {
+        BValue[] returns = BRunUtil.invoke(closureFPProgram, "invokeApplyFunction");
+        Assert.assertEquals(((BInteger) returns[0]).intValue(), 6);
+    }
+
+    @Test(description = "Test function pointers with subtyping")
+    public void testSubTypingWithAny() {
+        BValue[] returns = BRunUtil.invoke(fpProgram, "testSubTypingWithAny");
+        Assert.assertEquals(returns[0].stringValue(), "12");
     }
 }

@@ -18,12 +18,12 @@ function returnTaintedValue() returns @tainted float {
     return 1.2;
 }
 
-function testSensitiveArg(@sensitive int intArg) {
+function testSensitiveArg(@untainted int intArg) {
     int c = intArg;
 }
 
 public function convertTaintedValue() returns error? {
     float x = returnTaintedValue();
-    int y = check int.convert(x);
+    int y = <int> x;
     testSensitiveArg(y);
 }

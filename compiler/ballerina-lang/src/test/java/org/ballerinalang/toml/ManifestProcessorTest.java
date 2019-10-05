@@ -18,244 +18,152 @@
 package org.ballerinalang.toml;
 
 
+import org.ballerinalang.toml.exceptions.TomlException;
 import org.ballerinalang.toml.model.Manifest;
 import org.ballerinalang.toml.parser.ManifestProcessor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Test class to populate Manifest object by reading the toml.
  */
 public class ManifestProcessorTest {
-    @Test(description = "Module name in module section has an effect")
-    public void testPackageName() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "#Name of the module \n org-name = \"foo\"");
-        Assert.assertEquals(manifest.getName(), "foo");
+    private String validProjectBlock = "[project]\n" +
+                                       "org-name = \"foo\"\n" +
+                                       "version = \"1.0.0\"\n";
+    
+    @Test(description = "Empty Ballerina.toml file", expectedExceptions = TomlException.class,
+          expectedExceptionsMessageRegExp = ".*invalid Ballerina.toml file: organization name and the version of the " +
+                                            "project is missing. example: \n" +
+                                            "\\[project\\]\n" +
+                                            "org-name=\"my_org\"\n" +
+                                            "version=\"1.0.0\".*")
+    public void testEmpty() throws TomlException {
+        ManifestProcessor.parseTomlContentFromString("");
+    }
+    
+    
+    @Test(description = "Invalid Ballerina.toml file", expectedExceptions = TomlException.class,
+          expectedExceptionsMessageRegExp = "invalid Ballerina.toml file: invalid key on line 1: \\[foo")
+    public void testInvalid() throws TomlException {
+        ManifestProcessor.parseTomlContentFromString("[foo");
     }
 
     @Test(description = "Attribute with single comment doesn't have an effect")
-    public void testAttributeWithSingleComment() throws IOException {
+    public void testAttributeWithSingleComment() throws TomlException {
         Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "#Name of the module \n org-name = \"foo\"");
-        Assert.assertEquals(manifest.getName(), "foo");
+                "#Name of the module \n org-name = \"foo\" \n" +
+                 "version = \"1.0.0\"");
+        Assert.assertEquals(manifest.getProject().getOrgName(), "foo");
     }
 
     @Test(description = "Attribute with multiline comments doesn't have an effect")
-    public void testAttributeWithMultilineComments() throws IOException {
+    public void testAttributeWithMultilineComments() throws TomlException {
         Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "# Name of the module \n #This is the module config section \n org-name = \"foo/string\"");
-        Assert.assertEquals(manifest.getName(), "foo/string");
+                "# Name of the module \n #This is the module config section \n org-name = \"foo/string\"\n" +
+                                                                         "version = \"1.0.0\"");
+        Assert.assertEquals(manifest.getProject().getOrgName(), "foo/string");
     }
 
     @Test(description = "Key with special characters in module section has no effect")
-    public void testPackageNameWithSpecialCharacters() throws IOException {
-        ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "name-value = \"org-name/string\"");
-        Assert.assertNotEquals(null, "\"org-name/string\"");
+    public void testPackageNameWithSpecialCharacters() throws TomlException {
+        ManifestProcessor.parseTomlContentFromString(this.validProjectBlock + " \n name-value = \"bar/string\"");
     }
 
     @Test(description = "Version in module section has an effect")
-    public void testVersion() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project]\n" +
-                "version = \"1.0.0\"");
-        Assert.assertEquals(manifest.getVersion(), "1.0.0");
+    public void testVersion() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock);
+        Assert.assertEquals(manifest.getProject().getOrgName(), "foo");
+        Assert.assertEquals(manifest.getProject().getVersion(), "1.0.0");
     }
 
     @Test(description = "Authors in module section has an effect")
-    public void testAuthors() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
+    public void testAuthors() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock +
                 "authors = [\"tyler@wso2.com\", \"manu@wso2.com\"]");
-        Assert.assertEquals(manifest.getAuthors().get(0), "tyler@wso2.com");
-        Assert.assertEquals(manifest.getAuthors().get(1), "manu@wso2.com");
+        Assert.assertEquals(manifest.getProject().getAuthors().get(0), "tyler@wso2.com");
+        Assert.assertEquals(manifest.getProject().getAuthors().get(1), "manu@wso2.com");
     }
 
     @Test(description = "Empty author array in module section has an effect")
-    public void testEmptyAuthorArray() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "authors = []");
-        Assert.assertEquals(manifest.getAuthors().size(), 0);
-    }
-
-    @Test(description = "Description in module section has an effect")
-    public void testDescription() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
-                "description = \"This is a description about the module\"");
-        Assert.assertEquals(manifest.getDescription(), "This is a description about the module");
-    }
-
-    @Test(description = "Documentation url in module section has an effect")
-    public void testDocumentationURL() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n " +
-                "documentation = \"https://ballerinalang.org/docs/api/0.95.5/\"");
-        Assert.assertEquals(manifest.getDocumentationURL(), "https://ballerinalang.org/docs/api/0.95.5/");
-    }
-
-    @Test(description = "Homepage url in module section has an effect")
-    public void testHomePageURL() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n " +
-                "homepage = \"https://ballerinalang.org/\"");
-        Assert.assertEquals(manifest.getHomepageURL(), "https://ballerinalang.org/");
+    public void testEmptyAuthorArray() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock + "authors = []");
+        Assert.assertEquals(manifest.getProject().getAuthors().size(), 0);
     }
 
     @Test(description = "Repository url in module section has an effect")
-    public void testRepositoryURL() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n " +
+    public void testRepositoryURL() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock +
                 "repository = \"https://github.com/ballerinalang/ballerina\"");
-        Assert.assertEquals(manifest.getRepositoryURL(), "https://github.com/ballerinalang/ballerina");
+        Assert.assertEquals(manifest.getProject().getRepository(), "https://github.com/ballerinalang/ballerina");
     }
 
-    @Test(description = "Version in non-module section has no effect")
-    public void testVersionNeg() throws IOException {
+    @Test(description = "Version in non-module section has no effect", expectedExceptions = TomlException.class,
+          expectedExceptionsMessageRegExp = "invalid Ballerina.toml file: cannot find \\[project\\]")
+    public void testVersionNeg() throws TomlException {
         Manifest manifest = ManifestProcessor.parseTomlContentFromString("[patches] \n version = \"v1\"");
-        Assert.assertNotEquals(manifest.getVersion(), "v1");
+        Assert.assertNull(manifest.getProject());
     }
-
-    @Test(description = "Location in module section has no effect")
-    public void testLocationNeg() throws IOException {
-        ManifestProcessor.parseTomlContentFromString("[project] \n location = \"local\"");
-        Assert.assertNotEquals(null, "local");
-    }
-
-    @Test(description = "Readme file path in module section has an effect")
-    public void testReadmeFilePath() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n " +
-                "readme = \"https://github.com/ballerinalang/composer/blob/master/README.md\"");
-        Assert.assertEquals(manifest.getReadmeFilePath(), "https://github.com/ballerinalang/composer/blob" +
-                "/master/README.md");
-    }
-
+    
     @Test(description = "Keywords in module section has an effect")
-    public void testKeywords() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n" +
+    public void testKeywords() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock +
                 "keywords=[\"ballerina\",\"security\",\"security\"]");
-        Assert.assertEquals(manifest.getKeywords().get(0), "ballerina");
-        Assert.assertEquals(manifest.getKeywords().get(1), "security");
-        Assert.assertEquals(manifest.getKeywords().size(), 3);
+        Assert.assertEquals(manifest.getProject().getKeywords().get(0), "ballerina");
+        Assert.assertEquals(manifest.getProject().getKeywords().get(1), "security");
+        Assert.assertEquals(manifest.getProject().getKeywords().size(), 3);
     }
 
     @Test(description = "Description in module section has an effect")
-    public void testLicenseDescription() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[project] \n " +
-                "license = \"MIT OR Apache-2.0\"");
-        Assert.assertEquals(manifest.getLicense(), "MIT OR Apache-2.0");
+    public void testLicenseDescription() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock +
+                "license = [\"MIT\", \"Apache-2.0\"]");
+        Assert.assertEquals(manifest.getProject().getLicense().get(0), "MIT");
+        Assert.assertEquals(manifest.getProject().getLicense().get(1), "Apache-2.0");
     }
 
     @Test(description = "One dependency added to the dependencies section has an effect")
-    public void testSingleDependancies() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies] \n " +
-                "string-utils = {location = \"src/string-utils\", version = \"1.1.5\"} \n");
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.1.5");
-        Assert.assertEquals(manifest.getDependencies().get(0).getLocation(), "src/string-utils");
+    public void testSingleDependencies() throws TomlException, IOException {
+        Path tmpDir = Files.createTempDirectory("manifest-test-");
+        Path baloPath = tmpDir.resolve("string_utils.balo");
+        Files.createFile(baloPath);
+        
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock + "[dependencies] \n " +
+                "string-utils = {path = \"" + baloPath + "\", version = \"1.1.5\"} \n");
+        Assert.assertEquals(manifest.getDependencies().get(0).getModuleID(), "string-utils");
+        Assert.assertEquals(manifest.getDependencies().get(0).getMetadata().getVersion(), "1.1.5");
+        Assert.assertEquals(manifest.getDependencies().get(0).getMetadata().getPath().toString(), baloPath.toString());
+        
+        Files.delete(baloPath);
+        Files.delete(tmpDir);
     }
 
     @Test(description = "Empty dependency added to the dependencies section has no effect")
-    public void testSingleEmptyDependancies() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies] \n " +
+    public void testSingleEmptyDependencies() throws TomlException {
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock + "[dependencies] \n " +
                 "string-utils = {} \n");
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
+        Assert.assertEquals(manifest.getDependencies().get(0).getModuleID(), "string-utils");
     }
 
     @Test(description = "Multiple dependencies added to the dependencies section has an effect")
-    public void testMultipleDependancies() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies] \n " +
-                "string-utils = {location = \"src/string-utils\", version = \"1.0.5\" } \n " +
+    public void testMultipleDependencies() throws TomlException, IOException {
+        Path tmpDir = Files.createTempDirectory("manifest-test-");
+        Path baloPath = tmpDir.resolve("string_utils.balo");
+        Files.createFile(baloPath);
+        
+        Manifest manifest = ManifestProcessor.parseTomlContentFromString(this.validProjectBlock + "[dependencies] \n " +
+                "string-utils = { path = \"" + baloPath + "\", version = \"1.0.5\" } \n " +
                 "jquery = { version = \"2.2.3\" } \n");
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.0.5");
-        Assert.assertEquals(manifest.getDependencies().get(1).getPackageName(), "jquery");
-        Assert.assertEquals(manifest.getDependencies().get(1).getVersion(), "2.2.3");
-    }
-
-    @Test(description = "One dependency added to the dependencies section individually has an effect")
-    public void testSingleDependanciesAdded() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies.string-utils] \n " +
-                "version = \"1.0.5\" \n location = \"src/string-utils\"");
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.0.5");
-        Assert.assertEquals(manifest.getDependencies().get(0).getLocation(), "src/string-utils");
-    }
-
-    @Test(description = "Multiple dependencies added to the dependencies section individually has an effect")
-    public void testMultipleDependanciesAddedIndividually() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies.string-utils] \n " +
-                "version = \"1.1.5\" \n location = \"src/string-utils\" \n [dependencies.jquery] \n " +
-                "version = \"2.2.3\"");
-
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.1.5");
-        Assert.assertEquals(manifest.getDependencies().get(0).getLocation(), "src/string-utils");
-
-        Assert.assertEquals(manifest.getDependencies().get(1).getPackageName(), "jquery");
-        Assert.assertEquals(manifest.getDependencies().get(1).getVersion(), "2.2.3");
-        Assert.assertEquals(manifest.getDependencies().get(1).getLocation(), null);
-    }
-
-    @Test(description = "One patch added to the patches section has an effect")
-    public void testSinglePatch() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[patches] \n " +
-                "string-utils = {version = \"1.6.1\", location = \"src/patches/string-utils\" } \n");
-        Assert.assertEquals(manifest.getPatches().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getPatches().get(0).getVersion(), "1.6.1");
-        Assert.assertEquals(manifest.getPatches().get(0).getLocation(), "src/patches/string-utils");
-    }
-
-    @Test(description = "Multiple patches added to the patches section has an effect")
-    public void testMultiplePatches() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[patches] \n " +
-                "string-utils = {version = \"1.5.2\" } \n " +
-                "jquery = { version = \"2.2.1\" } \n");
-        Assert.assertEquals(manifest.getPatches().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getPatches().get(0).getVersion(), "1.5.2");
-        Assert.assertEquals(manifest.getPatches().get(1).getPackageName(), "jquery");
-        Assert.assertEquals(manifest.getPatches().get(1).getVersion(), "2.2.1");
-    }
-
-    @Test(description = "Dependencies added both ways i.e. individually and multiple dependencies together has" +
-            "an effect")
-    public void testMixtureOfDependencies() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies.string-utils] \n " +
-                "version = \"1.5\" \n location = \"src/string-utils\" \n [dependencies] \n " +
-                "jquery = {version = \"2.2.3\"} \n react = {version = \"1.6.6\", location = \"npm-modules/react\"} \n" +
-                "[dependencies.toml] \n version = \"1.4.5\" \n ");
-
-        Assert.assertEquals(manifest.getDependencies().size(), 4);
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.5");
-        Assert.assertEquals(manifest.getDependencies().get(0).getLocation(), "src/string-utils");
-
-        Assert.assertEquals(manifest.getDependencies().get(1).getPackageName(), "jquery");
-        Assert.assertEquals(manifest.getDependencies().get(1).getVersion(), "2.2.3");
-        Assert.assertEquals(manifest.getDependencies().get(1).getLocation(), null);
-
-        Assert.assertEquals(manifest.getDependencies().get(2).getPackageName(), "react");
-        Assert.assertEquals(manifest.getDependencies().get(2).getVersion(), "1.6.6");
-        Assert.assertEquals(manifest.getDependencies().get(2).getLocation(), "npm-modules/react");
-
-        Assert.assertEquals(manifest.getDependencies().get(3).getPackageName(), "toml");
-        Assert.assertEquals(manifest.getDependencies().get(3).getVersion(), "1.4.5");
-    }
-
-    @Test(description = "Dependencies and patches added together has an effect")
-    public void testDependenciesAndPatches() throws IOException {
-        Manifest manifest = ManifestProcessor.parseTomlContentFromString("[dependencies.string-utils] \n " +
-                "version = \"1.1.5\" \n location = \"src/string-utils\" \n [patches] \n jobapi = {version =" +
-                "\"2.23\"} \n [dependencies] \n jquery = {version = \"2.2.3\"} \n react = {version = \"1.6.6\", " +
-                "location = \"npm-modules/react\"} \n [patches.toml] \n version = \"0.4.5\" \n");
-
-        Assert.assertEquals(manifest.getDependencies().size(), 3);
-        Assert.assertEquals(manifest.getPatches().size(), 2);
-
-        Assert.assertEquals(manifest.getDependencies().get(0).getPackageName(), "string-utils");
-        Assert.assertEquals(manifest.getDependencies().get(0).getVersion(), "1.1.5");
-        Assert.assertEquals(manifest.getDependencies().get(1).getPackageName(), "jquery");
-        Assert.assertEquals(manifest.getDependencies().get(2).getVersion(), "1.6.6");
-
-        Assert.assertEquals(manifest.getPatches().get(0).getPackageName(), "jobapi");
-        Assert.assertEquals(manifest.getPatches().get(1).getPackageName(), "toml");
-
+        Assert.assertEquals(manifest.getDependencies().get(0).getModuleID(), "string-utils");
+        Assert.assertEquals(manifest.getDependencies().get(0).getMetadata().getVersion(), "1.0.5");
+        Assert.assertEquals(manifest.getDependencies().get(1).getModuleID(), "jquery");
+        Assert.assertEquals(manifest.getDependencies().get(1).getMetadata().getVersion(), "2.2.3");
+    
+        Files.delete(baloPath);
+        Files.delete(tmpDir);
     }
 }

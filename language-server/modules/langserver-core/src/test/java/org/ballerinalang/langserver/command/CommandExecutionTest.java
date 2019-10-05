@@ -25,17 +25,17 @@ import com.google.gson.JsonParser;
 import org.ballerinalang.compiler.CompilerPhase;
 import org.ballerinalang.langserver.command.executors.AddAllDocumentationExecutor;
 import org.ballerinalang.langserver.command.executors.AddDocumentationExecutor;
+import org.ballerinalang.langserver.command.executors.ChangeAbstractTypeObjExecutor;
 import org.ballerinalang.langserver.command.executors.CreateFunctionExecutor;
 import org.ballerinalang.langserver.command.executors.CreateObjectInitializerExecutor;
 import org.ballerinalang.langserver.command.executors.CreateTestExecutor;
 import org.ballerinalang.langserver.command.executors.CreateVariableExecutor;
-import org.ballerinalang.langserver.command.executors.IgnoreReturnExecutor;
 import org.ballerinalang.langserver.command.executors.ImportModuleExecutor;
 import org.ballerinalang.langserver.common.constants.CommandConstants;
-import org.ballerinalang.langserver.compiler.LSCompiler;
+import org.ballerinalang.langserver.compiler.ExtendedLSCompiler;
 import org.ballerinalang.langserver.compiler.LSCompilerUtil;
 import org.ballerinalang.langserver.compiler.common.modal.BallerinaFile;
-import org.ballerinalang.langserver.compiler.workspace.ExtendedWorkspaceDocumentManagerImpl;
+import org.ballerinalang.langserver.compiler.exception.CompilationFailedException;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -185,8 +185,8 @@ public class CommandExecutionTest {
         Assert.assertEquals(responseJson, expected, "Test Failed for: " + config);
     }
 
-    @Test(dataProvider = "ignore-return-data-provider")
-    public void testIgnoreReturnValue(String config, String source) {
+    @Test(dataProvider = "change-abstract-type-data-provider")
+    public void testChangeAbstractTypeObj(String config, String source) {
         String configJsonPath = "command" + File.separator + config;
         Path sourcePath = sourcesPath.resolve("source").resolve(source);
         JsonObject configJsonObject = FileUtils.fileContentAsObject(configJsonPath);
@@ -196,7 +196,7 @@ public class CommandExecutionTest {
         args.add(new CommandArgument(CommandConstants.ARG_KEY_DOC_URI, sourcePath.toUri().toString()));
         args.add(new CommandArgument(CommandConstants.ARG_KEY_NODE_LINE, arguments.get("node.line").getAsString()));
         args.add(new CommandArgument(CommandConstants.ARG_KEY_NODE_COLUMN, arguments.get("node.column").getAsString()));
-        JsonObject responseJson = getCommandResponse(args, IgnoreReturnExecutor.COMMAND);
+        JsonObject responseJson = getCommandResponse(args, ChangeAbstractTypeObjExecutor.COMMAND);
         responseJson.get("result").getAsJsonObject().get("edit").getAsJsonObject().getAsJsonArray("documentChanges")
                 .forEach(element -> element.getAsJsonObject().remove("textDocument"));
         Assert.assertEquals(responseJson, expected, "Test Failed for: " + config);
@@ -232,7 +232,7 @@ public class CommandExecutionTest {
     }
 
     @Test(dataProvider = "testgen-data-provider")
-    public void testTestGeneration(String config, Path source) throws IOException {
+    public void testTestGeneration(String config, Path source) throws IOException, CompilationFailedException {
         String configJsonPath = "command" + File.separator + config;
         Path sourcePath = sourcesPath.resolve("source").resolve(source);
         Path testFilePath = LSCompilerUtil.getCurrentModulePath(sourcePath).resolve(ProjectDirConstants.TEST_DIR_NAME)
@@ -265,9 +265,8 @@ public class CommandExecutionTest {
             }
 
             // Compile the test file through the actual path, since it depends on the source-code
-            LSCompiler compiler = new LSCompiler(ExtendedWorkspaceDocumentManagerImpl.getInstance());
             Path currentModule = LSCompilerUtil.getCurrentModulePath(testFilePath);
-            BallerinaFile balFile = compiler.compileFile(currentModule, CompilerPhase.TAINT_ANALYZE);
+            BallerinaFile balFile = ExtendedLSCompiler.compileFile(currentModule, CompilerPhase.TAINT_ANALYZE);
             // Check for compiler errors and diagnostics
             if (!balFile.getBLangPackage().isPresent() ||
                     (balFile.getDiagnostics().isPresent() && !balFile.getDiagnostics().get().isEmpty())) {
@@ -378,14 +377,6 @@ public class CommandExecutionTest {
                 {"createVariable1.json", "createVariable.bal"},
                 {"createVariable2.json", "createVariable.bal"},
                 {"createVariable3.json", "createVariable.bal"},
-        };
-    }
-
-    @DataProvider(name = "ignore-return-data-provider")
-    public Object[][] ignoreReturnValueDataProvider() {
-        log.info("Test workspace/executeCommand for command {}", IgnoreReturnExecutor.COMMAND);
-        return new Object[][] {
-                {"ignoreReturnValue.json", "createVariable.bal"},
         };
     }
 

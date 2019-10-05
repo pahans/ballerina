@@ -19,12 +19,10 @@ apply from: "$rootDir/gradle/javaProject.gradle"
 apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
-    implementation 'org.ballerinalang:ballerina-lang:0.992.0-m1'
-//    implementation project(':ballerina-lang')
+    implementation project(':ballerina-lang')
     implementation project(':ballerina-core')
     implementation project(':ballerina-runtime')
-    implementation project(':ballerina-launcher')
-    implementation project(':ballerina-backend-jvm')
+    implementation project(':ballerina-tool')
 
     implementation 'org.javassist:javassist'
     implementation 'io.netty:netty-codec-http'
@@ -58,6 +56,7 @@ shadowJar {
         exclude(dependency('org.slf4j:slf4j-api'))
         exclude(dependency('org.apache.commons:commons-lang3'))
         exclude(dependency('org.wso2.transport.http:org.wso2.transport.http.netty'))
+        exclude(dependency('org.ops4j.pax.logging:pax-logging-api'))
         exclude(dependency('org.wso2.eclipse.osgi:org.eclipse.osgi'))
         exclude(dependency('org.wso2.eclipse.osgi:org.eclipse.osgi.services'))
         exclude(dependency('org.slf4j:slf4j-log4j12'))
@@ -83,6 +82,9 @@ shadowJar {
         exclude(dependency('com.beust:jcommander'))
         exclude(dependency('io.netty:netty-codec-http'))
         exclude(dependency('io.netty:netty-transport-native-unix-common'))
+        exclude(project(':ballerina-core'))
+        exclude(project(':ballerina-lang'))
+        exclude(project(':ballerina-runtime'))
         exclude('META-INF/*.SF')
         exclude('META-INF/*.DSA')
         exclude('META-INF/*.RSA')

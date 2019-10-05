@@ -24,6 +24,10 @@ import org.ballerinalang.model.tree.expressions.ExpressionNode;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
 import org.wso2.ballerinalang.compiler.tree.BLangIdentifier;
 import org.wso2.ballerinalang.compiler.tree.BLangNodeVisitor;
+import org.wso2.ballerinalang.compiler.tree.types.BLangType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Implementation of ErrorVariableReferenceNode.
@@ -34,9 +38,12 @@ public class BLangErrorVarRef extends BLangVariableReference implements ErrorVar
     public BVarSymbol varSymbol;
     public BLangIdentifier pkgAlias;
     public BLangVariableReference reason;
-    public BLangVariableReference detail;
+    public List<BLangNamedArgsExpression> detail;
+    public BLangVariableReference restVar;
+    public BLangType typeNode;
 
     public BLangErrorVarRef() {
+        detail = new ArrayList<>();
     }
 
     @Override
@@ -50,8 +57,18 @@ public class BLangErrorVarRef extends BLangVariableReference implements ErrorVar
     }
 
     @Override
-    public ExpressionNode getDetail() {
+    public List<BLangNamedArgsExpression> getDetail() {
         return detail;
+    }
+
+    @Override
+    public BLangVariableReference getRestVar() {
+        return this.restVar;
+    }
+
+    @Override
+    public BLangType getTypeNode() {
+        return this.typeNode;
     }
 
     @Override

@@ -92,6 +92,14 @@ public class BLangRecordLiteral extends BLangExpression implements RecordLiteral
         public BLangRecordKey key;
         public BLangExpression valueExpr;
 
+        public BLangRecordKeyValue() {
+        }
+
+        public BLangRecordKeyValue(BLangRecordKey key, BLangExpression valueExpr) {
+            this.key = key;
+            this.valueExpr = valueExpr;
+        }
+
         @Override
         public BLangExpression getKey() {
             return key.expr;
@@ -109,7 +117,7 @@ public class BLangRecordLiteral extends BLangExpression implements RecordLiteral
 
         @Override
         public void accept(BLangNodeVisitor visitor) {
-
+            visitor.visit(this);
         }
 
         @Override
@@ -124,6 +132,8 @@ public class BLangRecordLiteral extends BLangExpression implements RecordLiteral
      * @since 0.94
      */
     public static class BLangRecordKey extends BLangNode {
+
+        public boolean computedKey = false;
 
         public BLangExpression expr;
 
@@ -216,12 +226,9 @@ public class BLangRecordLiteral extends BLangExpression implements RecordLiteral
      */
     public static class BLangStreamLiteral extends BLangRecordLiteral {
 
-        public String streamName;
-
-        public BLangStreamLiteral(DiagnosticPos pos, BType streamType, String streamName) {
+        public BLangStreamLiteral(DiagnosticPos pos, BType streamType) {
             super(pos);
             this.type = streamType;
-            this.streamName = streamName;
         }
 
         @Override

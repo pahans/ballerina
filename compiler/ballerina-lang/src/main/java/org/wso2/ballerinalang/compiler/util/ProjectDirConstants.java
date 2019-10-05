@@ -24,9 +24,11 @@ package org.wso2.ballerinalang.compiler.util;
  */
 public class ProjectDirConstants {
 
+
     private ProjectDirConstants() {
     }
-
+    
+   
     public static final String BLANG_SOURCE_EXT = ".bal";
     public static final String BLANG_COMPILED_PROG_EXT = ".balx";
     public static final String BLANG_COMPILED_PKG_BINARY_EXT = ".balo";
@@ -35,15 +37,24 @@ public class ProjectDirConstants {
     public static final String BLANG_COMPILED_JAR_EXT = ".jar";
 
     public static final String MANIFEST_FILE_NAME = "Ballerina.toml";
+    public static final String LOCK_FILE_NAME = "Ballerina.lock";
     public static final String MODULE_MD_FILE_NAME = "Module.md";
     public static final String DOT_BALLERINA_DIR_NAME = ".ballerina";
     public static final String DOT_BALLERINA_REPO_DIR_NAME = "repo";
+
+    public static final String SOURCE_DIR_NAME = "src";
+    public static final String BIN_DIR_NAME = "bin";
     public static final String TARGET_DIR_NAME = "target";
-    public static final String RESOURCE_DIR_NAME = "resource";
+    public static final String TARGET_BALO_DIRECTORY = "balo";
+    public static final String TARGET_TMP_DIRECTORY = "tmp";
+    public static final String TARGET_API_DOC_DIRECTORY = "apidocs";
+
+    public static final String RESOURCE_DIR_NAME = "resources";
     public static final String TEST_DIR_NAME = "tests";
     public static final String CACHES_DIR_NAME = "caches";
     public static final String BALLERINA_CENTRAL_DIR_NAME = "central.ballerina.io";
     public static final String USER_REPO_OBJ_DIRNAME = "obj";
+    public static final String USER_REPO_BIR_DIRNAME = "bir";
 
     public static final String HOME_REPO_ENV_KEY = "BALLERINA_HOME_DIR";
     public static final String HOME_REPO_DEFAULT_DIRNAME = ".ballerina";
@@ -55,7 +66,7 @@ public class ProjectDirConstants {
     public static final String USER_DIR = "user.dir";
 
     public static final String BALLERINA_VERSION = "ballerina.version";
-    public static final String PROPERTIES_FILE = "/META-INF/launcher.properties";
+    public static final String PROPERTIES_FILE = "/META-INF/tool.properties";
 
     public static final String BALLERINA_SOURCE_ROOT = "ballerina.source.root";
 
@@ -69,4 +80,18 @@ public class ProjectDirConstants {
 
     public static final String JAVA_MAIN = "main";
 
+    public static final String FILE_NAME_DELIMITER = "-";
+
+    // Balo specific constants
+    public static final String BALO_METADATA_DIR_NAME = "metadata";
+    public static final String BALO_METADATA_FILE = "BALO.toml";
+    public static final String BALO_MODULE_METADATA_FILE = "MODULE.toml";
+    public static final String BALO_DOC_DIR_NAME = "docs";
+    public static final String BALO_PLATFORM_LIB_DIR_NAME = "platform-libs";
+
+    public static final String BALO_CACHE_DIR_NAME = "balo_cache";
+    public static final String BIR_CACHE_DIR_NAME = "bir_cache";
+    public static final String JAR_CACHE_DIR_NAME = "jar_cache";
+
+    public static final String BLANG_PKG_DEFAULT_VERSION = "0.0.0";
 }

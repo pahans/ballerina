@@ -29,7 +29,7 @@ import java.util.List;
  *      int i;
  *      boolean b;
  *
- *      (s, i, b) = ("Foo", 12, true);
+ *      [s, i, b] = ["Foo", 12, true];
  *
  * @since 0.985.0
  */
@@ -38,5 +38,7 @@ public interface TupleVariableReferenceNode extends VariableReferenceNode {
     IdentifierNode getPackageAlias();
 
     List<? extends ExpressionNode> getExpressions();
+
+    ExpressionNode getRestParam();
 
 }

@@ -22,7 +22,6 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.ballerinalang.compiler.CompilerOptionName;
 import org.ballerinalang.model.Whitespace;
 import org.ballerinalang.model.elements.AttachPoint;
 import org.ballerinalang.model.tree.CompilationUnitNode;
@@ -33,11 +32,10 @@ import org.wso2.ballerinalang.compiler.parser.antlr4.BallerinaParser.ObjectTypeN
 import org.wso2.ballerinalang.compiler.parser.antlr4.BallerinaParser.StringTemplateContentContext;
 import org.wso2.ballerinalang.compiler.parser.antlr4.BallerinaParserBaseListener;
 import org.wso2.ballerinalang.compiler.util.CompilerContext;
-import org.wso2.ballerinalang.compiler.util.CompilerOptions;
 import org.wso2.ballerinalang.compiler.util.FieldKind;
+import org.wso2.ballerinalang.compiler.util.Names;
 import org.wso2.ballerinalang.compiler.util.NumericLiteralSupport;
 import org.wso2.ballerinalang.compiler.util.QuoteType;
-import org.wso2.ballerinalang.compiler.util.RestBindingPatternState;
 import org.wso2.ballerinalang.compiler.util.TypeTags;
 import org.wso2.ballerinalang.compiler.util.diagnotic.BDiagnosticSource;
 import org.wso2.ballerinalang.compiler.util.diagnotic.BLangDiagnosticLog;
@@ -50,12 +48,10 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.StringJoiner;
 
+import static org.wso2.ballerinalang.compiler.parser.BLangPackageBuilder.escapeQuotedIdentifier;
 import static org.wso2.ballerinalang.compiler.util.Constants.OPEN_SEALED_ARRAY;
 import static org.wso2.ballerinalang.compiler.util.Constants.OPEN_SEALED_ARRAY_INDICATOR;
 import static org.wso2.ballerinalang.compiler.util.Constants.UNSEALED_ARRAY_INDICATOR;
-import static org.wso2.ballerinalang.compiler.util.RestBindingPatternState.CLOSED_REST_BINDING_PATTERN;
-import static org.wso2.ballerinalang.compiler.util.RestBindingPatternState.NO_BINDING_PATTERN;
-import static org.wso2.ballerinalang.compiler.util.RestBindingPatternState.OPEN_REST_BINDING_PATTERN;
 
 /**
  * @since 0.94
@@ -71,17 +67,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     private List<String> pkgNameComps;
     private String pkgVersion;
     private boolean isInErrorState = false;
-    private boolean enableExperimentalFeatures;
-    private boolean isSiddhiRuntimeEnabled;
 
     BLangParserListener(CompilerContext context, CompilationUnitNode compUnit, BDiagnosticSource diagnosticSource) {
         this.pkgBuilder = new BLangPackageBuilder(context, compUnit);
         this.diagnosticSrc = diagnosticSource;
         this.dlog = BLangDiagnosticLog.getInstance(context);
-        this.enableExperimentalFeatures = Boolean.parseBoolean(
-                CompilerOptions.getInstance(context).get(CompilerOptionName.EXPERIMENTAL_FEATURES_ENABLED));
-        this.isSiddhiRuntimeEnabled = Boolean.parseBoolean(
-                CompilerOptions.getInstance(context).get(CompilerOptionName.SIDDHI_RUNTIME_ENABLED));
     }
 
     @Override
@@ -94,13 +84,14 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void exitSimpleParameter(BallerinaParser.SimpleParameterContext ctx) {
+    public void exitParameter(BallerinaParser.ParameterContext ctx) {
         if (isInErrorState) {
             return;
         }
 
         this.pkgBuilder.addSimpleVar(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                false, ctx.annotationAttachment().size());
+                                     getCurrentPos(ctx.Identifier()), false,
+                                     ctx.annotationAttachment().size(), ctx.PUBLIC() != null);
     }
 
     /**
@@ -149,7 +140,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         this.pkgBuilder.addRestParam(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                ctx.annotationAttachment().size());
+                                     getCurrentPos(ctx.Identifier()), ctx.annotationAttachment().size());
     }
 
     /**
@@ -162,7 +153,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         //TODO setting annotation count 0 as parameters won't adding annotations to parameters.
-        this.pkgBuilder.addSimpleVar(getCurrentPos(ctx), getWS(ctx), null, false, 0);
+        this.pkgBuilder.addSimpleVar(getCurrentPos(ctx), getWS(ctx), null, null, false, 0);
     }
 
     @Override
@@ -222,7 +213,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         final DiagnosticPos serviceDefPos = getCurrentPos(ctx);
         final String serviceVarName = ctx.Identifier() != null ? ctx.Identifier().getText() : null;
         final DiagnosticPos varPos =
-                ctx.Identifier() != null ? getCurrentPosFromIdentifier(ctx.Identifier()) : serviceDefPos;
+                ctx.Identifier() != null ? getCurrentPos(ctx.Identifier()) : serviceDefPos;
         this.pkgBuilder.endServiceDef(serviceDefPos, getWS(ctx), serviceVarName, varPos, false);
     }
 
@@ -282,6 +273,18 @@ public class BLangParserListener extends BallerinaParserBaseListener {
      * {@inheritDoc}
      */
     @Override
+    public void exitExternalFunctionBody(BallerinaParser.ExternalFunctionBodyContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+
+        this.pkgBuilder.endExternalFunctionBody(ctx.annotationAttachment().size());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void enterFunctionDefinition(BallerinaParser.FunctionDefinitionContext ctx) {
         if (isInErrorState) {
             return;
@@ -303,22 +306,12 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean publicFunc = ctx.PUBLIC() != null;
         boolean remoteFunc = ctx.REMOTE() != null;
-        boolean nativeFunc = ctx.EXTERNAL() != null;
+        boolean nativeFunc = ctx.externalFunctionBody() != null;
         boolean bodyExists = ctx.callableUnitBody() != null;
         boolean privateFunc = ctx.PRIVATE() != null;
 
-        if (ctx.Identifier() != null) {
-            this.pkgBuilder
-                    .endObjectOuterFunctionDef(getCurrentPos(ctx), getWS(ctx), publicFunc, privateFunc, remoteFunc,
-                            nativeFunc,
-                            bodyExists, ctx.Identifier().getText());
-            return;
-        }
-
-        boolean isReceiverAttached = ctx.typeName() != null;
-
         this.pkgBuilder.endFunctionDef(getCurrentPos(ctx), getWS(ctx), publicFunc, remoteFunc, nativeFunc, privateFunc,
-                bodyExists, isReceiverAttached, false);
+                                       bodyExists, false);
     }
 
     @Override
@@ -365,7 +358,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.addVarWithoutType(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(), false, 0);
+        this.pkgBuilder.addVarWithoutType(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                          getCurrentPos(ctx.Identifier()), false, 0);
     }
 
     /**
@@ -406,7 +400,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean publicObject = ctx.PUBLIC() != null;
         this.pkgBuilder.endTypeDefinition(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                getCurrentPosFromIdentifier(ctx.Identifier()), publicObject);
+                                          getCurrentPos(ctx.Identifier()), publicObject);
     }
 
     /**
@@ -430,7 +424,14 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        boolean isAnonymous = !(ctx.parent.parent instanceof BallerinaParser.FiniteTypeUnitContext);
+        // When ObjectBody's parent's parent is not a FiniteTypeUnit then this is an anonymous object.
+        // It's bit difficult to differentiate between Object type definition and an anonymous object
+        // within a union type since parent lineage is similar in both cases.
+        // Only difference is that in object type definition, object body's parent's parent does not have siblings.
+        boolean isAnonymous = !(ctx.parent.parent instanceof BallerinaParser.FiniteTypeUnitContext)
+                || (ctx.parent.parent instanceof BallerinaParser.FiniteTypeUnitContext
+                    && ctx.parent.parent.parent instanceof BallerinaParser.FiniteTypeContext
+                    && ctx.parent.parent.parent.getChildCount() > 1);
 
         boolean isFieldAnalyseRequired =
                 (ctx.parent.parent instanceof BallerinaParser.GlobalVariableDefinitionContext ||
@@ -463,9 +464,10 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         DiagnosticPos currentPos = getCurrentPos(ctx);
         Set<Whitespace> ws = getWS(ctx);
         String name = ctx.Identifier().getText();
+        DiagnosticPos identifierPos = getCurrentPos(ctx.Identifier());
         boolean exprAvailable = ctx.expression() != null;
         boolean isOptional = ctx.QUESTION_MARK() != null;
-        this.pkgBuilder.addFieldVariable(currentPos, ws, name, exprAvailable,
+        this.pkgBuilder.addFieldVariable(currentPos, ws, name, identifierPos, exprAvailable,
                                          ctx.annotationAttachment().size(), false, isOptional);
     }
 
@@ -481,6 +483,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         DiagnosticPos currentPos = getCurrentPos(ctx);
         Set<Whitespace> ws = getWS(ctx);
         String name = ctx.Identifier().getText();
+        DiagnosticPos identifierPos = getCurrentPos(ctx.Identifier());
         boolean exprAvailable = ctx.expression() != null;
 
         int annotationCount = ctx.annotationAttachment().size();
@@ -488,8 +491,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         boolean isPrivate = ctx.PRIVATE() != null;
         boolean isPublic = ctx.PUBLIC() != null;
 
-        this.pkgBuilder.addObjectFieldVariable(currentPos, ws, name, exprAvailable, annotationCount, isPrivate,
-                isPublic);
+        this.pkgBuilder.addObjectFieldVariable(currentPos, ws, name, identifierPos, exprAvailable, annotationCount,
+                                               isPrivate, isPublic);
     }
 
     /**
@@ -517,11 +520,12 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         boolean isPrivate = ctx.PRIVATE() != null;
         boolean remoteFunc = ctx.REMOTE() != null;
         boolean resourceFunc = ctx.RESOURCE() != null;
-        boolean nativeFunc = ctx.EXTERNAL() != null;
+        boolean nativeFunc = ctx.externalFunctionBody() != null;
         boolean bodyExists = ctx.callableUnitBody() != null;
         boolean markdownDocExists = ctx.documentationString() != null;
         this.pkgBuilder.endObjectAttachedFunctionDef(getCurrentPos(ctx), getWS(ctx), publicFunc, isPrivate, remoteFunc,
-                resourceFunc, nativeFunc, bodyExists, markdownDocExists, ctx.annotationAttachment().size());
+                                                     resourceFunc, nativeFunc, bodyExists, markdownDocExists,
+                                                     ctx.annotationAttachment().size());
     }
 
     /**
@@ -547,8 +551,9 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean publicAnnotation = KEYWORD_PUBLIC.equals(ctx.getChild(0).getText());
         boolean isTypeAttached = ctx.typeName() != null;
+        boolean isConst = ctx.CONST() != null;
         this.pkgBuilder.endAnnotationDef(getWS(ctx), ctx.Identifier().getText(),
-                getCurrentPosFromIdentifier(ctx.Identifier()), publicAnnotation, isTypeAttached);
+                getCurrentPos(ctx.Identifier()), publicAnnotation, isTypeAttached, isConst);
     }
 
     /**
@@ -561,8 +566,35 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
         boolean isPublic = ctx.PUBLIC() != null;
         boolean isTypeAvailable = ctx.typeName() != null;
-        this.pkgBuilder.addConstant(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(), isPublic,
-                isTypeAvailable);
+        this.pkgBuilder.addConstant(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                    getCurrentPos(ctx.Identifier()), isPublic, isTypeAvailable);
+    }
+
+    @Override
+    public void exitConstDivMulModExpression(BallerinaParser.ConstDivMulModExpressionContext ctx) {
+
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.createBinaryExpr(getCurrentPos(ctx), getWS(ctx), ctx.getChild(1).getText());
+    }
+
+    @Override
+    public void exitConstAddSubExpression(BallerinaParser.ConstAddSubExpressionContext ctx) {
+
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.createBinaryExpr(getCurrentPos(ctx), getWS(ctx), ctx.getChild(1).getText());
+    }
+
+    @Override
+    public void exitConstGroupExpression(BallerinaParser.ConstGroupExpressionContext ctx) {
+
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.createGroupExpression(getCurrentPos(ctx), getWS(ctx));
     }
 
     /**
@@ -578,8 +610,9 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         boolean isDeclaredWithVar = ctx.VAR() != null;
         boolean isExpressionAvailable = ctx.expression() != null;
         boolean isListenerVar = ctx.LISTENER() != null;
-        this.pkgBuilder.addGlobalVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(), isPublic,
-                                          isFinal, isDeclaredWithVar, isExpressionAvailable, isListenerVar);
+        this.pkgBuilder.addGlobalVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                          getCurrentPos(ctx.Identifier()), isPublic, isFinal,
+                                          isDeclaredWithVar, isExpressionAvailable, isListenerVar);
     }
 
     @Override
@@ -587,7 +620,21 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (isInErrorState) {
             return;
         }
-        this.pkgBuilder.addAttachPoint(AttachPoint.getAttachmentPoint(ctx.getText()), getWS(ctx));
+
+        AttachPoint attachPoint;
+        if (ctx.dualAttachPoint() != null) {
+            if (ctx.dualAttachPoint().SOURCE() != null) {
+                attachPoint = AttachPoint.getAttachmentPoint(ctx.dualAttachPoint().dualAttachPointIdent().getText(),
+                                                             true);
+            } else {
+                attachPoint = AttachPoint.getAttachmentPoint(ctx.getText(), false);
+            }
+        } else {
+            // source-only-attach-point
+            attachPoint = AttachPoint.getAttachmentPoint(
+                    ctx.sourceOnlyAttachPoint().sourceOnlyAttachPointIdent().getText(), true);
+        }
+        this.pkgBuilder.addAttachPoint(attachPoint, getWS(ctx));
     }
 
     @Override
@@ -607,10 +654,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         String workerName = null;
         if (ctx.workerDefinition() != null) {
-            workerName = ctx.workerDefinition().Identifier().getText();
+            workerName = escapeQuotedIdentifier(ctx.workerDefinition().Identifier().getText());
         }
         boolean retParamsAvail = ctx.workerDefinition().returnParameter() != null;
-        this.pkgBuilder.addWorker(getCurrentPos(ctx), getWS(ctx), workerName, retParamsAvail);
+        int numAnnotations = ctx.annotationAttachment().size();
+        this.pkgBuilder.addWorker(getCurrentPos(ctx), getWS(ctx), workerName, retParamsAvail, numAnnotations);
     }
 
     /**
@@ -670,7 +718,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (isInErrorState) {
             return;
         }
-        this.pkgBuilder.addTupleType(getCurrentPos(ctx), getWS(ctx), ctx.typeName().size());
+        this.pkgBuilder.addTupleType(getCurrentPos(ctx), getWS(ctx), ctx.tupleTypeDescriptor().typeName().size(),
+                ctx.tupleTypeDescriptor().tupleRestDescriptor() != null);
     }
 
     @Override
@@ -791,7 +840,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         String typeName = ctx.getChild(0).getText();
         DiagnosticPos pos = getCurrentPos(ctx);
-        checkTypeValidity(typeName, pos);
 
         if (ctx.typeName() != null) {
             this.pkgBuilder.addConstraintTypeWithTypeName(pos, getWS(ctx), typeName);
@@ -863,12 +911,108 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (isInErrorState) {
             return;
         }
-        String detailIdentifier = null;
-        if (ctx.Identifier(1) != null) {
-            detailIdentifier = ctx.Identifier(1).getText();
+
+        // Error binding pattern using indirect error constructor.
+        if (ctx.typeName() != null) {
+            if (ctx.errorFieldBindingPatterns().errorRestBindingPattern() != null) {
+                String restIdName = ctx.errorFieldBindingPatterns().errorRestBindingPattern().Identifier().getText();
+                DiagnosticPos restPos = getCurrentPos(ctx.errorFieldBindingPatterns().errorRestBindingPattern());
+                this.pkgBuilder.addErrorVariable(getCurrentPos(ctx), getWS(ctx), restIdName, restPos);
+            } else {
+                this.pkgBuilder.addErrorVariable(getCurrentPos(ctx), getWS(ctx), null, null);
+            }
+            return;
         }
-        this.pkgBuilder.addErrorVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier(0).getText(),
-                detailIdentifier, ctx.recordBindingPattern() != null);
+        String reasonIdentifier = ctx.Identifier().getText();
+        DiagnosticPos currentPos = getCurrentPos(ctx);
+
+        String restIdentifier = null;
+        DiagnosticPos restParamPos = null;
+        if (ctx.errorRestBindingPattern() != null) {
+            restIdentifier = ctx.errorRestBindingPattern().Identifier().getText();
+            restParamPos = getCurrentPos(ctx.errorRestBindingPattern());
+        }
+
+        this.pkgBuilder.addErrorVariable(currentPos, getWS(ctx), reasonIdentifier, restIdentifier, false, false,
+                restParamPos);
+    }
+
+    @Override
+    public void enterErrorBindingPattern(BallerinaParser.ErrorBindingPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.startErrorBindingNode();
+    }
+
+    @Override
+    public void enterErrorMatchPattern(BallerinaParser.ErrorMatchPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.startErrorBindingNode();
+    }
+
+    @Override
+    public void exitSimpleMatchPattern(BallerinaParser.SimpleMatchPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+
+        this.pkgBuilder.endSimpleMatchPattern(getWS(ctx));
+    }
+
+    @Override
+    public void exitErrorArgListMatchPattern(BallerinaParser.ErrorArgListMatchPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+
+        String restIdentifier = null;
+        DiagnosticPos restParamPos = null;
+        if (ctx.restMatchPattern() != null) {
+            restIdentifier = ctx.restMatchPattern().Identifier().getText();
+            restParamPos = getCurrentPos(ctx.restMatchPattern());
+        }
+
+        String reasonIdentifier = null;
+        boolean reasonVar = false;
+        boolean constReasonMatchPattern = false;
+        if (ctx.simpleMatchPattern() != null) {
+            reasonVar = ctx.simpleMatchPattern().VAR() != null;
+            if (ctx.simpleMatchPattern().Identifier() != null) {
+                reasonIdentifier = ctx.simpleMatchPattern().Identifier().getText();
+            } else {
+                reasonIdentifier = ctx.simpleMatchPattern().QuotedStringLiteral().getText();
+                constReasonMatchPattern = true;
+            }
+        }
+
+        this.pkgBuilder.addErrorVariable(getCurrentPos(ctx), getWS(ctx), reasonIdentifier,
+                restIdentifier, reasonVar, constReasonMatchPattern, restParamPos);
+    }
+
+    @Override
+    public void exitErrorMatchPattern(BallerinaParser.ErrorMatchPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+        boolean isIndirectErrorMatchPatern = ctx.typeName() != null;
+        this.pkgBuilder.endErrorMatchPattern(getWS(ctx), isIndirectErrorMatchPatern);
+    }
+
+    @Override
+    public void exitErrorDetailBindingPattern(BallerinaParser.ErrorDetailBindingPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+
+        String bindingVarName = null;
+        if (ctx.bindingPattern() != null && ctx.bindingPattern().Identifier() != null) {
+            bindingVarName = ctx.bindingPattern().Identifier().getText();
+        }
+        this.pkgBuilder.addErrorDetailBinding(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                bindingVarName);
     }
 
     @Override
@@ -876,68 +1020,55 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (isInErrorState) {
             return;
         }
-        boolean recordBindingPattern = false;
-        if (ctx.recordRefBindingPattern() != null || ctx.variableReference().size() == 2) {
-            recordBindingPattern = true;
-        }
-        this.pkgBuilder.addErrorVariableReference(getCurrentPos(ctx), getWS(ctx), recordBindingPattern);
+
+        int numNamedArgs = ctx.errorNamedArgRefPattern().size();
+        boolean reasonRefAvailable = ctx.variableReference() != null;
+
+        boolean restPatternAvailable = ctx.errorRefRestPattern() != null;
+
+        boolean indirectErrorRefPattern = ctx.typeName() != null;
+
+        this.pkgBuilder.addErrorVariableReference(getCurrentPos(ctx), getWS(ctx),
+                numNamedArgs, reasonRefAvailable, restPatternAvailable, indirectErrorRefPattern);
     }
 
     @Override
-    public void exitTupleBindingPattern(BallerinaParser.TupleBindingPatternContext ctx) {
+    public void exitErrorNamedArgRefPattern(BallerinaParser.ErrorNamedArgRefPatternContext ctx) {
         if (isInErrorState) {
             return;
         }
 
-        this.pkgBuilder.addTupleVariable(getCurrentPos(ctx), getWS(ctx), ctx.bindingPattern().size());
+        this.pkgBuilder.addNamedArgument(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText());
     }
 
     @Override
-    public void exitTupleRefBindingPattern(BallerinaParser.TupleRefBindingPatternContext ctx) {
+    public void exitListBindingPattern(BallerinaParser.ListBindingPatternContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+        boolean restBindingAvailable = ctx.restBindingPattern() != null;
+        this.pkgBuilder.addTupleVariable(getCurrentPos(ctx), getWS(ctx), ctx.bindingPattern().size(),
+                restBindingAvailable);
+    }
+
+    @Override
+    public void exitListRefBindingPattern(BallerinaParser.ListRefBindingPatternContext ctx) {
         if (isInErrorState) {
             return;
         }
 
-        this.pkgBuilder.addTupleVariableReference(getCurrentPos(ctx), getWS(ctx), ctx.bindingRefPattern().size());
+        boolean restPatternAvailable = ctx.listRefRestPattern() != null;
+        this.pkgBuilder.addTupleVariableReference(getCurrentPos(ctx), getWS(ctx), ctx.bindingRefPattern().size(),
+                restPatternAvailable);
     }
 
     @Override
-    public void enterOpenRecordBindingPattern(BallerinaParser.OpenRecordBindingPatternContext ctx) {
+    public void enterRecordBindingPattern(BallerinaParser.RecordBindingPatternContext ctx) {
         if (isInErrorState) {
             return;
         }
 
         this.pkgBuilder.startRecordVariableList();
-    }
-
-    @Override
-    public void exitOpenRecordBindingPattern(BallerinaParser.OpenRecordBindingPatternContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        RestBindingPatternState restBindingPattern = (ctx.entryBindingPattern().restBindingPattern() == null) ?
-                NO_BINDING_PATTERN : OPEN_REST_BINDING_PATTERN;
-
-        this.pkgBuilder.addRecordVariable(getCurrentPos(ctx), getWS(ctx), restBindingPattern);
-    }
-
-    @Override
-    public void enterClosedRecordBindingPattern(BallerinaParser.ClosedRecordBindingPatternContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        this.pkgBuilder.startRecordVariableList();
-    }
-
-    @Override
-    public void exitClosedRecordBindingPattern(BallerinaParser.ClosedRecordBindingPatternContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        this.pkgBuilder.addRecordVariable(getCurrentPos(ctx), getWS(ctx), CLOSED_REST_BINDING_PATTERN);
     }
 
     @Override
@@ -946,11 +1077,13 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.addRecordBindingWS(getWS(ctx));
+        boolean hasRestBindingPattern = ctx.entryBindingPattern().restBindingPattern() != null;
+
+        this.pkgBuilder.addRecordVariable(getCurrentPos(ctx), getWS(ctx), hasRestBindingPattern);
     }
 
     @Override
-    public void enterOpenRecordRefBindingPattern(BallerinaParser.OpenRecordRefBindingPatternContext ctx) {
+    public void enterRecordRefBindingPattern(BallerinaParser.RecordRefBindingPatternContext ctx) {
         if (isInErrorState) {
             return;
         }
@@ -959,34 +1092,14 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void enterClosedRecordRefBindingPattern(BallerinaParser.ClosedRecordRefBindingPatternContext ctx) {
+    public void exitRecordRefBindingPattern(BallerinaParser.RecordRefBindingPatternContext ctx) {
         if (isInErrorState) {
             return;
         }
 
-        this.pkgBuilder.startRecordVariableReferenceList();
-    }
+        boolean hasRestBindingPattern = ctx.entryRefBindingPattern().restRefBindingPattern() != null;
 
-    @Override
-    public void exitOpenRecordRefBindingPattern(BallerinaParser.OpenRecordRefBindingPatternContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        RestBindingPatternState restRefBindingPattern = (ctx.entryRefBindingPattern().restRefBindingPattern() == null) ?
-                NO_BINDING_PATTERN : OPEN_REST_BINDING_PATTERN;
-
-        this.pkgBuilder.addRecordVariableReference(getCurrentPos(ctx), getWS(ctx), restRefBindingPattern);
-    }
-
-    @Override
-    public void exitClosedRecordRefBindingPattern(BallerinaParser.ClosedRecordRefBindingPatternContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        this.pkgBuilder.addRecordVariableReference(getCurrentPos(ctx), getWS(ctx),
-                                                   RestBindingPatternState.CLOSED_REST_BINDING_PATTERN);
+        this.pkgBuilder.addRecordVariableReference(getCurrentPos(ctx), getWS(ctx), hasRestBindingPattern);
     }
 
     @Override
@@ -995,10 +1108,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        if ((ctx.Identifier() != null) && ((ctx.parent instanceof BallerinaParser.TupleBindingPatternContext)
+        if ((ctx.Identifier() != null) && ((ctx.parent instanceof BallerinaParser.ListBindingPatternContext)
                 || (ctx.parent instanceof BallerinaParser.FieldBindingPatternContext)
                 || (ctx.parent instanceof BallerinaParser.MatchPatternClauseContext))) {
-            this.pkgBuilder.addBindingPatternMemberVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText());
+            this.pkgBuilder.addBindingPatternMemberVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                                            getCurrentPos(ctx.Identifier()));
         } else if (ctx.Identifier() != null) {
             this.pkgBuilder.addBindingPatternNameWhitespace(getWS(ctx));
         }
@@ -1010,8 +1124,9 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.addFieldBindingMemberVar(
-                getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(), ctx.bindingPattern() != null);
+        this.pkgBuilder.addFieldBindingMemberVar(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                                 getCurrentPos(ctx.Identifier()),
+                                                 ctx.bindingPattern() != null);
     }
 
     @Override
@@ -1031,7 +1146,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         if (ctx.Identifier() != null) {
-            this.pkgBuilder.addBindingPatternMemberVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText());
+            this.pkgBuilder.addBindingPatternMemberVariable(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
+                                                            getCurrentPos(ctx.Identifier()));
         }
     }
 
@@ -1047,15 +1163,18 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         if (ctx.Identifier() != null) {
             this.pkgBuilder.addSimpleVariableDefStatement(getCurrentPos(ctx), getWS(ctx), ctx.Identifier().getText(),
-                    isFinal, isExpressionAvailable, isDeclaredWithVar);
+                                                          getCurrentPos(ctx.Identifier()),
+                                                          isFinal, isExpressionAvailable, isDeclaredWithVar);
         } else if (ctx.bindingPattern().Identifier() != null) {
             this.pkgBuilder.addSimpleVariableDefStatement(getCurrentPos(ctx), getWS(ctx),
-                    ctx.bindingPattern().Identifier().getText(), isFinal, isExpressionAvailable, isDeclaredWithVar);
+                                                          ctx.bindingPattern().Identifier().getText(),
+                                                          getCurrentPos(ctx.bindingPattern().Identifier()),
+                                                          isFinal, isExpressionAvailable, isDeclaredWithVar);
         } else if (ctx.bindingPattern().structuredBindingPattern().recordBindingPattern() != null) {
             this.pkgBuilder.addRecordVariableDefStatement(getCurrentPos(ctx), getWS(ctx), isFinal, isDeclaredWithVar);
         } else if (ctx.bindingPattern().structuredBindingPattern().errorBindingPattern() != null) {
             this.pkgBuilder.addErrorVariableDefStatement(getCurrentPos(ctx), getWS(ctx), isFinal, isDeclaredWithVar);
-        } else {
+        } else if (ctx.bindingPattern().structuredBindingPattern().listBindingPattern() != null) {
             this.pkgBuilder.addTupleVariableDefStatement(getCurrentPos(ctx), getWS(ctx), isFinal, isDeclaredWithVar);
         }
     }
@@ -1084,7 +1203,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.addKeyValueRecord(getWS(ctx));
+        this.pkgBuilder.addKeyValueRecord(getWS(ctx), ctx.recordKey().LEFT_BRACKET() != null);
     }
 
     @Override
@@ -1129,7 +1248,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (childCount == 2) {
             boolean keyColumn = KEYWORD_KEY.equals(ctx.getChild(0).getText());
             if (keyColumn) {
-                columnName = ctx.getChild(1).getText();
+                columnName = escapeQuotedIdentifier(ctx.getChild(1).getText());
                 this.pkgBuilder.addTableColumn(columnName, getCurrentPos(ctx), getWS(ctx));
                 this.pkgBuilder.markPrimaryKeyColumn(columnName);
             } else {
@@ -1137,7 +1256,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
                 dlog.error(pos, DiagnosticCode.TABLE_KEY_EXPECTED);
             }
         } else {
-            columnName = ctx.getChild(0).getText();
+            columnName = escapeQuotedIdentifier(ctx.getChild(0).getText());
             this.pkgBuilder.addTableColumn(columnName, getCurrentPos(ctx), getWS(ctx));
         }
     }
@@ -1179,13 +1298,12 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void exitArrayLiteral(BallerinaParser.ArrayLiteralContext ctx) {
+    public void exitListConstructorExpr(BallerinaParser.ListConstructorExprContext ctx) {
         if (isInErrorState) {
             return;
         }
-
         boolean argsAvailable = ctx.expressionList() != null;
-        this.pkgBuilder.addArrayInitExpr(getCurrentPos(ctx), getWS(ctx), argsAvailable);
+        this.pkgBuilder.addListConstructorExpression(getCurrentPos(ctx), getWS(ctx), argsAvailable);
     }
 
     @Override
@@ -1201,15 +1319,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void exitErrorConstructorExpr(BallerinaParser.ErrorConstructorExprContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        this.pkgBuilder.addErrorConstructor(getCurrentPos(ctx), getWS(ctx), ctx.COMMA() != null);
-    }
-
-    @Override
     public void exitServiceConstructorExpression(BallerinaParser.ServiceConstructorExpressionContext ctx) {
         if (isInErrorState) {
             return;
@@ -1217,19 +1326,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         final DiagnosticPos serviceDefPos = getCurrentPos(ctx);
         final String serviceVarName = null;
         final DiagnosticPos varPos = serviceDefPos;
-        this.pkgBuilder.endServiceDef(serviceDefPos, getWS(ctx), serviceVarName, varPos, true);
-    }
-
-    @Override
-    public void exitChannelType(BallerinaParser.ChannelTypeContext ctx) {
-        if (isInErrorState) {
-            return;
-        }
-
-        String typeName = ctx.getChild(0).getText();
-        DiagnosticPos pos = getCurrentPos(ctx);
-        checkTypeValidity(typeName, pos);
-        this.pkgBuilder.addConstraintTypeWithTypeName(pos, getWS(ctx), typeName);
+        this.pkgBuilder.endServiceDef(serviceDefPos, getWS(ctx), serviceVarName, varPos, true,
+                                      ctx.serviceConstructorExpr().annotationAttachment().size());
     }
 
     /**
@@ -1245,7 +1343,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void exitTupleDestructuringStatement(BallerinaParser.TupleDestructuringStatementContext ctx) {
+    public void exitListDestructuringStatement(BallerinaParser.ListDestructuringStatementContext ctx) {
         if (isInErrorState) {
             return;
         }
@@ -1430,7 +1528,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        if (ctx.bindingPattern() != null) {
+        if (ctx.bindingPattern() != null || ctx.errorMatchPattern() != null) {
             boolean isTypeGuardPresent = ctx.IF() != null;
             this.pkgBuilder.addMatchStmtStructuredBindingPattern(getCurrentPos(ctx), getWS(ctx), isTypeGuardPresent);
             return;
@@ -1456,8 +1554,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         boolean isDeclaredWithVar = ctx.VAR() != null;
 
         if (ctx.bindingPattern().Identifier() != null) {
+            String identifier = ctx.bindingPattern().Identifier().getText();
+            DiagnosticPos identifierPos = getCurrentPos(ctx.bindingPattern().Identifier());
             this.pkgBuilder.addForeachStatementWithSimpleVariableDefStatement(getCurrentPos(ctx), getWS(ctx),
-                    ctx.bindingPattern().Identifier().getText(), isDeclaredWithVar);
+                                                                              identifier, identifierPos,
+                                                                              isDeclaredWithVar);
         } else if (ctx.bindingPattern().structuredBindingPattern().recordBindingPattern() != null) {
             this.pkgBuilder.addForeachStatementWithRecordVariableDefStatement(getCurrentPos(ctx), getWS(ctx),
                     isDeclaredWithVar);
@@ -1757,8 +1858,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean argsAvailable = ctx.invocation().invocationArgList() != null;
         String invocation = ctx.invocation().anyIdentifierName().getText();
-        boolean safeNavigate = ctx.invocation().NOT() != null;
-        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable, safeNavigate);
+        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable);
     }
 
     @Override
@@ -1793,7 +1893,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             fieldType = FieldKind.ALL;
         }
         this.pkgBuilder.createFieldBasedAccessNode(getCurrentPos(ctx), getWS(ctx), fieldName, fieldNamePos,
-                fieldType, ctx.field().NOT() != null);
+                fieldType, ctx.field().OPTIONAL_FIELD_ACCESS() != null);
     }
 
     @Override
@@ -1833,8 +1933,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean argsAvailable = ctx.invocation().invocationArgList() != null;
         String invocation = ctx.invocation().anyIdentifierName().getText();
-        boolean safeNavigate = ctx.invocation().NOT() != null;
-        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable, safeNavigate);
+        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable);
     }
 
     @Override
@@ -1845,8 +1944,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
 
         boolean argsAvailable = ctx.invocation().invocationArgList() != null;
         String invocation = ctx.invocation().anyIdentifierName().getText();
-        boolean safeNavigate = ctx.invocation().NOT() != null;
-        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable, safeNavigate);
+        this.pkgBuilder.createInvocationNode(getCurrentPos(ctx), getWS(ctx), invocation, argsAvailable);
     }
 
     /**
@@ -1921,7 +2019,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         DiagnosticPos pos = getCurrentPos(ctx);
-        checkExperimentalFeatureValidity(ExperimentalFeatures.TRANSACTIONS.value, pos);
         this.pkgBuilder.endTransactionStmt(pos, getWS(ctx));
     }
 
@@ -2099,8 +2196,10 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         namespaceUri = namespaceUri.substring(1, namespaceUri.length() - 1);
         namespaceUri = StringEscapeUtils.unescapeJava(namespaceUri);
         String prefix = (ctx.Identifier() != null) ? ctx.Identifier().getText() : null;
+        DiagnosticPos prefixPos = (ctx.Identifier() != null) ? getCurrentPos(ctx.Identifier()) : null;
 
-        this.pkgBuilder.addXMLNSDeclaration(getCurrentPos(ctx), getWS(ctx), namespaceUri, prefix, isTopLevel);
+        this.pkgBuilder.addXMLNSDeclaration(getCurrentPos(ctx), getWS(ctx), namespaceUri, prefix, prefixPos,
+                                            isTopLevel);
     }
 
     @Override
@@ -2157,7 +2256,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         this.pkgBuilder.createSimpleVariableReference(getCurrentPos(ctx), getWS(ctx));
     }
 
-    @Override public void exitTypeDescExpr(BallerinaParser.TypeDescExprContext ctx) {
+    @Override
+    public void exitTypeDescExpr(BallerinaParser.TypeDescExprContext ctx) {
         if (isInErrorState) {
             return;
         }
@@ -2170,8 +2270,9 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (isInErrorState) {
             return;
         }
-
-        this.pkgBuilder.createActionInvocationNode(getCurrentPos(ctx), getWS(ctx), ctx.START() != null);
+        int numAnnotations = ctx.annotationAttachment().size();
+        this.pkgBuilder.createActionInvocationNode(getCurrentPos(ctx), getWS(ctx), ctx.START() != null,
+                numAnnotations);
     }
 
     @Override
@@ -2226,7 +2327,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.createTypeConversionExpr(getCurrentPos(ctx), getWS(ctx));
+        this.pkgBuilder.createTypeConversionExpr(getCurrentPos(ctx), getWS(ctx),
+                ctx.annotationAttachment().size(), ctx.typeName() != null);
     }
 
     @Override
@@ -2265,11 +2367,19 @@ public class BLangParserListener extends BallerinaParserBaseListener {
     }
 
     @Override
-    public void exitTupleLiteral(BallerinaParser.TupleLiteralContext ctx) {
+    public void exitAnnotAccessExpression(BallerinaParser.AnnotAccessExpressionContext ctx) {
         if (isInErrorState) {
             return;
         }
-        this.pkgBuilder.createBracedOrTupleExpression(getCurrentPos(ctx), getWS(ctx), ctx.expression().size());
+        this.pkgBuilder.createAnnotAccessNode(getCurrentPos(ctx), getWS(ctx));
+    }
+
+    @Override
+    public void exitGroupExpression(BallerinaParser.GroupExpressionContext ctx) {
+        if (isInErrorState) {
+            return;
+        }
+        this.pkgBuilder.createGroupExpression(getCurrentPos(ctx), getWS(ctx));
     }
 
     /**
@@ -2311,7 +2421,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (ctx.Identifier().size() == 2) {
             String pkgName = ctx.Identifier(0).getText();
             String name = ctx.Identifier(1).getText();
-            this.pkgBuilder.addNameReference(getCurrentPos(ctx), getWS(ctx), pkgName, name);
+            DiagnosticPos pos = getCurrentPos(ctx);
+            if (Names.IGNORE.value.equals(pkgName))  {
+                dlog.error(pos, DiagnosticCode.INVALID_PACKAGE_NAME_QUALIFER, pkgName);
+            }
+            this.pkgBuilder.addNameReference(pos, getWS(ctx), pkgName, name);
         } else {
             String name = ctx.Identifier(0).getText();
             this.pkgBuilder.addNameReference(getCurrentPos(ctx), getWS(ctx), null, name);
@@ -2327,7 +2441,11 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         if (ctx.Identifier() != null) {
             String pkgName = ctx.Identifier().getText();
             String name = ctx.anyIdentifierName().getText();
-            this.pkgBuilder.addNameReference(getCurrentPos(ctx), getWS(ctx), pkgName, name);
+            DiagnosticPos pos = getCurrentPos(ctx);
+            if (Names.IGNORE.value.equals(pkgName))  {
+                dlog.error(pos, DiagnosticCode.INVALID_PACKAGE_NAME_QUALIFER, pkgName);
+            }
+            this.pkgBuilder.addNameReference(pos, getWS(ctx), pkgName, name);
         } else {
             String name = ctx.anyIdentifierName().getText();
             this.pkgBuilder.addNameReference(getCurrentPos(ctx), getWS(ctx), null, name);
@@ -2441,7 +2559,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             this.pkgBuilder.addLiteralValue(pos, ws, TypeTags.STRING, text, node.getText());
         } else if (ctx.NullLiteral() != null) {
             this.pkgBuilder.addLiteralValue(pos, ws, TypeTags.NIL, null, "null");
-        } else if (ctx.emptyTupleLiteral() != null) {
+        } else if (ctx.nilLiteral() != null) {
             this.pkgBuilder.addLiteralValue(pos, ws, TypeTags.NIL, null, "()");
         } else if (ctx.blobLiteral() != null) {
             this.pkgBuilder.addLiteralValue(pos, ws, TypeTags.BYTE_ARRAY, ctx.blobLiteral().getText());
@@ -2692,7 +2810,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         DiagnosticPos pos = getCurrentPos(ctx);
-        checkExperimentalFeatureValidity(ExperimentalFeatures.TABLE_QUERIES.value, pos);
         this.pkgBuilder.addTableQueryExpression(pos, getWS(ctx));
     }
 
@@ -3157,7 +3274,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
 
-        this.pkgBuilder.startForeverNode(getCurrentPos(ctx), isSiddhiRuntimeEnabled);
+        this.pkgBuilder.startForeverNode(getCurrentPos(ctx));
     }
 
     @Override
@@ -3167,7 +3284,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         }
 
         DiagnosticPos pos = getCurrentPos(ctx);
-        checkExperimentalFeatureValidity(ExperimentalFeatures.STREAMING_QUERIES.value, pos);
         this.pkgBuilder.endForeverNode(pos, getWS(ctx));
     }
 
@@ -3293,7 +3409,8 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             return;
         }
         if (ctx.START() != null) {
-            this.pkgBuilder.markLastInvocationAsAsync(getCurrentPos(ctx));
+            int numAnnotations = ctx.annotationAttachment().size();
+            this.pkgBuilder.markLastInvocationAsAsync(getCurrentPos(ctx), numAnnotations);
         }
     }
 
@@ -3324,7 +3441,7 @@ public class BLangParserListener extends BallerinaParserBaseListener {
         return new DiagnosticPos(diagnosticSrc, startLine, endLine, startCol, endCol);
     }
 
-    private DiagnosticPos getCurrentPosFromIdentifier(TerminalNode node) {
+    private DiagnosticPos getCurrentPos(TerminalNode node) {
         Token symbol = node.getSymbol();
         int startLine = symbol.getLine();
         int startCol = symbol.getCharPositionInLine() + 1;
@@ -3407,45 +3524,6 @@ public class BLangParserListener extends BallerinaParserBaseListener {
             }
         }
         return originalNodeValue;
-    }
-
-    private void checkTypeValidity(String typeName, DiagnosticPos pos) {
-        if (enableExperimentalFeatures) {
-            return;
-        }
-
-        if (ExperimentalFeatures.STREAMS.value.equals(typeName) ||
-                ExperimentalFeatures.CHANNEL.value.equals(typeName)) {
-            dlog.error(pos, DiagnosticCode.INVALID_USE_OF_EXPERIMENTAL_FEATURE, typeName);
-        }
-    }
-
-    private void checkExperimentalFeatureValidity(String constructName, DiagnosticPos pos) {
-        if (enableExperimentalFeatures) {
-            return;
-        }
-
-        dlog.error(pos, DiagnosticCode.INVALID_USE_OF_EXPERIMENTAL_FEATURE, constructName);
-    }
-
-    private enum ExperimentalFeatures {
-        STREAMS("stream"),
-        CHANNEL("channel"),
-        TABLE_QUERIES("table queries"),
-        STREAMING_QUERIES("streaming queries"),
-        TRANSACTIONS("transaction"),
-        CHECKPOINTING("checkpoint");
-
-        private String value;
-
-        private ExperimentalFeatures(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return value;
-        }
     }
 
     /**

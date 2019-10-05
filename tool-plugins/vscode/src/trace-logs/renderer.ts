@@ -18,11 +18,11 @@
 
 import { ExtendedLangClient } from '../core/extended-language-client';
 import { ExtensionContext } from 'vscode';
-import { getLibraryWebViewContent } from '../utils';
+import { getLibraryWebViewContent, WebViewOptions, getComposerWebViewOptions } from '../utils';
 
 export function render(context: ExtensionContext, langClient: ExtendedLangClient) 
     : string {
-    const script = `
+    const scripts = `
         function loadedScript() {
             window.addEventListener('message', event => {
                 const message = event.data; // The JSON data our extension sent
@@ -64,6 +64,9 @@ export function render(context: ExtensionContext, langClient: ExtendedLangClient
     const bodyCss = "network-logs";
 
     const styles = `
+        body.network-logs{
+            overflow: auto!important;
+        }
         body.vscode-dark, body.vscode-light {
             background-color: #1e1e1e;
             color: white;
@@ -127,7 +130,12 @@ export function render(context: ExtensionContext, langClient: ExtendedLangClient
             display: table-header-group!important;
         }
     `;
-    return getLibraryWebViewContent(context, body, script, styles, bodyCss);
+    const webViewOptions: WebViewOptions = {
+        ...getComposerWebViewOptions(),
+        body, scripts, styles, bodyCss
+    };
+    
+    return getLibraryWebViewContent(webViewOptions);
 }
 
 
@@ -145,6 +153,9 @@ export function renderDetailView (context: ExtensionContext, langClient: Extende
     const traceString = encodeURIComponent(JSON.stringify(trace));
 
     const styles = `
+        body.network-logs{
+            overflow: auto!important;
+        }
         body.vscode-dark, body.vscode-light {
             background-color: #1e1e1e;
             color: white;
@@ -174,7 +185,7 @@ export function renderDetailView (context: ExtensionContext, langClient: Extende
         }
         `;
 
-    const script = `
+    const scripts = `
         function loadedScript() {
             function renderDetailedTrace(trace) {
                 try {
@@ -189,5 +200,10 @@ export function renderDetailView (context: ExtensionContext, langClient: Extende
         }
     `;
 
-    return getLibraryWebViewContent(context, body, script, styles, bodyCss);
+    const webViewOptions: WebViewOptions = {
+        ...getComposerWebViewOptions(),
+        body, scripts, styles, bodyCss
+    };
+    
+    return getLibraryWebViewContent(webViewOptions);
 }

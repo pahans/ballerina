@@ -19,20 +19,20 @@ package org.ballerinalang.stdlib.cache;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BFloat;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BValueArray;
+import org.ballerinalang.stdlib.common.CommonTestUtils;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.ballerinalang.stdlib.common.CommonTestUtils.printDiagnostics;
 
 /**
  * Test class for cache package.
@@ -45,7 +45,7 @@ public class CacheTest {
     @BeforeClass
     public void setup() {
         compileResult = BCompileUtil.compile("test-src/cache/cache-test.bal");
-        printDiagnostics(compileResult, log);
+        CommonTestUtils.printDiagnostics(compileResult, log);
     }
 
     @Test
@@ -58,6 +58,20 @@ public class CacheTest {
         args[1] = new BInteger(capacity);
         args[2] = new BFloat(evictionFactor);
         BValue[] returns = BRunUtil.invoke(compileResult, "testCreateCache", args);
+        Assert.assertTrue(returns[0] instanceof BInteger);
+        Assert.assertEquals(((BInteger) returns[0]).intValue(), 0);
+    }
+
+    @Test
+    public void testCreateCacheWithNamedParams() {
+        int expiryTime = 20000;
+        int capacity = 10;
+        float evictionFactor = 0.1f;
+        BValue[] args = new BValue[3];
+        args[0] = new BInteger(expiryTime);
+        args[1] = new BInteger(capacity);
+        args[2] = new BFloat(evictionFactor);
+        BValue[] returns = BRunUtil.invoke(compileResult, "testCreateCacheWithNamedParams", args);
         Assert.assertTrue(returns[0] instanceof BInteger);
         Assert.assertEquals(((BInteger) returns[0]).intValue(), 0);
     }

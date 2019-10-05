@@ -18,13 +18,13 @@
 apply from: "$rootDir/gradle/javaProject.gradle"
 
 dependencies {
-    implementation 'org.ballerinalang:ballerina-lang:0.992.0-m1'
     implementation 'commons-logging:commons-logging'
     implementation project(":ballerina-logging")
-    implementation project(":ballerina-launcher")
-//    implementation project(':ballerina-lang')
+    implementation project(":ballerina-tool")
+    implementation project(':ballerina-lang')
     testCompile 'org.slf4j:slf4j-api'
     testCompile 'org.testng:testng'
+    testCompile project(path: ':ballerina-test-utils', configuration: 'shadow')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

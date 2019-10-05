@@ -19,15 +19,16 @@
 package org.ballerinalang.mime.nativeimpl;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
-import org.ballerinalang.bre.Context;
-import org.ballerinalang.bre.bvm.CallableUnitCallback;
+import org.ballerinalang.jvm.scheduling.Strand;
+import org.ballerinalang.jvm.values.ArrayValue;
+import org.ballerinalang.jvm.values.ErrorValue;
+import org.ballerinalang.jvm.values.ObjectValue;
+import org.ballerinalang.jvm.values.connector.NonBlockingCallback;
+import org.ballerinalang.jvm.values.utils.StringUtils;
 import org.ballerinalang.mime.util.EntityBodyHandler;
 import org.ballerinalang.mime.util.HeaderUtil;
 import org.ballerinalang.mime.util.MimeUtil;
 import org.ballerinalang.model.types.TypeKind;
-import org.ballerinalang.model.values.BMap;
-import org.ballerinalang.model.values.BValue;
-import org.ballerinalang.model.values.BValueArray;
 import org.ballerinalang.natives.annotations.BallerinaFunction;
 import org.ballerinalang.natives.annotations.Receiver;
 import org.ballerinalang.natives.annotations.ReturnType;
@@ -36,7 +37,6 @@ import java.nio.charset.Charset;
 
 import static org.ballerinalang.mime.util.EntityBodyHandler.isStreamingRequired;
 import static org.ballerinalang.mime.util.MimeConstants.CHARSET;
-import static org.ballerinalang.mime.util.MimeConstants.FIRST_PARAMETER_INDEX;
 import static org.ballerinalang.mime.util.MimeConstants.TRANSPORT_MESSAGE;
 import static org.ballerinalang.mime.util.MimeUtil.isNotNullAndEmpty;
 
@@ -55,43 +55,47 @@ import static org.ballerinalang.mime.util.MimeUtil.isNotNullAndEmpty;
 )
 public class GetByteArray extends AbstractGetPayloadHandler {
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public void execute(Context context, CallableUnitCallback callback) {
+    public static Object getByteArray(Strand strand, ObjectValue entityObj) {
+        NonBlockingCallback callback = null;
+        ArrayValue result = null;
         try {
-            BValueArray result = null;
-            BMap<String, BValue> entityObj = (BMap<String, BValue>) context.getRefArgument(FIRST_PARAMETER_INDEX);
-            BValue messageDataSource = EntityBodyHandler.getMessageDataSource(entityObj);
+            Object messageDataSource = EntityBodyHandler.getMessageDataSource(entityObj);
             if (messageDataSource != null) {
-                if (messageDataSource instanceof BValueArray) {
-                    result = (BValueArray) messageDataSource;
+                if (messageDataSource instanceof ArrayValue) {
+                    result = (ArrayValue) messageDataSource;
                 } else {
                     String contentTypeValue = HeaderUtil.getHeaderValue(entityObj,
                                                                         HttpHeaderNames.CONTENT_TYPE.toString());
                     if (isNotNullAndEmpty(contentTypeValue)) {
                         String charsetValue = MimeUtil.getContentTypeParamValue(contentTypeValue, CHARSET);
                         if (isNotNullAndEmpty(charsetValue)) {
-                            result = new BValueArray(messageDataSource.stringValue().getBytes(charsetValue));
+                            result = new ArrayValue(StringUtils.getJsonString(messageDataSource)
+                                                            .getBytes(charsetValue));
                         } else {
-                            result = new BValueArray(messageDataSource.stringValue().getBytes(
-                                    Charset.defaultCharset()));
+                            result = new ArrayValue(StringUtils.getJsonString(messageDataSource)
+                                                            .getBytes(Charset.defaultCharset()));
                         }
                     }
                 }
-                setReturnValuesAndNotify(context, callback, result != null ? result : new BValueArray(new byte[0]));
-                return;
+                return result != null ? result : new ArrayValue(new byte[0]);
             }
 
             Object transportMessage = entityObj.getNativeData(TRANSPORT_MESSAGE);
             if (isStreamingRequired(entityObj) || transportMessage == null) {
                 result = EntityBodyHandler.constructBlobDataSource(entityObj);
-                updateDataSourceAndNotify(context, callback, entityObj, result);
+                updateDataSource(entityObj, result);
             } else {
-                constructNonBlockingDataSource(context, callback, entityObj, SourceType.BLOB);
+                callback = new NonBlockingCallback(strand);
+                constructNonBlockingDataSource(callback, entityObj, SourceType.BLOB);
             }
         } catch (Exception ex) {
-            createErrorAndNotify(context, callback,
-                                 "Error occurred while extracting blob data from entity : " + ex.getMessage());
+            if (ex instanceof ErrorValue) {
+                return createParsingEntityBodyFailedErrorAndNotify(callback,
+                        "Error occurred while extracting blob data from entity", (ErrorValue) ex);
+            }
+            createParsingEntityBodyFailedErrorAndNotify(callback,
+                    "Error occurred while extracting blob data from entity : " + getErrorMsg(ex), null);
         }
+        return result;
     }
 }

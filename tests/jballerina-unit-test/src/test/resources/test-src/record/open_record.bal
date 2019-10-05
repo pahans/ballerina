@@ -19,14 +19,15 @@ type Department record {
     Person[] employees = [];
 };
 
-type Person record {
+type Person record {|
     string name = "default first name";
     string lname = "";
     map<any> adrs = {};
     int age = 999;
     Family family = {};
     Person? parent = ();
-};
+    anydata|error...;
+|};
 
 type Family record {
     string spouse = "";
@@ -98,16 +99,16 @@ function testStructExpressionAsIndex () returns string {
     return dpt.employees[0].family.children[dpt.employees[0].family.noOfChildren - 1];
 }
 
-function testDefaultVal () returns (string, string, int) {
+function testDefaultVal () returns [string, string, int] {
     Person p = {};
-    return (p.name, p.lname, p.age);
+    return [p.name, p.lname, p.age];
 }
 
-function testNestedFieldDefaultVal () returns (string, string, int) {
+function testNestedFieldDefaultVal () returns [string, string, int] {
     Department dpt = {};
     dpt.employees = [];
     dpt.employees[0] = {lname:"Smith"};
-    return (dpt.employees[0].name, dpt.employees[0].lname, dpt.employees[0].age);
+    return [dpt.employees[0].name, dpt.employees[0].lname, dpt.employees[0].age];
 }
 
 function testNestedStructInit () returns Person {
@@ -122,9 +123,9 @@ type NegativeValTest record {
     float negativeSpaceFloat = -24.99;
 };
 
-function getStructNegativeValues () returns (int, int, float, float) {
+function getStructNegativeValues () returns [int, int, float, float] {
     NegativeValTest tmp = {};
-    return (tmp.negativeInt, tmp.negativeSpaceInt, tmp.negativeFloat, tmp.negativeSpaceFloat);
+    return [tmp.negativeInt, tmp.negativeSpaceInt, tmp.negativeFloat, tmp.negativeSpaceFloat];
 }
 
 function getStruct () returns (Person) {
@@ -161,29 +162,9 @@ function testSetFieldOfNonInitStruct () {
 }
 
 function testAdditionOfARestField() returns Person {
-    Person p = {name:"Foo", mname:"Bar", age:25, height: 5.9};
-    p.firstName = "John";
+    Person p = { name: "Foo", "mname": "Bar", age: 25, "height": 5.9};
+    p["firstName"] = "John";
     return p;
-}
-
-type MyError error<string, map<error>>;
-
-function testAdditionOfErrorsForDefaultRestField() returns boolean {
-    error e1 = error("err reason");
-    error e2 = error("err reason 2", { str: "string value", err: e1 });
-    MyError e3 = error("err reason 3", { e1: e1, e2: e2 });
-
-    Person p = { name: "Foo", mname: "Bar", age: 25, height: 5.9, e1: e1 };
-    p.e2 = e2;
-    p.e3 = e3;
-    return <string> p.name == "Foo" && <string> p.mname == "Bar" && <int> p.age == 25 && p.e1 === e1 && p.e2 === e2 &&
-                p.e3 === e3;
-}
-
-function testAnydataOrErrorRestFieldRHSAccess() returns anydata|error {
-    Person p = {};
-    anydata|error name = p.firstName;
-    return name;
 }
 
 function testAnydataOrErrorRestFieldRHSIndexAccess() returns anydata|error {
@@ -199,21 +180,15 @@ type Person2 record {|
 |};
 
 function testStringRestField() returns Person2 {
-    Person2 p = {name:"Foo", age:25, lname: "Bar", address:"Colombo"};
+    Person2 p = { name: "Foo", age: 25, "lname": "Bar", "address": "Colombo"};
     return p;
 }
 
-function testStringRestFieldRHSAccess() returns string {
-    Person2 p = {};
-    string name = p.firstName;
-    return name;
-}
-
-function testStringRestFieldRHSIndexAccess() returns (string?, string?) {
+function testStringRestFieldRHSIndexAccess() returns [string?, string?] {
     Person2 p = {};
     string? name = p["name"];
     string? firstName = p["firstName"];
-    return (name, firstName);
+    return [name, firstName];
 }
 
 type Person3 record {|
@@ -223,21 +198,15 @@ type Person3 record {|
 |};
 
 function testIntRestField() returns Person3 {
-    Person3 p = {name:"Foo", age:25, year: 3};
+    Person3 p = { name: "Foo", age: 25, "year": 3 };
     return p;
 }
 
-function testIntRestFieldRHSAccess() returns int {
-    Person3 p = {};
-    int birthYear = p.birthYear;
-    return birthYear;
-}
-
-function testIntRestFieldRHSIndexAccess() returns (int?, int?) {
+function testIntRestFieldRHSIndexAccess() returns [int?, int?] {
     Person3 p = {};
     int? age = p["age"];
     int? birthYear = p["birthYear"];
-    return (age, birthYear);
+    return [age, birthYear];
 }
 
 type Person4 record {|
@@ -247,20 +216,14 @@ type Person4 record {|
 |};
 
 function testFloatRestField() returns Person4 {
-    Person4 p = {name:"Foo", age:25, height: 5.9};
+    Person4 p = { name: "Foo", age: 25, "height": 5.9};
     return p;
 }
 
-function testFloatRestFieldRHSAccess() returns float {
-    Person4 p = {};
-    float height = p.height;
-    return height;
-}
-
-function testFloatRestFieldRHSIndexAccess() returns (float?, float?) {
-    Person4 p = {weight: 61.5};
+function testFloatRestFieldRHSIndexAccess() returns [float?, float?] {
+    Person4 p = { "weight": 61.5 };
     float? height = p["height"];
-    return (p["weight"], height);
+    return [p["weight"], height];
 }
 
 type Person5 record {|
@@ -270,20 +233,14 @@ type Person5 record {|
 |};
 
 function testBooleanRestField() returns Person5 {
-    Person5 p = {name:"Foo", age:25, isEmployed: true};
+    Person5 p = { name: "Foo", age: 25, "isEmployed": true};
     return p;
 }
 
-function testBooleanRestFieldRHSAccess() returns boolean {
-    Person5 p = {};
-    boolean isEmployed = p.isEmployed;
-    return isEmployed;
-}
-
-function testBooleanRestFieldRHSIndexAccess() returns (boolean?, boolean?) {
-    Person5 p = {isStudent: true};
+function testBooleanRestFieldRHSIndexAccess() returns [boolean?, boolean?] {
+    Person5 p = { "isStudent": true };
     boolean? isEmployed = p["isEmployed"];
-    return (p["isStudent"], isEmployed);
+    return [p["isStudent"], isEmployed];
 }
 
 type Person6 record {|
@@ -293,21 +250,15 @@ type Person6 record {|
 |};
 
 function testMapRestField() returns Person6 {
-    Person6 p = {name:"Foo", age:25, misc:{lname:"Bar", height:5.9, isEmployed:true}};
+    Person6 p = { name:"Foo", age: 25, "misc": { lname: "Bar", height: 5.9, isEmployed: true } };
     return p;
 }
 
-function testMapRestFieldRHSAccess() returns map<any> {
-    Person6 p = {};
-    map<any> misc = p.misc;
-    return misc;
-}
-
-function testMapRestFieldRHSIndexAccess() returns (map<any>?, map<any>?) {
+function testMapRestFieldRHSIndexAccess() returns [map<any>?, map<any>?] {
     map<any> misc = {};
-    Person6 p = {misc:misc};
+    Person6 p = { "misc": misc };
     map<any>? invMap = p["invMap"];
-    return (p["misc"], invMap);
+    return [p["misc"], invMap];
 }
 
 type Person7 record {|
@@ -317,20 +268,14 @@ type Person7 record {|
 |};
 
 function testUnionRestField() returns Person7 {
-    Person7 p = {name:"Foo", age:25, lname:"Bar", height:5.9, isEmployed:true};
+    Person7 p = { name: "Foo", age: 25, "lname": "Bar", "height": 5.9, "isEmployed": true };
     return p;
 }
 
-function testUnionRestFieldRHSAccess() returns float|string|boolean {
-    Person7 p = {};
-    float|string|boolean miscFields = p.misc;
-    return miscFields;
-}
-
-function testUnionRestFieldRHSIndexAccess() returns ((float|string|boolean)?, (float|string|boolean)?) {
-    Person7 p = {miscField: "Foo"};
+function testUnionRestFieldRHSIndexAccess() returns [(float|string|boolean)?, (float|string|boolean)?] {
+    Person7 p = { "miscField": "Foo" };
     float|string|boolean|() invField = p["invField"];
-    return (p["miscField"], invField);
+    return [p["miscField"], invField];
 }
 
 type Person8 record {|
@@ -340,7 +285,7 @@ type Person8 record {|
 |};
 
 function testNilRestField() returns Person8 {
-    Person8 p = {name:"Foo", age:25, lname:()};
+    Person8 p = { name: "Foo", age: 25, "lname": () };
     return p;
 }
 
@@ -351,20 +296,14 @@ type Person9 record {|
 |};
 
 function testRecordRestField() returns Person9 {
-    Person9 p = {name:"Foo", age:25, dpt:{dptName:"Engineering", employees:[]}};
+    Person9 p = { name: "Foo", age: 25, "dpt": { dptName: "Engineering", employees: [] } };
     return p;
 }
 
-function testRecordRestFieldRHSAccess() returns Department {
-    Person9 p = {};
-    Department dept = p.department;
-    return dept;
-}
-
-function testRecordRestFieldRHSIndexAccess() returns (Department?, Department?) {
-    Person9 p = {dept:{}};
+function testRecordRestFieldRHSIndexAccess() returns [Department?, Department?] {
+    Person9 p = { "dept": {} };
     Department? dept = p["department"];
-    return (p["dept"], dept);
+    return [p["dept"], dept];
 }
 
 type Animal object {
@@ -384,44 +323,32 @@ type Person10 record {|
 |};
 
 function testObjectRestField() returns Person10 {
-    Person10 p = {name:"Foo", age:25, pet:new Animal("Miaw", "Cat")};
+    Person10 p = { name: "Foo", age: 25, "pet": new Animal("Miaw", "Cat") };
     return p;
 }
 
-function testObjectRestFieldRHSAccess() returns Animal {
-    Person10 p = {};
-    Animal pet = p.pet;
-    return pet;
-}
-
-function testObjectRestFieldRHSIndexAccess() returns (Animal?, Animal?) {
+function testObjectRestFieldRHSIndexAccess() returns [Animal?, Animal?] {
     Animal anim = new("Rocky", "Dog");
-    Person10 p = {pet:anim};
+    Person10 p = { "pet": anim };
     Animal? pet = p["invPet"];
-    return (p["pet"], pet);
+    return [p["pet"], pet];
 }
 
 type Person11 record {|
     string name = "";
     int age = 0;
-    (float, string, Animal)...;
+    [float, string, Animal]...;
 |};
 
 function testTupleRestField() returns Person11 {
-    Person11 p = {name:"Foo", age:25, misc:(5.9, "Bar", new Animal("Miaw", "Cat"))};
+    Person11 p = { name: "Foo", age: 25, "misc": [5.9, "Bar", new Animal("Miaw", "Cat")] };
     return p;
 }
 
-function testTupleRestFieldRHSAccess() returns (float, string, Animal) {
-    Person11 p = {};
-    (float, string, Animal) tupType = p.tupType;
-    return tupType;
-}
-
-function testTupleRestFieldRHSIndexAccess() returns ((float, string, Animal)?, (float, string, Animal)?) {
-    Person11 p = {tup:(4.5, "foo", new Animal("Miaw", "Cat"))};
-    (float, string, Animal)? tupType = p["invTup"];
-    return (p["tup"], tupType);
+function testTupleRestFieldRHSIndexAccess() returns [[float, string, Animal]?, [float, string, Animal]?] {
+    Person11 p = { "tup": [4.5, "foo", new Animal("Miaw", "Cat")] };
+    [float, string, Animal]? tupType = p["invTup"];
+    return [p["tup"], tupType];
 }
 
 type Person12 record {|
@@ -432,21 +359,15 @@ type Person12 record {|
 
 function testAnyRestField() returns Person12 {
     Animal?[] pets = [new Animal("Miaw", "Cat"), new Animal("Woof", "Dog")];
-    Person12 p = {name:"Foo", age:25, pets:pets};
+    Person12 p = { name: "Foo", age: 25, "pets": pets};
     return p;
 }
 
-function testAnyRestFieldRHSAccess() returns any {
-    Person12 p = {};
-    any a = p.anyField;
-    return a;
-}
-
-function testAnyRestFieldRHSIndexAccess() returns (any, any) {
+function testAnyRestFieldRHSIndexAccess() returns [any, any] {
     Animal?[] pets = [new Animal("Miaw", "Cat"), new Animal("Woof", "Dog")];
-    Person12 p = {pets:pets};
+    Person12 p = { "pets": pets };
     any a = p["anyField"];
-    return (p["pets"], a);
+    return [p["pets"], a];
 }
 
 type PersonA record {
@@ -461,26 +382,94 @@ function testFuncPtrAsRecordField() returns string {
         return p.lname + ", " + p.fname;
     };
 
-    return p.fullName.call();
+    return p.fullName();
 }
 
-type PersonB record {
-    string fname = "";
-    string lname = "";
-    (function (string, string) returns string)? getName = ();
+type Address record {
+    string city;
+    string country;
 };
 
-function testNilableFuncPtrInvocation() returns string? {
-    PersonB bob = {fname:"Bob", lname:"White"};
-    bob.getName = function (string fname, string lname) returns string {
-        return fname + " " + lname;
-    };
-    string? x = bob.getName.call(bob.fname, bob.lname);
-    return x;
+type PersonRec record {
+    string name = "John Doe";
+    int age = 25;
+    Address adr = {city: "Colombo", country: "Sri Lanka"};
+};
+
+type EmployeeRec record {
+    *PersonRec;
+    string company = "WSO2";
+};
+
+type ManagerRec record {
+    string dept = "";
+    *EmployeeRec;
+};
+
+function testDefaultValueInit() returns ManagerRec {
+    ManagerRec mgr = {};
+    return mgr;
 }
 
-function testNilableFuncPtrInvocation2() returns string? {
-    PersonB bob = {fname:"Bob", lname:"White"};
-    string? x = bob.getName.call(bob.fname, bob.lname);
-    return x;
+public type Foo record {
+    int a = getAsInt("777");
+};
+
+function getAsInt(string s) returns int {
+    return 777;
+}
+
+public type Bar record {
+    *Foo;
+    int b = 56;
+};
+
+public function testRecordInitWithFuncCalls() returns Bar {
+    Bar b = {};
+    return b;
+}
+
+type Qux record {
+    string bar;
+    int baz;
+};
+
+function testLiteralsAsMappingConstructorKeys() returns boolean {
+    Qux f = { "bar": "hello", baz: 1 };
+    return f.bar == "hello" && f.baz == 1;
+}
+
+type Baz record {
+    string s;
+    int i?;
+    float? f = ();
+};
+
+string iValue = "i";
+
+function testExpressionAsKeys() returns boolean {
+    Baz b = { s: "hello", [iValue]: 1, [getChar("f")]: 2.0, [getChar("b")]: true };
+    return b.s == "hello" && b?.i == 1 && b?.f == 2.0 && b["b"] == true;
+}
+
+string mapValue = "";
+
+function testExpressionAsKeysWithSameKeysDefinedAsLiteralsOrFieldNames() returns boolean {
+    Baz b = {
+        f: 1.0,
+        [getChar("f")]: 4.0,
+        [getChar("s")]: addStringToMapValue(" world"),
+        [getChar("s")]: addStringToMapValue(" from Ballerina"),
+        s: addStringToMapValue("hello")
+    };
+    return b.s == "hello world from Ballerina" && b?.f == 4.0;
+}
+
+function getChar(string st) returns string {
+    return st;
+}
+
+function addStringToMapValue(string s) returns string {
+    mapValue = mapValue + s;
+    return mapValue;
 }

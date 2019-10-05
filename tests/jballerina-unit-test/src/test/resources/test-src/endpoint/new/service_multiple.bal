@@ -1,3 +1,5 @@
+import ballerina/lang.'object;
+
 listener ABC ep = new;
 
 int startCount = 0;
@@ -15,41 +17,55 @@ service on ep, new PQR("pqr") {
 
 public type ABC object {
 
-    *AbstractListener;
+    *'object:Listener;
 
-    public function __start() {
+    public function __start() returns error? {
         startCount += 1;
     }
 
-    public function __stop() returns error? {
+    public function __gracefulStop() returns error? {
         return ();
     }
 
-    public function __attach(service s, string? name = ()) {
+    public function __immediateStop() returns error? {
+        return ();
+    }
+
+    public function __attach(service s, string? name = ()) returns error? {
         attachCount += 1;
+    }
+
+    public function __detach(service s) returns error? {
     }
 };
 
 public type PQR object {
 
-    *AbstractListener;
+    *'object:Listener;
 
     public function __init(string name){
     }
 
-    public function __start() {
+    public function __start() returns error? {
         startCount += 1;
     }
 
-    public function __stop() returns error? {
+    public function __gracefulStop() returns error? {
         return ();
     }
 
-    public function __attach(service s, string? name = ()) {
+    public function __immediateStop() returns error? {
+        return ();
+    }
+
+    public function __attach(service s, string? name = ()) returns error? {
         attachCount += 1;
+    }
+
+    public function __detach(service s) returns error? {
     }
 };
 
-function test1 () returns (int, int){
-    return (startCount, attachCount);
+function test1 () returns [int, int] {
+    return [startCount, attachCount];
 }

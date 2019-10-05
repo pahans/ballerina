@@ -22,6 +22,7 @@ import org.ballerinalang.jvm.ColumnDefinition;
 import org.ballerinalang.jvm.DataIterator;
 import org.ballerinalang.jvm.JSONParser;
 import org.ballerinalang.jvm.TableResourceManager;
+import org.ballerinalang.jvm.TableUtils;
 import org.ballerinalang.jvm.types.BArrayType;
 import org.ballerinalang.jvm.types.BField;
 import org.ballerinalang.jvm.types.BStructureType;
@@ -29,7 +30,6 @@ import org.ballerinalang.jvm.types.BType;
 import org.ballerinalang.jvm.types.BTypes;
 import org.ballerinalang.jvm.types.BUnionType;
 import org.ballerinalang.jvm.types.TypeTags;
-import org.ballerinalang.jvm.util.exceptions.BallerinaException;
 
 import java.math.BigDecimal;
 import java.sql.Array;
@@ -40,11 +40,15 @@ import java.sql.Struct;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 /**
+ * <p>
  * Iterator implementation for table data types.
- *
+ * </p>
+ * <p>
+ * <i>Note: This is an internal API and may change in future versions.</i>
+ * </p>
+ * 
  * @since 0.995.0
  */
 public class TableIterator implements DataIterator {
@@ -77,7 +81,7 @@ public class TableIterator implements DataIterator {
         try {
             return rs.next();
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -89,7 +93,7 @@ public class TableIterator implements DataIterator {
             }
             resourceManager.releaseResources();
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -103,7 +107,7 @@ public class TableIterator implements DataIterator {
             String val = rs.getString(columnIndex);
             return rs.wasNull() ? null : val;
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -113,7 +117,7 @@ public class TableIterator implements DataIterator {
             long val = rs.getLong(columnIndex);
             return rs.wasNull() ? null : val;
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -123,7 +127,7 @@ public class TableIterator implements DataIterator {
             double val = rs.getDouble(columnIndex);
             return rs.wasNull() ? null : val;
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -133,7 +137,7 @@ public class TableIterator implements DataIterator {
             boolean val = rs.getBoolean(columnIndex);
             return rs.wasNull() ? null : val;
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -143,7 +147,17 @@ public class TableIterator implements DataIterator {
             Blob bValue = rs.getBlob(columnIndex);
             return rs.wasNull() ? null : new String(bValue.getBytes(1, (int) bValue.length()));
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
+        }
+    }
+
+    @Override
+    public DecimalValue getDecimal(int columnIndex) {
+        try {
+            BigDecimal val = rs.getBigDecimal(columnIndex);
+            return rs.wasNull() ? null : new DecimalValue(val);
+        } catch (SQLException e) {
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -156,7 +170,7 @@ public class TableIterator implements DataIterator {
                 objArray = data.getAttributes();
             }
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
         return objArray;
     }
@@ -166,7 +180,7 @@ public class TableIterator implements DataIterator {
         try {
             return generateArrayDataResult(rs.getArray(columnIndex));
         } catch (SQLException e) {
-            throw new BallerinaException(e.getMessage(), e);
+            throw TableUtils.createTableOperationError(e);
         }
     }
 
@@ -179,8 +193,8 @@ public class TableIterator implements DataIterator {
     }
 
     @Override
-    public Map<String, Object> generateNext() {
-        Map<String, Object> bStruct = new MapValueImpl<>(type);
+    public MapValue<String, Object> generateNext() {
+        MapValue<String, Object> bStruct = new MapValueImpl<>(type);
         int index = 0;
         try {
             Collection<BField> structFields = type.getFields().values();
@@ -191,47 +205,82 @@ public class TableIterator implements DataIterator {
                 ++index;
                 switch (type.getTag()) {
                     case TypeTags.INT_TAG:
-                        value = rs.getLong(index);
-                        break;
                     case TypeTags.STRING_TAG:
-                        value = rs.getString(index);
-                        break;
                     case TypeTags.FLOAT_TAG:
-                        value = rs.getDouble(index);
-                        break;
                     case TypeTags.DECIMAL_TAG:
-                        value = rs.getBigDecimal(index);
-                        break;
                     case TypeTags.BOOLEAN_TAG:
-                        value = rs.getBoolean(index);
-                        break;
                     case TypeTags.JSON_TAG:
-                        String jsonValue = rs.getString(index);
-                        value = JSONParser.parse(jsonValue);
-                        break;
                     case TypeTags.XML_TAG:
-                        String xmlValue = rs.getString(index);
-                        value = new XMLItem(xmlValue);
-                        break;
                     case TypeTags.ARRAY_TAG:
-                        BType arrayElementType = ((BArrayType) type).getElementType();
-                        if (arrayElementType.getTag() == TypeTags.BYTE_TAG) {
-                            Blob blobValue = rs.getBlob(index);
-                            value = new ArrayValue(blobValue.getBytes(1L, (int) blobValue.length()));
+                        value = fetchValue(index, type);
+                        break;
+                    case TypeTags.UNION_TAG:
+                        List<BType> members = ((BUnionType) sf.getFieldType()).getMemberTypes();
+                        if (members.size() != 2) {
+                            throw TableUtils.createTableOperationError(
+                                    "corresponding Union type in the record is not an assignable nillable type");
+                        }
+                        if (members.get(0).getTag() == TypeTags.NULL_TAG) {
+                            value = fetchValue(index, members.get(1));
+                        } else if (members.get(1).getTag() == TypeTags.NULL_TAG) {
+                            value = fetchValue(index, members.get(0));
                         } else {
-                            Array arrayValue = rs.getArray(index);
-                            value = getDataArray(arrayValue);
+                            throw TableUtils.createTableOperationError(
+                                    "corresponding Union type in the record is not an assignable nillable type");
                         }
                         break;
                 }
-
                 bStruct.put(fieldName, value);
-
             }
         } catch (SQLException e) {
-            throw new BallerinaException("error in generating next row of data :" + e.getMessage());
+            throw TableUtils.createTableOperationError("error in generating next row of data :" + e.getMessage());
         }
         return bStruct;
+    }
+
+    private Object fetchValue(int index, BType type) throws SQLException {
+        Object value = null;
+        switch (type.getTag()) {
+            case TypeTags.INT_TAG:
+                value = rs.getLong(index);
+                break;
+            case TypeTags.STRING_TAG:
+                value = rs.getString(index);
+                break;
+            case TypeTags.FLOAT_TAG:
+                value = rs.getDouble(index);
+                break;
+            case TypeTags.DECIMAL_TAG:
+                value = new DecimalValue(rs.getBigDecimal(index));
+                break;
+            case TypeTags.BOOLEAN_TAG:
+                value = rs.getBoolean(index);
+                break;
+            case TypeTags.JSON_TAG:
+                String jsonValue = rs.getString(index);
+                value = JSONParser.parse(jsonValue);
+                break;
+            case TypeTags.XML_TAG:
+                String xmlValue = rs.getString(index);
+                value = new XMLItem(xmlValue);
+                break;
+            case TypeTags.ARRAY_TAG:
+                BType arrayElementType = ((BArrayType) type).getElementType();
+                if (arrayElementType.getTag() == TypeTags.BYTE_TAG) {
+                    Blob blobValue = rs.getBlob(index);
+                    if (blobValue != null) {
+                        value = new ArrayValue(blobValue.getBytes(1L, (int) blobValue.length()));
+                    }
+                } else {
+                    Array arrayValue = rs.getArray(index);
+                    value = getDataArray(arrayValue);
+                }
+                break;
+        }
+        if (rs.wasNull()) {
+            value = null;
+        }
+        return value;
     }
 
     @Override
@@ -269,45 +318,45 @@ public class TableIterator implements DataIterator {
     private ArrayValue createAndPopulatePrimitiveValueArray(Object firstNonNullElement, Object[] dataArray) {
         int length = dataArray.length;
         if (firstNonNullElement instanceof String) {
-            ArrayValue stringDataArray = new ArrayValue(BTypes.typeString);
+            ArrayValue stringDataArray = new ArrayValue(new BArrayType(BTypes.typeString));
             for (int i = 0; i < length; i++) {
                 stringDataArray.add(i, (String) dataArray[i]);
             }
             return stringDataArray;
         } else if (firstNonNullElement instanceof Boolean) {
-            ArrayValue boolDataArray = new ArrayValue(BTypes.typeBoolean);
+            ArrayValue boolDataArray = new ArrayValue(new BArrayType(BTypes.typeBoolean));
             for (int i = 0; i < length; i++) {
-                boolDataArray.add(i, ((Boolean) dataArray[i]) ? 1 : 0);
+                boolDataArray.add(i, ((Boolean) dataArray[i]).booleanValue());
             }
             return boolDataArray;
         } else if (firstNonNullElement instanceof Integer) {
-            ArrayValue intDataArray = new ArrayValue(BTypes.typeInt);
+            ArrayValue intDataArray = new ArrayValue(new BArrayType(BTypes.typeInt));
             for (int i = 0; i < length; i++) {
-                intDataArray.add(i, dataArray[i]);
+                intDataArray.add(i, ((Integer) dataArray[i]).intValue());
             }
             return intDataArray;
         } else if (firstNonNullElement instanceof Long) {
-            ArrayValue longDataArray = new ArrayValue(BTypes.typeInt);
+            ArrayValue longDataArray = new ArrayValue(new BArrayType(BTypes.typeInt));
             for (int i = 0; i < length; i++) {
-                longDataArray.add(i, dataArray[i]);
+                longDataArray.add(i, ((Long) dataArray[i]).longValue());
             }
             return longDataArray;
         } else if (firstNonNullElement instanceof Float) {
-            ArrayValue floatDataArray = new ArrayValue(BTypes.typeFloat);
+            ArrayValue floatDataArray = new ArrayValue(new BArrayType(BTypes.typeFloat));
             for (int i = 0; i < length; i++) {
-                floatDataArray.add(i, dataArray[i]);
+                floatDataArray.add(i, ((Float) dataArray[i]).floatValue());
             }
             return floatDataArray;
         } else if (firstNonNullElement instanceof Double) {
-            ArrayValue doubleDataArray = new ArrayValue(BTypes.typeFloat);
+            ArrayValue doubleDataArray = new ArrayValue(new BArrayType(BTypes.typeFloat));
             for (int i = 0; i < dataArray.length; i++) {
-                doubleDataArray.add(i, dataArray[i]);
+                doubleDataArray.add(i, ((Double) dataArray[i]).doubleValue());
             }
             return doubleDataArray;
         } else if ((firstNonNullElement instanceof BigDecimal)) {
-            ArrayValue decimalDataArray = new ArrayValue(BTypes.typeDecimal);
+            ArrayValue decimalDataArray = new ArrayValue(new BArrayType(BTypes.typeDecimal));
             for (int i = 0; i < dataArray.length; i++) {
-                decimalDataArray.add(i, dataArray[i]);
+                decimalDataArray.add(i, new DecimalValue((BigDecimal) dataArray[i]));
             }
             return decimalDataArray;
         } else {
@@ -321,37 +370,37 @@ public class TableIterator implements DataIterator {
         if (firstNonNullElement instanceof String) {
             refValueArray = createEmptyRefValueArray(BTypes.typeString, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (String) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof Boolean) {
             refValueArray = createEmptyRefValueArray(BTypes.typeBoolean, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (Boolean) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof Integer) {
             refValueArray = createEmptyRefValueArray(BTypes.typeInt, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (Long) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof Long) {
             refValueArray = createEmptyRefValueArray(BTypes.typeInt, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (Long) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof Float) {
             refValueArray = createEmptyRefValueArray(BTypes.typeFloat, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (Double) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof Double) {
             refValueArray = createEmptyRefValueArray(BTypes.typeFloat, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (Double) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i]);
             }
         } else if (firstNonNullElement instanceof BigDecimal) {
             refValueArray = createEmptyRefValueArray(BTypes.typeDecimal, length);
             for (int i = 0; i < length; i++) {
-                refValueArray.add(i, dataArray[i] != null ? (BigDecimal) dataArray[i] : null);
+                refValueArray.add(i, dataArray[i] != null ? new DecimalValue((BigDecimal) dataArray[i]) : null);
             }
         }
         return refValueArray;
@@ -399,22 +448,26 @@ public class TableIterator implements DataIterator {
         columnDefs = new ArrayList<>(structFields.size());
         for (BField sf : structFields) {
             BType type = sf.getFieldType();
-            int typeKind = TypeTags.ANY_TAG;
+            int typeTag = TypeTags.ANY_TAG;
             switch (type.getTag()) {
-                case TypeTags.INT_TAG | TypeTags.STRING_TAG | TypeTags.FLOAT_TAG | TypeTags.BOOLEAN_TAG
-                     | TypeTags.JSON_TAG | TypeTags.XML_TAG:
-                    typeKind = type.getTag();
-                    break;
-                case TypeTags.ARRAY_TAG:
-                    BType elementType = ((BArrayType) type).getElementType();
-                    if (elementType.getTag() == TypeTags.BYTE_TAG) {
-                        typeKind = TypeTags.BYTE_TAG;
-                    } else {
-                        typeKind = TypeTags.ARRAY_TAG;
-                    }
-                    break;
+            case TypeTags.INT_TAG:
+            case TypeTags.STRING_TAG:
+            case TypeTags.FLOAT_TAG:
+            case TypeTags.BOOLEAN_TAG:
+            case TypeTags.JSON_TAG:
+            case TypeTags.XML_TAG:
+                typeTag = type.getTag();
+                break;
+            case TypeTags.ARRAY_TAG:
+                BType elementType = ((BArrayType) type).getElementType();
+                if (elementType.getTag() == TypeTags.BYTE_TAG) {
+                    typeTag = TypeTags.BYTE_TAG;
+                } else {
+                    typeTag = TypeTags.ARRAY_TAG;
+                }
+                break;
             }
-            ColumnDefinition def = new ColumnDefinition(sf.getFieldName(), typeKind);
+            ColumnDefinition def = new ColumnDefinition(sf.getFieldName(), typeTag);
             columnDefs.add(def);
         }
     }

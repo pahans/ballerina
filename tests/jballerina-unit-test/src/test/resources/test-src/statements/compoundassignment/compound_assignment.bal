@@ -152,7 +152,7 @@ function testDecrementOperatorStructElement() returns (int){
 function testStringIntCompoundAssignmentAddition() returns (string){
     int x = 5;
     string a = "test";
-    a += x;
+    a += x.toString();
     return a;
 }
 
@@ -178,8 +178,14 @@ function testIntFloatCompoundAssignmentAddition() returns (float){
 function testXMLAttributeWithCompoundAssignment() returns (string){
     xml x1 = xml `<root xmlns:ns3="http://sample.com/wso2/f"></root>`;
     x1@[ns0:foo1] = "bar1";
-    x1@[ns0:foo1] += "bar2";
-    return x1@[ns0:foo1];
+    var result = x1@[ns0:foo1];
+
+    if (result is string) {
+        result += "bar2";
+        return result;
+    }
+
+    return "";
 }
 
 function testCompoundAssignmentAdditionRecursive() returns (int){
@@ -259,4 +265,28 @@ function xmlCompoundAssignment() returns (xml){
     z += "hah";
     z += blah;
     return z;
+}
+
+function testCompoundAssignmentAdditionRecordElementRecursive() returns int {
+    Company ibm = {};
+    ibm["count"] = 100;
+    ibm["count"] += ibm["count"];
+    return ibm["count"];
+}
+
+function testCompoundAssignmentAdditionRecordElements() returns int {
+    Company ibm = { count: 100 };
+    ibm["count2"] = 400;
+    ibm["count"] += ibm["count2"];
+    return ibm["count"];
+}
+
+function testCompoundAssignmentAdditionWithRecordAccess() returns int {
+    Company ibm = {};
+    ibm["count"] = 100;
+    int[] arr = [];
+    arr[0] = 200;
+    int x = 5;
+    x += (ibm["count"] + arr[0]);
+    return x;
 }

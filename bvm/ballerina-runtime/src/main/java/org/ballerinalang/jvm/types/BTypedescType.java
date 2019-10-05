@@ -18,29 +18,41 @@
 
 package org.ballerinalang.jvm.types;
 
+import org.ballerinalang.jvm.values.TypedescValue;
+
 /**
  * {@code BTypeType} represents type of type in Ballerina type system.
  *
  * @since 0.995.0
  */
 public class BTypedescType extends BType {
+    private BType constraint;
 
-    public BTypedescType(String typeName, String pkgPath) {
-        super(typeName, pkgPath, Object.class);
+    public BTypedescType(String typeName, BPackage pkg) {
+        super(typeName, pkg, Object.class);
+    }
+
+    public BTypedescType(BType constraint) {
+        super(TypeConstants.TYPEDESC_TNAME, null, TypedescValue.class);
+        this.constraint = constraint;
     }
 
     @Override
     public <V extends Object> V getZeroValue() {
-        return null;
+        return (V) new TypedescValue(BTypes.typeNull);
     }
 
     @Override
     public <V extends Object> V getEmptyValue() {
-        return null;
+        return getZeroValue();
     }
 
     @Override
     public int getTag() {
         return TypeTags.TYPEDESC_TAG;
+    }
+
+    public BType getConstraint() {
+        return constraint;
     }
 }

@@ -18,12 +18,12 @@
 
 package org.ballerinalang.stdlib.streams;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -35,16 +35,34 @@ import org.testng.annotations.Test;
  */
 public class BallerinaStreamsV2Test {
 
-    private CompileResult result;
+    private CompileResult result1;
+    private CompileResult result2;
 
     @BeforeClass
     public void setup() {
-        result = BCompileUtil.compile("test-src/streamingv2-select-with-filter-test.bal");
+        result1 = BCompileUtil.compile("test-src/streamingv2-select-with-filter-test.bal");
+        result2 = BCompileUtil.compile("test-src/streamingv2-select-with-filter-test-with-closure.bal");
     }
 
     @Test(description = "Test filter streaming query")
     public void testSelectorWithFilterQuery() {
-        BValue[] outputEmployeeEvents = BRunUtil.invoke(result, "startSelectQuery");
+        BValue[] outputEmployeeEvents = BRunUtil.invoke(result1, "startSelectQuery");
+        Assert.assertNotNull(outputEmployeeEvents);
+
+        Assert.assertEquals(outputEmployeeEvents.length, 2, "Expected events are not received");
+
+        BMap<String, BValue> employee0 = (BMap<String, BValue>) outputEmployeeEvents[0];
+        BMap<String, BValue> employee1 = (BMap<String, BValue>) outputEmployeeEvents[1];
+
+        Assert.assertEquals(employee0.get("TeacherName").stringValue(), "Mohan");
+        Assert.assertEquals(((BInteger) employee0.get("age")).intValue(), 45);
+        Assert.assertEquals(employee1.get("TeacherName").stringValue(), "Shareek");
+        Assert.assertEquals(((BInteger) employee1.get("age")).intValue(), 50);
+    }
+
+    @Test(description = "Test filter streaming query with closure")
+    public void testSelectorWithFilterQueryWithClosure() {
+        BValue[] outputEmployeeEvents = BRunUtil.invoke(result2, "startSelectQuery");
         Assert.assertNotNull(outputEmployeeEvents);
 
         Assert.assertEquals(outputEmployeeEvents.length, 2, "Expected events are not received");

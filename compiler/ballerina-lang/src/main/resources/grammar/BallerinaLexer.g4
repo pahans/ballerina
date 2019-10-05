@@ -2,11 +2,11 @@ lexer grammar BallerinaLexer;
 
 @members {
     boolean inStringTemplate = false;
-    boolean inSiddhi = false;
+    boolean inStreams = false;
     boolean inTableSqlQuery = false;
-    boolean inSiddhiInsertQuery = false;
-    boolean inSiddhiTimeScaleQuery = false;
-    boolean inSiddhiOutputRateLimit = false;
+    boolean inStreamsInsertQuery = false;
+    boolean inStreamsTimeScaleQuery = false;
+    boolean inStreamsOutputRateLimit = false;
 }
 
 // Reserved words
@@ -36,8 +36,9 @@ ABSTRACT    : 'abstract' ;
 CLIENT      : 'client' ;
 CONST       : 'const' ;
 TYPEOF      : 'typeof';
+SOURCE      : 'source' ;
 
-FROM        : 'from' { inTableSqlQuery = true; inSiddhiInsertQuery = true; inSiddhiOutputRateLimit = true; } ;
+FROM        : 'from' { inTableSqlQuery = true; inStreamsInsertQuery = true; inStreamsOutputRateLimit = true; } ;
 ON          : 'on' ;
 SELECT      : {inTableSqlQuery}? 'select' { inTableSqlQuery = false; } ;
 GROUP       : 'group' ;
@@ -46,33 +47,33 @@ HAVING      : 'having' ;
 ORDER       : 'order' ;
 WHERE       : 'where' ;
 FOLLOWED    : 'followed' ;
-FOR         : 'for' { inSiddhiTimeScaleQuery = true; } ;
+FOR         : 'for' { inStreamsTimeScaleQuery = true; } ;
 WINDOW      : 'window' ;
-EVENTS      : {inSiddhiInsertQuery}? 'events' { inSiddhiInsertQuery = false; } ;
+EVENTS      : {inStreamsInsertQuery}? 'events' { inStreamsInsertQuery = false; } ;
 EVERY       : 'every' ;
-WITHIN      : 'within' { inSiddhiTimeScaleQuery = true; } ;
-LAST        : {inSiddhiOutputRateLimit}? 'last' { inSiddhiOutputRateLimit = false; } ;
-FIRST       : {inSiddhiOutputRateLimit}? 'first' { inSiddhiOutputRateLimit = false; } ;
+WITHIN      : 'within' { inStreamsTimeScaleQuery = true; } ;
+LAST        : {inStreamsOutputRateLimit}? 'last' { inStreamsOutputRateLimit = false; } ;
+FIRST       : {inStreamsOutputRateLimit}? 'first' { inStreamsOutputRateLimit = false; } ;
 SNAPSHOT    : 'snapshot' ;
-OUTPUT      : {inSiddhiOutputRateLimit}? 'output' { inSiddhiTimeScaleQuery = true; } ;
+OUTPUT      : {inStreamsOutputRateLimit}? 'output' { inStreamsTimeScaleQuery = true; } ;
 INNER       : 'inner' ;
 OUTER       : 'outer' ;
 RIGHT       : 'right' ;
 LEFT        : 'left' ;
 FULL        : 'full' ;
 UNIDIRECTIONAL  : 'unidirectional' ;
-SECOND      : {inSiddhiTimeScaleQuery}? 'second' { inSiddhiTimeScaleQuery = false; } ;
-MINUTE      : {inSiddhiTimeScaleQuery}? 'minute' { inSiddhiTimeScaleQuery = false; } ;
-HOUR        : {inSiddhiTimeScaleQuery}? 'hour' { inSiddhiTimeScaleQuery = false; } ;
-DAY         : {inSiddhiTimeScaleQuery}? 'day' { inSiddhiTimeScaleQuery = false; } ;
-MONTH       : {inSiddhiTimeScaleQuery}? 'month' { inSiddhiTimeScaleQuery = false; } ;
-YEAR        : {inSiddhiTimeScaleQuery}? 'year' { inSiddhiTimeScaleQuery = false; } ;
-SECONDS     : {inSiddhiTimeScaleQuery}? 'seconds' { inSiddhiTimeScaleQuery = false; } ;
-MINUTES     : {inSiddhiTimeScaleQuery}? 'minutes' { inSiddhiTimeScaleQuery = false; } ;
-HOURS       : {inSiddhiTimeScaleQuery}? 'hours' { inSiddhiTimeScaleQuery = false; } ;
-DAYS        : {inSiddhiTimeScaleQuery}? 'days' { inSiddhiTimeScaleQuery = false; } ;
-MONTHS      : {inSiddhiTimeScaleQuery}? 'months' { inSiddhiTimeScaleQuery = false; } ;
-YEARS       : {inSiddhiTimeScaleQuery}? 'years' { inSiddhiTimeScaleQuery = false; } ;
+SECOND      : {inStreamsTimeScaleQuery}? 'second' { inStreamsTimeScaleQuery = false; } ;
+MINUTE      : {inStreamsTimeScaleQuery}? 'minute' { inStreamsTimeScaleQuery = false; } ;
+HOUR        : {inStreamsTimeScaleQuery}? 'hour' { inStreamsTimeScaleQuery = false; } ;
+DAY         : {inStreamsTimeScaleQuery}? 'day' { inStreamsTimeScaleQuery = false; } ;
+MONTH       : {inStreamsTimeScaleQuery}? 'month' { inStreamsTimeScaleQuery = false; } ;
+YEAR        : {inStreamsTimeScaleQuery}? 'year' { inStreamsTimeScaleQuery = false; } ;
+SECONDS     : {inStreamsTimeScaleQuery}? 'seconds' { inStreamsTimeScaleQuery = false; } ;
+MINUTES     : {inStreamsTimeScaleQuery}? 'minutes' { inStreamsTimeScaleQuery = false; } ;
+HOURS       : {inStreamsTimeScaleQuery}? 'hours' { inStreamsTimeScaleQuery = false; } ;
+DAYS        : {inStreamsTimeScaleQuery}? 'days' { inStreamsTimeScaleQuery = false; } ;
+MONTHS      : {inStreamsTimeScaleQuery}? 'months' { inStreamsTimeScaleQuery = false; } ;
+YEARS       : {inStreamsTimeScaleQuery}? 'years' { inStreamsTimeScaleQuery = false; } ;
 FOREVER     : 'forever' ;
 LIMIT       : 'limit' ;
 ASCENDING   : 'ascending' ;
@@ -95,6 +96,7 @@ TYPE_DESC       : 'typedesc' ;
 TYPE            : 'type' ;
 TYPE_FUTURE     : 'future' ;
 TYPE_ANYDATA    : 'anydata' ;
+TYPE_HANDLE     : 'handle' ;
 
 VAR         : 'var' ;
 NEW         : 'new' ;
@@ -157,6 +159,8 @@ RIGHT_PARENTHESIS   : ')' ;
 LEFT_BRACKET        : '[' ;
 RIGHT_BRACKET       : ']' ;
 QUESTION_MARK       : '?' ;
+
+OPTIONAL_FIELD_ACCESS   : '?.' ;
 
 // Delimiters
 LEFT_CLOSED_RECORD_DELIMITER     : '{|' ;
@@ -227,6 +231,9 @@ COMPOUND_LOGICAL_SHIFT   : '>>>=' ;
 // Integer Range Operators.
 // CLOSED_RANGE - ELLIPSIS
 HALF_OPEN_RANGE   : '..<' ;
+
+// Annotation Access.
+ANNOTATION_ACCESS   : '.@' ;
 
 DecimalIntegerLiteral
     :   DecimalNumeral
@@ -420,8 +427,60 @@ NullLiteral
     ;
 
 Identifier
-    :   (Letter LetterOrDigit*)
-    |   IdentifierLiteral
+    :   UnquotedIdentifier
+    |   QuotedIdentifier
+    ;
+
+fragment
+UnquotedIdentifier
+    :   IdentifierInitialChar IdentifierFollowingChar*
+    ;
+
+fragment
+QuotedIdentifier
+    :   '\'' QuotedIdentifierChar+
+    ;
+
+fragment
+QuotedIdentifierChar
+    :   IdentifierFollowingChar
+    |   QuotedIdentifierEscape
+    |   StringNumericEscape
+    ;
+
+// IdentifierInitialChar :=  AsciiLetter | _ | UnicodeIdentifierChar
+// UnicodeIdentifierChar := ^ ( AsciiChar | UnicodeNonIdentifierChar )
+// AsciiChar := 0x0 .. 0x7F
+// UnicodeNonIdentifierChar := UnicodePrivateUseChar | UnicodePatternWhiteSpaceChar | UnicodePatternSyntaxChar
+// UnicodePrivateUseChar := 0xE000 .. 0xF8FF | 0xF0000 .. 0xFFFFD | 0x100000 .. 0x10FFFD
+// UnicodePatternWhiteSpaceChar := 0x200E | 0x200F | 0x2028 | 0x2029
+// UnicodePatternSyntaxChar := character with Unicode property Pattern_Syntax=True (http://unicode.org/reports/tr31/tr31-2.html#Pattern_Syntax)
+fragment
+IdentifierInitialChar
+    : [a-zA-Z_]
+    // Negates ( AsciiChar | UnicodeNonIdentifierChar )
+    | ~ [\u0000-\u007F\uE000-\uF8FF\u200E\u200F\u2028\u2029\u00A1-\u00A7\u00A9\u00AB-\u00AC\u00AE\u00B0-\u00B1\u00B6-\u00B7\u00BB\u00BF\u00D7\u00F7\u2010-\u2027\u2030-\u205E\u2190-\u2BFF\u3001-\u3003\u3008-\u3020\u3030\uFD3E-\uFD3F\uFE45-\uFE46\uDB80-\uDBBF\uDBC0-\uDBFF\uDC00-\uDFFF]
+    ;
+
+fragment
+IdentifierFollowingChar
+    :   IdentifierInitialChar
+    |   DIGIT
+    ;
+
+// QuotedIdentifierEscape := \ ^ ( AsciiLetter | 0x9 | 0xA | 0xD | UnicodePatternWhiteSpaceChar )
+// AsciiLetter := A .. Z | a .. z
+// UnicodePatternWhiteSpaceChar := 0x200E | 0x200F | 0x2028 | 0x2029
+fragment
+QuotedIdentifierEscape
+    :   '\\' ~([a-zA-Z]|'\u0009'|'\u000A'|'\u000D'|'\u200E'|'\u200F'|'\u2028'|'\u2029')
+    ;
+
+fragment
+StringNumericEscape
+    :   '\\' [|"\\/]
+    |   '\\\\' [btnfr]
+    |   UnicodeEscape
     ;
 
 fragment
@@ -474,23 +533,6 @@ NEW_LINE
 
 LINE_COMMENT
     :   '//' ~[\r\n]*   -> channel(HIDDEN)
-    ;
-
-fragment
-IdentifierLiteral
-    :   '^"' IdentifierLiteralChar+ '"' ;
-
-fragment
-IdentifierLiteralChar
-    :   ~[|"\\\b\f\n\r\t]
-    |   IdentifierLiteralEscapeSequence
-    ;
-
-fragment
-IdentifierLiteralEscapeSequence
-    :   '\\' [|"\\/]
-    |   '\\\\' [btnfr]
-    |   UnicodeEscape
     ;
 
 mode MARKDOWN_DOCUMENTATION;

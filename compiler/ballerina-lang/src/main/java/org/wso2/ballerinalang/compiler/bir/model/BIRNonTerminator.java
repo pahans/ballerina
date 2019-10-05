@@ -31,13 +31,15 @@ import java.util.List;
  *
  * @since 0.980.0
  */
-public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction {
-
-    public InstructionKind kind;
+public abstract class BIRNonTerminator extends BIRAbstractInstruction implements BIRInstruction {
 
     BIRNonTerminator(DiagnosticPos pos, InstructionKind kind) {
-        super(pos);
-        this.kind = kind;
+        super(pos, kind);
+    }
+
+    @Override
+    public InstructionKind getKind() {
+        return this.kind;
     }
 
     /**
@@ -48,7 +50,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class Move extends BIRNonTerminator implements BIRAssignInstruction {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
 
         public Move(DiagnosticPos pos, BIROperand fromOperand, BIROperand toOperand) {
@@ -76,7 +77,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class BinaryOp extends BIRNonTerminator implements BIRAssignInstruction {
-        public BIROperand lhsOp;
         public BIROperand rhsOp1;
         public BIROperand rhsOp2;
 
@@ -111,7 +111,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class UnaryOP extends BIRNonTerminator implements BIRAssignInstruction {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
 
         public UnaryOP(DiagnosticPos pos, InstructionKind kind, BIROperand lhsOp, BIROperand rhsOp) {
@@ -139,7 +138,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class ConstantLoad extends BIRNonTerminator implements BIRAssignInstruction {
-        public BIROperand lhsOp;
         public Object value;
         public BType type;
 
@@ -169,13 +167,28 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class NewStructure extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BType type;
+        public final boolean isExternalDef;
+        public final PackageID externalPackageId;
+        public final String recordName;
 
         public NewStructure(DiagnosticPos pos, BType type, BIROperand lhsOp) {
             super(pos, InstructionKind.NEW_STRUCTURE);
             this.type = type;
             this.lhsOp = lhsOp;
+            this.recordName = null;
+            this.externalPackageId = null;
+            this.isExternalDef = false;
+        }
+
+        public NewStructure(DiagnosticPos pos, PackageID externalPackageId, String recordName, BType type,
+                            BIROperand lhsOp) {
+            super(pos, InstructionKind.NEW_STRUCTURE);
+            this.recordName = recordName;
+            this.type = type;
+            this.lhsOp = lhsOp;
+            this.externalPackageId = externalPackageId;
+            this.isExternalDef = true;
         }
 
         @Override
@@ -192,13 +205,27 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewInstance extends BIRNonTerminator {
+        public final boolean isExternalDef;
+        public final PackageID externalPackageId;
         public BIRTypeDefinition def;
-        public BIROperand lhsOp;
+        public final String objectName;
 
         public NewInstance(DiagnosticPos pos, BIRTypeDefinition def, BIROperand lhsOp) {
             super(pos, InstructionKind.NEW_INSTANCE);
             this.lhsOp = lhsOp;
             this.def = def;
+            this.objectName = null;
+            this.externalPackageId = null;
+            this.isExternalDef = false;
+        }
+
+        public NewInstance(DiagnosticPos pos, PackageID externalPackageId, String objectName, BIROperand lhsOp) {
+            super(pos, InstructionKind.NEW_INSTANCE);
+            this.objectName = objectName;
+            this.lhsOp = lhsOp;
+            this.def = null;
+            this.externalPackageId = externalPackageId;
+            this.isExternalDef = true;
         }
 
         @Override
@@ -215,7 +242,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class NewArray extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand sizeOp;
         public BType type;
 
@@ -242,9 +268,10 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class FieldAccess extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand keyOp;
         public BIROperand rhsOp;
+        public boolean optionalFieldAccess = false;
+        public boolean fillingRead = false;
 
         public FieldAccess(DiagnosticPos pos, InstructionKind kind,
                            BIROperand lhsOp, BIROperand keyOp, BIROperand rhsOp) {
@@ -252,6 +279,17 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
             this.lhsOp = lhsOp;
             this.keyOp = keyOp;
             this.rhsOp = rhsOp;
+        }
+
+        public FieldAccess(DiagnosticPos pos, InstructionKind kind,
+                           BIROperand lhsOp, BIROperand keyOp, BIROperand rhsOp, boolean optionalFieldAccess,
+                           boolean fillingRead) {
+            super(pos, kind);
+            this.lhsOp = lhsOp;
+            this.keyOp = keyOp;
+            this.rhsOp = rhsOp;
+            this.optionalFieldAccess = optionalFieldAccess;
+            this.fillingRead = fillingRead;
         }
 
         @Override
@@ -269,19 +307,18 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      */
     public static class NewError extends BIRNonTerminator {
 
-        public BIROperand lhsOp;
-
+        public BType type;
+        
         public BIROperand reasonOp;
 
         public BIROperand detailOp;
-
-        public NewError(DiagnosticPos pos, InstructionKind kind, BIROperand lhsOp,
-                        BIROperand reasonOp, BIROperand detailOp) {
-            super(pos, kind);
+        
+        public NewError(DiagnosticPos pos,  BType type, BIROperand lhsOp, BIROperand reasonOp, BIROperand detailOp) {
+            super(pos, InstructionKind.NEW_ERROR);
+            this.type = type;
             this.lhsOp = lhsOp;
             this.reasonOp = reasonOp;
             this.detailOp = detailOp;
-                        
         }
 
         @Override
@@ -298,13 +335,16 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class TypeCast extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
+        public BType type;
+        public boolean checkTypes;
 
-        public TypeCast(DiagnosticPos pos, BIROperand lhsOp, BIROperand rhsOp) {
+        public TypeCast(DiagnosticPos pos, BIROperand lhsOp, BIROperand rhsOp, BType castType, boolean checkTypes) {
             super(pos, InstructionKind.TYPE_CAST);
             this.lhsOp = lhsOp;
             this.rhsOp = rhsOp;
+            this.type = castType;
+            this.checkTypes = checkTypes;
         }
 
         @Override
@@ -321,7 +361,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class IsLike extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
         public BType type;
 
@@ -346,7 +385,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.980.0
      */
     public static class TypeTest extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
         public BType type;
 
@@ -369,7 +407,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewXMLElement extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand startTagOp;
         public BIROperand endTagOp;
         public BIROperand defaultNsURIOp;
@@ -397,7 +434,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewXMLQName extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand localnameOp;
         public BIROperand nsURIOp;
         public BIROperand prefixOp;
@@ -425,7 +461,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewStringXMLQName extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand stringQNameOP;
 
         public NewStringXMLQName(DiagnosticPos pos, BIROperand lhsOp, BIROperand stringQName) {
@@ -446,7 +481,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewXMLText extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand textOp;
 
         public NewXMLText(DiagnosticPos pos, BIROperand lhsOp, BIROperand textOp) {
@@ -467,7 +501,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewXMLProcIns extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand dataOp;
         public BIROperand targetOp;
 
@@ -490,7 +523,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewXMLComment extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand textOp;
 
         public NewXMLComment(DiagnosticPos pos, BIROperand lhsOp, BIROperand textOp) {
@@ -512,7 +544,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class XMLAccess extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand rhsOp;
 
         public XMLAccess(DiagnosticPos pos, InstructionKind kind, BIROperand lhsOp, BIROperand rhsOp) {
@@ -538,20 +569,21 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class FPLoad extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public Name funcName;
         public PackageID pkgId;
         public List<BIRVariableDcl> params;
         public List<BIROperand> closureMaps;
+        public BType retType;
 
         public FPLoad(DiagnosticPos pos, PackageID pkgId, Name funcName, BIROperand lhsOp,
-                      List<BIRVariableDcl> params, List<BIROperand> closureMaps) {
+                      List<BIRVariableDcl> params, List<BIROperand> closureMaps, BType retType) {
             super(pos, InstructionKind.FP_LOAD);
             this.lhsOp = lhsOp;
             this.funcName = funcName;
             this.pkgId = pkgId;
             this.params = params;
             this.closureMaps = closureMaps;
+            this.retType = retType;
         }
 
         @Override
@@ -574,22 +606,18 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewTable extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BIROperand columnsOp;
         public BIROperand dataOp;
-        public BIROperand indexColOp;
         public BIROperand keyColOp;
         public BType type;
 
         public NewTable(DiagnosticPos pos, BType type, BIROperand lhsOp, BIROperand columnsOp,
-                        BIROperand dataOp, BIROperand indexColOp,
-                        BIROperand keyColOp) {
+                        BIROperand dataOp, BIROperand keyColOp) {
             super(pos, InstructionKind.NEW_TABLE);
             this.type = type;
             this.lhsOp = lhsOp;
             this.columnsOp = columnsOp;
             this.dataOp = dataOp;
-            this.indexColOp = indexColOp;
             this.keyColOp = keyColOp;
         }
 
@@ -607,7 +635,6 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewTypeDesc extends BIRNonTerminator {
-        public BIROperand lhsOp;
         public BType type;
 
         public NewTypeDesc(DiagnosticPos pos, BIROperand lhsOp, BType type) {
@@ -630,48 +657,12 @@ public abstract class BIRNonTerminator extends BIRNode implements BIRInstruction
      * @since 0.995.0
      */
     public static class NewStream extends BIRNonTerminator {
-        public BIROperand lhsOp;
-        public BIROperand nameOp;
         public BType type;
 
-        public NewStream(DiagnosticPos pos, BType type, BIROperand lhsOp, BIROperand nameOp) {
+        public NewStream(DiagnosticPos pos, BType type, BIROperand lhsOp) {
             super(pos, InstructionKind.NEW_STREAM);
             this.type = type;
             this.lhsOp = lhsOp;
-            this.nameOp = nameOp;
-        }
-
-        @Override
-        public void accept(BIRVisitor visitor) {
-            visitor.visit(this);
-        }
-    }
-
-    /**
-     * A ternary operator instruction
-     * <p>
-     * e.g., a == null ? b : c
-     *
-     * @since 0.995.0
-     */
-    public static class TernaryOp extends BIRNonTerminator implements BIRAssignInstruction {
-        public BIROperand lhsOp;
-        public BIROperand conditionOp;
-        public BIROperand thenOp;
-        public BIROperand elseOp;
-
-        public TernaryOp(DiagnosticPos pos, BIROperand lhsOp, BIROperand conditionOp, BIROperand thenOp,
-                BIROperand elseOp) {
-            super(pos, InstructionKind.TERNARY);
-            this.lhsOp = lhsOp;
-            this.conditionOp = conditionOp;
-            this.thenOp = thenOp;
-            this.elseOp = elseOp;
-        }
-
-        @Override
-        public BIROperand getLhsOperand() {
-            return lhsOp;
         }
 
         @Override

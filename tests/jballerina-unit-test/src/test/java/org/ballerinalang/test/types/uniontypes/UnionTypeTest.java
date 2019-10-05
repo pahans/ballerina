@@ -120,9 +120,18 @@ public class UnionTypeTest {
     public void testAmbiguousAssignment() {
         int i = 0;
         Assert.assertEquals(negativeResult.getErrorCount(), 4);
-        BAssertUtil.validateError(negativeResult, i++, "ambiguous type 'OpenBar|OpenFoo'", 42, 26);
-        BAssertUtil.validateError(negativeResult, i++, "ambiguous type 'ClosedBar|ClosedFoo'", 43, 30);
-        BAssertUtil.validateError(negativeResult, i++, "ambiguous type 'ClosedBar|OpenBar'", 44, 28);
+        BAssertUtil.validateError(negativeResult, i++, "ambiguous type '(OpenBar|OpenFoo)'", 42, 26);
+        BAssertUtil.validateError(negativeResult, i++, "ambiguous type '(ClosedBar|ClosedFoo)'", 43, 30);
+        BAssertUtil.validateError(negativeResult, i++, "ambiguous type '(ClosedBar|OpenBar)'", 44, 28);
         BAssertUtil.validateError(negativeResult, i++, "incompatible types: expected 'string', found 'int'", 47, 31);
+    }
+
+    @Test(description = "Test nullable check")
+    public void testNullableCheck() {
+        try {
+            BRunUtil.invoke(result, "testNullableTypeArrayFill");
+        } catch (Throwable e) {
+            Assert.fail("Nullable check in Union type failed");
+        }
     }
 }

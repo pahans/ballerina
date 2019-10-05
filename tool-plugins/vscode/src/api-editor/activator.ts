@@ -22,9 +22,10 @@ import * as _ from 'lodash';
 import { apiEditorRender } from './renderer';
 import { BallerinaExtension } from '../core';
 import { API_DESIGNER_NO_SERVICE } from '../core/messages';
-import { WebViewRPCHandler, WebViewMethod } from '../utils';
+import { WebViewRPCHandler, WebViewMethod, getCommonWebViewOptions } from '../utils';
 import { join } from "path";
 import { readFileSync } from "fs";
+import { TM_EVENT_OPEN_API_DESIGNER, CMP_API_DESIGNER } from '../telemetry';
 
 const DEBOUNCE_WAIT = 500;
 const CMD_SHOW_API_EDITOR = "ballerina.showAPIEditor";
@@ -163,11 +164,8 @@ function createAPIEditorPanel(selectedService: string, renderHtml: string,
         oasEditorPanel = window.createWebviewPanel(
             'ballerinaOASEditor',
             'Ballerina API Designer - ' + selectedService,
-            { viewColumn: ViewColumn.Two, preserveFocus: true } ,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-            }
+            { viewColumn: ViewColumn.One, preserveFocus: true } ,
+            getCommonWebViewOptions()
         );
     }
 
@@ -186,7 +184,7 @@ function createAPIEditorPanel(selectedService: string, renderHtml: string,
             }
         }
     ];
-    WebViewRPCHandler.create(oasEditorPanel.webview, langClient, remoteMethods);
+    WebViewRPCHandler.create(oasEditorPanel, langClient, remoteMethods);
 
     oasEditorPanel.iconPath = {
 		light: Uri.file(join(context.extensionPath, 'resources/images/icons/api-design.svg')),
@@ -209,9 +207,11 @@ function createAPIEditorPanel(selectedService: string, renderHtml: string,
 }
 
 export function activate(ballerinaExtInstance: BallerinaExtension) {
-    let context = <ExtensionContext> ballerinaExtInstance.context;
-    let langClient = <ExtendedLangClient> ballerinaExtInstance.langClient;
+    const reporter = ballerinaExtInstance.telemetryReporter;
+    const context = <ExtensionContext> ballerinaExtInstance.context;
+    const langClient = <ExtendedLangClient> ballerinaExtInstance.langClient;
     const showAPIRenderer = commands.registerCommand(CMD_SHOW_API_EDITOR, serviceNameArg => {
+        reporter.sendTelemetryEvent(TM_EVENT_OPEN_API_DESIGNER, { component: CMP_API_DESIGNER});
         ballerinaExtInstance.onReady()
         .then(() => {
             const { experimental } = langClient.initializeResult!.capabilities;
@@ -228,7 +228,8 @@ export function activate(ballerinaExtInstance: BallerinaExtension) {
 				ballerinaExtInstance.showMessageInvalidBallerinaHome();
 			} else {
 				ballerinaExtInstance.showPluginActivationError();
-			}
+            }
+            reporter.sendTelemetryException(e, { component: CMP_API_DESIGNER});
 		});
     });
     

@@ -16,13 +16,13 @@
  */
 package org.ballerinalang.test.expressions.lambda;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BFloat;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BValueArray;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -87,7 +87,7 @@ public class IterableOperationsWithVarMutabilityTests {
         Assert.assertEquals(returns[0].stringValue(), sb.toString().trim());
     }
 
-    @Test
+    @Test()
     public void testBasicMap1() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testBasicMap1");
         Assert.assertNotNull(returns);
@@ -96,22 +96,22 @@ public class IterableOperationsWithVarMutabilityTests {
         Assert.assertEquals(returns[1].stringValue(), "[\"a\", \"e\"]");
     }
 
-    @Test
+    @Test()
     public void testBasicMap2() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testBasicMap2");
         Assert.assertEquals(returns.length, 3);
         Assert.assertEquals(returns[0].stringValue(), "91");
         Assert.assertEquals(returns[1].stringValue(), "start-a : A-b : B-c : C-d : D-e : E-end");
-        Assert.assertEquals(returns[2].stringValue(), "[\"aA\", \"eE\"]");
+        Assert.assertEquals(returns[2].stringValue(), "{\"a\":\"aA\", \"e\":\"eE\"}");
     }
 
-    @Test
+    @Test()
     public void testXML() {
         BValue[] returns = BRunUtil.invoke(compileResult, "xmlTest");
         Assert.assertEquals(returns.length, 2);
         Assert.assertEquals(returns[0].stringValue(), "start-1-2-end");
-        Assert.assertEquals(returns[1].stringValue(), "{\"1\":<p:city xmlns:p=\"foo\" xmlns:q=\"bar\">NY</p:city>, " +
-                "\"2\":<q:country xmlns:q=\"bar\" xmlns:p=\"foo\">US</q:country>}");
+        Assert.assertEquals(returns[1].stringValue(), "<p:city xmlns:p=\"foo\" xmlns:q=\"bar\">NY</p:city>" +
+                "<q:country xmlns:q=\"bar\" xmlns:p=\"foo\">US</q:country>");
     }
 
     @Test
@@ -158,15 +158,15 @@ public class IterableOperationsWithVarMutabilityTests {
                 "\"types\":[\"street_number\"]}");
     }
 
-    @Test
+    @Test()
     public void testWithComplexXML() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testWithComplexXML");
         Assert.assertNotNull(returns);
         Assert.assertEquals(returns.length, 4);
-        Assert.assertEquals(returns[0].stringValue(), "(0, \"Everyday Italian\")");
-        Assert.assertEquals(returns[1].stringValue(), "(1, \"Harry Potter\")");
-        Assert.assertEquals(returns[2].stringValue(), "(2, \"XQuery Kick Start\")");
-        Assert.assertEquals(returns[3].stringValue(), "(3, \"Learning XML\")");
+        Assert.assertEquals(returns[0].stringValue(), "[0, \"Everyday Italian\"]");
+        Assert.assertEquals(returns[1].stringValue(), "[1, \"Harry Potter\"]");
+        Assert.assertEquals(returns[2].stringValue(), "[2, \"XQuery Kick Start\"]");
+        Assert.assertEquals(returns[3].stringValue(), "[3, \"Learning XML\"]");
     }
 
     @Test

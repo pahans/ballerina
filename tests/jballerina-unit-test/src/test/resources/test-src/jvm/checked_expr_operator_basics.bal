@@ -78,12 +78,16 @@ type Person record {
 };
 
 public type MyErrorData record {|
+    string message?;
+    error cause?;
 |};
 
 type MyError error<string, MyErrorData>;
 
 public type CustomErrorData record {|
     string data;
+    string message?;
+    error cause?;
 |};
 
 type CustomError error<string, CustomErrorData>;
@@ -107,7 +111,7 @@ function readLineError() returns string | MyError {
 }
 
 function readLineCustomError() returns string | CustomError {
-    CustomError e = error("custom io error", { data: "foo.txt"});
+    CustomError e = error("custom io error", data = "foo.txt");
     return e;
 }
 

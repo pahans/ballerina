@@ -22,7 +22,7 @@ import org.ballerinalang.model.tree.expressions.VariableReferenceNode;
 import java.util.List;
 
 /**
- * var (a,b) = ("hello", 1).
+ * var [a,b] = ["hello", 1].
  *
  * @since 0.966.0
  */
@@ -36,4 +36,5 @@ public interface TupleDestructureNode extends StatementNode {
 
     void setExpression(ExpressionNode expression);
 
+    ExpressionNode getRestParam();
 }

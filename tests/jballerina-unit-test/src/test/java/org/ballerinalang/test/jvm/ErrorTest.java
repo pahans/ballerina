@@ -17,9 +17,6 @@
  */
 package org.ballerinalang.test.jvm;
 
-import org.ballerinalang.jvm.BallerinaErrors;
-import org.ballerinalang.jvm.values.ErrorValue;
-import org.ballerinalang.jvm.values.MapValueImpl;
 import org.ballerinalang.model.values.BError;
 import org.ballerinalang.model.values.BInteger;
 import org.ballerinalang.model.values.BMap;
@@ -30,9 +27,6 @@ import org.ballerinalang.test.util.CompileResult;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 
 /**
  * Test cases to cover error related tests on JBallerina.
@@ -48,19 +42,11 @@ public class ErrorTest {
         compileResult = BCompileUtil.compile("test-src/jvm/errors.bal");
     }
 
-    @Test(description = "Test panic an error")
+    @Test(description = "Test panic an error", expectedExceptions = RuntimeException.class, 
+          expectedExceptionsMessageRegExp = "error: reason foo 2 message=int value\n\tat errors:foo\\(errors"
+                  + ".bal:48\\)\n\t   errors:testPanic\\(errors.bal:20\\)")
     public void testPanic() {
-        try {
             BRunUtil.invoke(compileResult, "testPanic", new BValue[] { new BInteger(0) });
-        } catch (RuntimeException e) {
-            Assert.assertTrue(((InvocationTargetException) e.getCause()).getTargetException() instanceof ErrorValue);
-            ErrorValue bError = (ErrorValue) ((InvocationTargetException) e.getCause()).getTargetException();
-            Assert.assertEquals(bError.getReason(), "reason foo 2");
-            Assert.assertEquals(((MapValueImpl) bError.getDetails()).get("message").toString(), "int value");
-            Assert.assertEquals(getPrintableStackTrace(bError), "reason foo 2 {\"message\":\"int value\"}\n"
-                    + "\tat foo(errors.bal:46)\n"
-                    + "\t   testPanic(errors.bal:18)");
-        }
     }
 
     @Test(description = "Test trap an error")
@@ -125,12 +111,18 @@ public class ErrorTest {
 
     @Test
     public void testSelfReferencingObject() {
-        BValue[] result = BRunUtil.invoke(compileResult, "testSelfReferencingError");
+        BRunUtil.invoke(compileResult, "testSelfReferencingError");
     }
 
-    private String getPrintableStackTrace(ErrorValue errorValue) {
-        StackTraceElement[] stackWithoutJavaTests = Arrays.copyOf(errorValue.getStackTrace(), 2);
-        return BallerinaErrors.getPrintableStackTrace(BallerinaErrors.getErrorMessage(errorValue),
-                                                    stackWithoutJavaTests);
+    @Test(enabled = false)
+    public void testRuntimeOOMError() {
+        try {
+            CompileResult compileResult = BCompileUtil.compile("test-src/jvm/runtime-oom-error.bal");
+            BCompileUtil.runMain(compileResult, new String[]{});
+        } catch (Throwable e) {
+            Assert.assertTrue(e.getMessage().contains("java.lang.OutOfMemoryError: Java heap space"));
+            return;
+        }
+        Assert.fail("runtime out of memory errors are not handled");
     }
 }

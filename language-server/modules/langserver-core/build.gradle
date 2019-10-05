@@ -14,8 +14,15 @@
  * limitations under the License.
  *
  */
- 
+
 apply from: "$rootDir/gradle/javaProjectWithExtBalo.gradle"
+apply from: "$rootDir/gradle/baseNativeStdLibProject.gradle"
+
+configurations.all {
+    resolutionStrategy {
+        preferProjectModules()
+    }
+}
 
 configurations {
     dist {
@@ -24,30 +31,54 @@ configurations {
     dependency {
         transitive false
     }
+    index
+    libs
+    langserverResources
 }
 
 dependencies {
-    implementation project(':ballerina-core')
     implementation project(':ballerina-lang')
-    implementation project(':ballerina-builtin')
+    implementation project(':ballerina-runtime')
     implementation project(':language-server:language-server-compiler')
-    implementation project(':ballerina-http')
-    implementation project(':ballerina-openapi')
     implementation project(':openapi-ballerina:openapi-to-ballerina-generator')
     implementation project(':openapi-ballerina:ballerina-to-openapi-generator')
-    implementation project(':ballerina-h2')
-    implementation project(':ballerina-mysql')
-    implementation project(':ballerina-sql')
-    implementation project(':ballerina-transactions')
-    implementation project(':ballerina-websub')
-    implementation project(':ballerina-jms')
-    implementation project(':ballerina-grpc')
+
+    // Standard libs
+    implementation project(':ballerina-auth')
+    implementation project(':ballerina-bir')
+    implementation project(':ballerina-lang:annotations')
+    implementation project(':ballerina-cache')
+    implementation project(':ballerina-config-api')
+    implementation project(':ballerina-crypto')
+    implementation project(':ballerina-jdbc')
+    implementation project(':ballerina-java')
+    implementation project(':ballerina-encoding')
+    implementation project(':ballerina-file')
     implementation project(':ballerina-filepath')
-    implementation project(':testerina:testerina-core')
-    implementation project(':ballerina-activemq-artemis')
+    implementation project(':ballerina-grpc')
+    implementation project(':ballerina-http')
+    implementation project(':ballerina-io')
+    implementation project(':ballerina-jwt')
+    implementation project(':ballerina-ldap')
+    implementation project(':ballerina-log-api')
+    implementation project(':ballerina-math')
     implementation project(':ballerina-rabbitmq')
+    implementation project(':ballerina-mime')
     implementation project(':ballerina-nats')
-    implementation project(':ballerina-launcher')
+    implementation project(':ballerina-oauth2')
+    implementation project(':ballerina-observability')
+    implementation project(':ballerina-openapi')
+    implementation project(':ballerina-reflect')
+    implementation project(':ballerina-socket')
+    implementation project(':ballerina-streams')
+    implementation project(':ballerina-system')
+    implementation project(':ballerina-task')
+    implementation project(':ballerina-time')
+    implementation project(':ballerina-transactions')
+    implementation project(':ballerina-utils')
+//    implementation project(':ballerina-websub')
+    implementation project(':testerina:testerina-core')
+    implementation project(':ballerina-tool')
 
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
@@ -61,44 +92,49 @@ dependencies {
     implementation 'org.wso2.orbit.org.antlr:antlr4-runtime'
     implementation 'commons-io:commons-io'
 
-    baloImplementation project(path: ':ballerina-reflect', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-math', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-encoding', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-task', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-time', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-mime', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-log-api', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-io', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-file', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-auth', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-lang:annotations', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-cache', configuration: 'baloImplementation')
     baloImplementation project(path: ':ballerina-config-api', configuration: 'baloImplementation')
     baloImplementation project(path: ':ballerina-crypto', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-cache', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-auth', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-http', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-openapi', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-h2', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-mysql', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-sql', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-transactions', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-websub', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-jms', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-grpc', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-runtime-api', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-internal', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-system', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-builtin', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-jdbc', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-java', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-encoding', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-file', configuration: 'baloImplementation')
     baloImplementation project(path: ':ballerina-filepath', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-nats', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-activemq-artemis', configuration: 'baloImplementation')
-    baloImplementation project(path: ':ballerina-utils', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-grpc', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-http', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-io', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-jvm', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-jwt', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-ldap', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-log-api', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-math', configuration: 'baloImplementation')
     baloImplementation project(path: ':ballerina-rabbitmq', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-mime', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-nats', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-oauth2', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-observability', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-openapi', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-reflect', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-runtime-api', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-socket', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-streams', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-system', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-task', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-time', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-transactions', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-utils', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-stringutils', configuration: 'baloImplementation')
+    baloImplementation project(path: ':ballerina-java', configuration: 'baloImplementation')
+//    baloImplementation project(path: ':ballerina-websub', configuration: 'baloImplementation')
     baloImplementation project(path: ':testerina:testerina-core', configuration: 'baloImplementation')
 
     dependency 'com.h2database:h2:1.4.199'
     dependency 'org.eclipse.lsp4j:org.eclipse.lsp4j:0.6.0'
     dependency 'org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.6.0'
     dependency 'commons-io:commons-io:2.6'
-    
+
     testCompile 'org.testng:testng'
 }
 
@@ -110,7 +146,7 @@ CopySpec copyJarSpec = copySpec {
 }
 
 CopySpec copyResourceSpec = copySpec {
-    from file("$buildDir/lib/tools/lang-server/resources/lang-server-index.sql")
+    from file("$buildDir/ballerina-home/main/lib/tools/lang-server/resources/lang-server-index.sql")
     into("resources")
 }
 
@@ -133,9 +169,9 @@ task clearPathingJar(type: Delete) {
 task generateIndex(type: JavaExec) {
     dependsOn pathingJar
     dependsOn createBalHome
-    outputs.dir("$buildDir/lib/tools/lang-server/resources")
+    outputs.dir("$buildDir/ballerina-home/main/lib/tools/lang-server/resources")
     outputs.cacheIf { true }
-    systemProperty("ballerina.home", "$buildDir")
+    systemProperty("ballerina.home", "$buildDir/ballerina-home/main/")
     classpath = files(pathingJar.archivePath) + sourceSets.main.output
     main = 'org.ballerinalang.langserver.index.tools.IndexGenerator'
     finalizedBy 'clearPathingJar'
@@ -151,15 +187,19 @@ task createZip(type: Zip) {
 }
 
 artifacts {
-    dist createZip
+    dist file: file(createZip.archiveFile), builtBy: createZip
+    libs configurations.dependency.files
+    langserverResources file: file("$buildDir/ballerina-home/main/lib/tools/lang-server/resources/lang-server-index.sql"), builtBy: generateIndex
 }
 
-build {
-    dependsOn createZip
+createJavadoc {
+    // TODO: remove following, it fails at org.eclipse currently
+    exclude "**"
 }
 
 test {
-    systemProperty "ballerina.home", "$buildDir"
+    dependsOn generateIndex
+    systemProperty "ballerina.home", "$buildDir/ballerina-home/main/"
     systemProperty "experimental", "true"
     useTestNG() {
         suites 'src/test/resources/testng.xml'

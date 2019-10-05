@@ -18,11 +18,11 @@
 
 package org.ballerinalang.stdlib.mime;
 
-import org.ballerinalang.launcher.util.BCompileUtil;
-import org.ballerinalang.launcher.util.BRunUtil;
-import org.ballerinalang.launcher.util.CompileResult;
 import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
+import org.ballerinalang.test.util.BCompileUtil;
+import org.ballerinalang.test.util.BRunUtil;
+import org.ballerinalang.test.util.CompileResult;
 import org.ballerinalang.util.exceptions.BLangRuntimeException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -121,7 +121,9 @@ public class HeaderTest {
     }
 
     @Test(description = "Test getting a value out of a non existence header", expectedExceptions =
-            BLangRuntimeException.class, expectedExceptionsMessageRegExp = ".*error: Http Header does not exist!.*")
+            BLangRuntimeException.class,
+          expectedExceptionsMessageRegExp = ".*HeaderNotFound message=Http header does not " +
+                  "exist.*")
     public void testNonExistenceHeader() {
         BValue[] returns = BRunUtil.invoke(compileResult, "testNonExistenceHeader");
         Assert.assertEquals(returns.length, 1);

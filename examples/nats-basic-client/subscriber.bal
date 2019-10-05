@@ -1,20 +1,24 @@
-import ballerina/io;
+import ballerina/log;
 import ballerina/nats;
 
-// Initialize NATS listener.
-listener nats:Listener subscription = new({ host: "localhost",
-                                            port: 4222,
-                                            clientId: "s0" });
+// Initializes a connection.
+nats:Connection connection = new("nats://localhost:4222");
 
-// Bind consumer to listen to messages published to 'demo' subject.
-@nats:ConsumerConfig {
+// Initializes the NATS listener.
+listener nats:Listener subscription = new(connection);
+
+// Binds the consumer to listen to the messages published to the 'demo' subject.
+@nats:SubscriptionConfig {
     subject: "demo"
 }
 service demo on subscription {
 
-    resource function onMessage(nats:Message msg) {
-        // Print the incoming message in the std out.
-        io:println("Received message : " + msg.getData());
+    resource function onMessage(nats:Message msg, string data) {
+        // Prints the incoming message in the console.
+        log:printInfo("Received message : " + data);
     }
 
+    resource function onError(nats:Message msg, nats:Error err) {
+        log:printError("Error occurred in data binding", err);
+    }
 }

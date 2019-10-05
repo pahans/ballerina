@@ -22,6 +22,21 @@ configurations {
         transitive false
     }
 }
+project.ext.orgName = file('src/main/ballerina/Ballerina.toml').text.split("\n")[1].split("=")[1].split("\"")[1]
+
+// TODO: remove project names 
+if (project.name != "ballerina-jvm" && project.name != "ballerina-backend-jvm" && project.name != "ballerina-bir") {
+
+    dependencies {
+        testRuntime project(':ballerina-jvm')
+        testRuntime project(':ballerina-bir')
+        testRuntime project(':ballerina-backend-jvm')
+
+        testRuntime project(path: ':ballerina-backend-jvm', configuration: 'birJar')
+        testRuntime project(path: ':ballerina-jvm', configuration: 'birJar')
+        testRuntime project(path: ':ballerina-bir', configuration: 'birJar')
+    }
+}
 
 class CreateBaloTask extends JavaExec {
     def isBuiltin = 'false'
@@ -40,8 +55,8 @@ class CreateBaloTask extends JavaExec {
         def args = []
         args << isBuiltin
         args << "src/main/ballerina/"
-        args << "${project.buildDir}/generated-balo/repo/ballerina"
-        args << "${project.buildDir}"
+        args << "${project.buildDir}/generated-balo/repo/" + project.ext.orgName
+        args << "${project.buildDir}/ballerina-home/main"
         args << skipWarnings
         args << jvmTarget
         super.setArgs(args)
@@ -62,6 +77,7 @@ class CreateBaloTask extends JavaExec {
 
 task createBalo(type: CreateBaloTask) {
     dependsOn createBalHome
+    dependsOn configurations.baloImplementation
 
     def balFiles = file("src/main/ballerina/")
     inputs.dir(balFiles)
@@ -70,8 +86,42 @@ task createBalo(type: CreateBaloTask) {
     outputs.cacheIf { true }
 }
 
-artifacts.add('baloImplementation', file("$buildDir/generated-balo/")) {
-    builtBy('createBalo')
+artifacts {
+    baloImplementation file("$buildDir/generated-balo/"), { builtBy(createBalo) }
+    balSource file("src/main/ballerina/")
 }
 
-artifacts.add('balSource', file("src/main/ballerina/"))
+task copySelfToTestBalHome(type: Copy) {
+    dependsOn createBalo
+    from "$buildDir/generated-balo"
+    into "$buildDir/ballerina-home/test/lib"
+}
+
+task assembleArtifact(type: Zip) {
+    dependsOn createBalo
+    archiveName "$project.name-ballerina-binary-repo.zip"
+    destinationDir file("$buildDir/bal-repos/")
+    from "build/generated-balo/"
+    description "Assemble archive $archiveName into ${relativePath(destinationDir)}"
+    outputs.dir("$buildDir/bal-repos/")
+}
+
+test {
+    dependsOn copySelfToTestBalHome
+}
+
+publishing {
+    publications {
+        mavenJava {
+            artifact source: assembleArtifact, classifier: "ballerina-binary-repo", extension: 'zip'
+        }
+    }
+}
+
+configurations {
+    testCompile.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    testCompile.exclude group: 'org.slf4j', module: 'slf4j-simple'
+    testCompile.exclude group: 'org.ops4j.pax.logging', module: 'pax-logging-api'
+}
+
+apply from: "$rootDir/gradle/birProject.gradle"

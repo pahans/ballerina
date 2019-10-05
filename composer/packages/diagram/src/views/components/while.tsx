@@ -7,6 +7,7 @@ import { ViewState } from "../../view-model";
 import { ArrowHead } from "./arrow-head";
 import { Block } from "./block";
 import { Condition } from "./condition";
+import { HiddenBlock } from "./hidden-block";
 
 const config: DiagramConfig = DiagramUtils.getConfig();
 
@@ -16,6 +17,10 @@ export const While: React.StatelessComponent<{
         model
     }) => {
         const viewState: ViewState = model.viewState;
+
+        if (viewState.hiddenBlock) {
+            return <HiddenBlock model={ model }/>;
+        }
 
         const conditionProps = {
             expression: ASTUtil.genSource(model.condition),
@@ -72,7 +77,7 @@ export const While: React.StatelessComponent<{
                     <line className="hide-line" x1={p1.x} y1={p1.y + 1} x2={r4.x} y2={r4.y - 1} strokeLinecap="round" />
                     <ArrowHead direction={"right"} className="condition-arrow-head" {...p4} />
                     <Condition {...conditionProps} astModel={model} />
-                    {model.body && <Block model={model.body} visibleEndpoints={model.VisibleEndpoints} />}
+                    {model.body && <Block model={model.body} />}
                 </g>
             </g>);
     };

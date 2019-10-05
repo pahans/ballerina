@@ -15,15 +15,15 @@ type Person record {
 
 type Family record {
     string spouse = "";
-    int noOfChildren = 0;
+    int noOfChildren?;
     string[] children = [];
 };
 
-function testCreateStruct () returns (string?, map<any>?, int?) {
+function testCreateStruct () returns [string?, map<any>?, int?] {
     map<any> address1 = {};
     map<any> address = {"country":"USA", "state":"CA"};
     Person emp = {name:"Jack", adrs:address, age:25};
-    return (emp["name"], emp["adrs"], emp["age"]);
+    return [emp["name"], emp["adrs"], emp["age"]];
 }
 
 function testStructOfStruct () returns (string) {
@@ -53,7 +53,7 @@ function testReturnStructAttributes () returns string? {
     return dpt["employees"][0]["family"]["children"][0];
 }
 
-function testExpressionAsIndex () returns (string) {
+function testExpressionAsIndex () returns string {
     Family family = {spouse:"Kate"};
     int a = 2;
     int b = 5;
@@ -80,16 +80,16 @@ function testStructExpressionAsIndex () returns string? {
     return dpt["employees"][0]["family"]["children"][(dpt["employees"][0]["family"]["noOfChildren"] ?: 1) - 1];
 }
 
-function testDefaultVal () returns (string?, string?, int?) {
+function testDefaultVal () returns [string?, string?, int?] {
     Person p = {};
-    return (p["name"], p["lname"], p["age"]);
+    return [p["name"], p["lname"], p["age"]];
 }
 
-function testNestedFieldDefaultVal () returns (string?, string?, int?) {
+function testNestedFieldDefaultVal () returns [string?, string?, int?] {
     Department dpt = {};
     dpt["employees"] = [];
     dpt["employees"][0] = {lname:"Smith"};
-    return (dpt["employees"][0]["name"], dpt["employees"][0]["lname"], dpt["employees"][0]["age"]);
+    return [dpt["employees"][0]["name"], dpt["employees"][0]["lname"], dpt["employees"][0]["age"]];
 }
 
 type StructField record {
@@ -177,7 +177,7 @@ function testDynamicIndexAccessTypesWithRestParam(string arg) returns string {
     Bar f = {
         fieldOne: 50,
         fieldTwo: "string",
-        fieldThree: true
+        "fieldThree": true
     };
 
     string result = "";
@@ -223,7 +223,7 @@ function testDynamicIndexAccessTypesWithOpenRecord() returns string {
 
     string result = "";
 
-    FooBar fb = { fieldOne: obj, fieldTwo: aFn, fieldThree: jVal, fieldFour: true };
+    FooBar fb = { fieldOne: obj, fieldTwo: aFn, fieldThree: jVal, "fieldFour": true };
     int[5] indexArr = [1, 2, 3, 4, 5];
 
     foreach var index in indexArr {
@@ -233,7 +233,7 @@ function testDynamicIndexAccessTypesWithOpenRecord() returns string {
             continue;
         }
         if (res is function (int) returns int) {
-            result += io:sprintf(":function:%s", res.call(8));
+            result += io:sprintf(":function:%s", res(8));
             continue;
         }
         if (res is ()) {
@@ -254,11 +254,11 @@ function testDynamicIndexAccessTypesWithOpenRecord() returns string {
 
 function getIndex(int index) returns string {
     match index {
-        1 => return "fieldOne";
-        2 => return "fieldTwo";
-        3 => return "fieldThree";
-        4 => return "fieldFour";
-        _ => return "fieldFive";
+        1 => {return "fieldOne";}
+        2 => {return "fieldTwo";}
+        3 => {return "fieldThree";}
+        4 => {return "fieldFour";}
+        _ => {return "fieldFive";}
     }
 }
 
@@ -269,7 +269,7 @@ type Qux record {|
 |};
 
 function testDynamicIndexAccessWithSingleType() returns int {
-    Qux q = { fieldOne: 95, fieldTwo: 96, fieldThree: 100 };
+    Qux q = { fieldOne: 95, fieldTwo: 96, "fieldThree": 100 };
     string[] index = ["fieldOne", "fieldTwo", "fieldThree"];
     int marks = 0;
 
@@ -292,8 +292,8 @@ type Quux record {|
     Qux fieldOne;
 |};
 
-function testDynamicIndexAccessWithRecordInsideRecord() returns (int?, int?) {
-    Qux q = { fieldOne: 95, fieldTwo: 96, fieldThree: 100 };
+function testDynamicIndexAccessWithRecordInsideRecord() returns [int?, int?] {
+    Qux q = { fieldOne: 95, fieldTwo: 96, "fieldThree": 100 };
     Quux qu = { fieldOne: q };
 
     string index = "fieldOne";
@@ -301,7 +301,7 @@ function testDynamicIndexAccessWithRecordInsideRecord() returns (int?, int?) {
     int? r1 = qu["fieldOne"]["fieldOne"];
     int? r2 = qu[index][index];
 
-    return (r1, r2);
+    return [r1, r2];
 }
 
 type Finite "fieldOne"|"fieldTwo"|"fieldThree"|"fieldFive";
@@ -322,11 +322,11 @@ function testFiniteTypeAsIndex() returns string {
     Bar bar = {
         fieldOne: 50,
         fieldTwo: "barField",
-        fieldThree: true
+        "fieldThree": true
     };
 
-    Qux q = { fieldOne: 95, fieldTwo: 96, fieldThree: 100 };
-    FooQux foo = { fieldOne: "string", fieldTwo: bar, fieldThree: 98.9, fieldFour: 12, fieldFive: q };
+    Qux q = { fieldOne: 95, fieldTwo: 96, "fieldThree": 100 };
+    FooQux foo = { fieldOne: "string", fieldTwo: bar, fieldThree: 98.9, fieldFour: 12, "fieldFive": q };
 
     string|boolean|Bar|float|Obj|anydata|error r1 = foo[index1];
     var r2 = foo[index2];
@@ -402,7 +402,7 @@ function testUnionInFiniteTypeAsIndexNoField() returns string {
     Bar f = {
         fieldOne: 50,
         fieldTwo: "string",
-        fieldThree: true
+        "fieldThree": true
     };
 
     var r1 = f[index];

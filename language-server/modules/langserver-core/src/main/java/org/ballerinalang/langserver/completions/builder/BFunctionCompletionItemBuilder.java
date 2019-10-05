@@ -17,32 +17,29 @@
  */
 package org.ballerinalang.langserver.completions.builder;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.ballerinalang.langserver.common.UtilSymbolKeys;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.FunctionGenerator;
+import org.ballerinalang.langserver.compiler.LSContext;
+import org.ballerinalang.langserver.completions.CompletionKeys;
 import org.ballerinalang.langserver.completions.util.ItemResolverConstants;
 import org.ballerinalang.model.elements.MarkdownDocAttachment;
-import org.ballerinalang.model.symbols.SymbolKind;
-import org.ballerinalang.model.types.TypeConstants;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
-import org.wso2.ballerinalang.compiler.semantics.model.symbols.BTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
-import org.wso2.ballerinalang.compiler.semantics.model.types.BArrayType;
-import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BNilType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
-import org.wso2.ballerinalang.compiler.semantics.model.types.BUnionType;
-import org.wso2.ballerinalang.compiler.util.Name;
-import org.wso2.ballerinalang.compiler.util.Names;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 /**
@@ -60,13 +57,14 @@ public final class BFunctionCompletionItemBuilder {
      * @param bSymbol    BSymbol or null
      * @param label      label
      * @param insertText insert text
+     * @param context {@link LSContext}
      * @return {@link CompletionItem}
      */
-    public static CompletionItem build(BInvokableSymbol bSymbol, String label, String insertText) {
+    public static CompletionItem build(BInvokableSymbol bSymbol, String label, String insertText, LSContext context) {
         CompletionItem item = new CompletionItem();
         item.setLabel(label);
         item.setInsertText(insertText);
-        setMeta(item, bSymbol);
+        setMeta(item, bSymbol, context);
         return item;
     }
 
@@ -74,207 +72,97 @@ public final class BFunctionCompletionItemBuilder {
      * Creates and returns a completion item.
      *
      * @param bSymbol BSymbol
+     * @param context LS context
      * @return {@link CompletionItem}
      */
-    public static CompletionItem build(BInvokableSymbol bSymbol) {
+    public static CompletionItem build(BInvokableSymbol bSymbol, LSContext context) {
         CompletionItem item = new CompletionItem();
-        setMeta(item, bSymbol);
+        setMeta(item, bSymbol, context);
         if (bSymbol != null) {
             // Override function signature
-            Pair<String, String> functionSignature = getFunctionSignature(bSymbol);
+            String functionName = CommonUtil.getFunctionNameFromSymbol(bSymbol);
+            Pair<String, String> functionSignature = CommonUtil.getFunctionInvocationSignature(bSymbol,
+                    functionName, context);
             item.setInsertText(functionSignature.getLeft());
             item.setLabel(functionSignature.getRight());
         }
         return item;
     }
 
-    private static void setMeta(CompletionItem item, BInvokableSymbol bSymbol) {
+    private static void setMeta(CompletionItem item, BInvokableSymbol bSymbol, LSContext ctx) {
         item.setInsertTextFormat(InsertTextFormat.Snippet);
         item.setDetail(ItemResolverConstants.FUNCTION_TYPE);
         item.setKind(CompletionItemKind.Function);
-        if (bSymbol != null && bSymbol.markdownDocumentation != null) {
-            item.setDocumentation(getDocumentation(bSymbol));
+        if (bSymbol != null) {
+            List<String> funcArguments = FunctionGenerator.getFuncArguments(bSymbol, ctx);
+            if (!funcArguments.isEmpty()) {
+                Command cmd = new Command("editor.action.triggerParameterHints", "editor.action.triggerParameterHints");
+                item.setCommand(cmd);
+            }
+            int invocationType = (ctx == null || ctx.get(CompletionKeys.INVOCATION_TOKEN_TYPE_KEY) == null) ? -1
+                    : ctx.get(CompletionKeys.INVOCATION_TOKEN_TYPE_KEY);
+            boolean skipFirstParam = CommonUtil.skipFirstParam(bSymbol, invocationType);
+            if (bSymbol.markdownDocumentation != null) {
+                item.setDocumentation(getDocumentation(bSymbol, skipFirstParam, ctx));
+            }
         }
     }
 
-    private static Either<String, MarkupContent> getDocumentation(BInvokableSymbol bInvokableSymbol) {
+    private static Either<String, MarkupContent> getDocumentation(BInvokableSymbol bInvokableSymbol,
+                                                                  boolean skipFirstParam, LSContext ctx) {
         String pkgID = bInvokableSymbol.pkgID.toString();
 
-        MarkdownDocAttachment markdownDocAttachment = bInvokableSymbol.getMarkdownDocAttachment();
-        String description = markdownDocAttachment.description == null ? "" : markdownDocAttachment.description;
-        List<MarkdownDocAttachment.Parameter> parameters = markdownDocAttachment.parameters;
-        List<BVarSymbol> defaultParams = bInvokableSymbol.getDefaultableParameters();
+        MarkdownDocAttachment docAttachment = bInvokableSymbol.getMarkdownDocAttachment();
+        String description = docAttachment.description == null ? "" : docAttachment.description;
+        List<MarkdownDocAttachment.Parameter> parameters = docAttachment.parameters;
+        List<BVarSymbol> defaultParams = bInvokableSymbol.getParameters().stream()
+                .filter(varSymbol -> varSymbol.defaultableParam).collect(Collectors.toList());
+
+        Map<String, BType> types = new HashMap<>();
+        for (BVarSymbol param : bInvokableSymbol.params) {
+            types.put(param.name.value, param.type);
+        }
 
         MarkupContent docMarkupContent = new MarkupContent();
-
         docMarkupContent.setKind(CommonUtil.MARKDOWN_MARKUP_KIND);
         String documentation = "**Package:** " + "_" + pkgID + "_" + CommonUtil.MD_LINE_SEPARATOR
-                + CommonUtil.MD_LINE_SEPARATOR + description + CommonUtil.MD_LINE_SEPARATOR
-                + CommonUtil.MD_LINE_SEPARATOR + "---  " + CommonUtil.MD_LINE_SEPARATOR + "**Parameters**"
-                + CommonUtil.MD_LINE_SEPARATOR
-                + parameters.stream()
-                .map(parameter -> {
-                    Optional<BVarSymbol> defaultVal = defaultParams.stream()
-                            .filter(bVarSymbol -> bVarSymbol.getName().getValue().equals(parameter.getName()))
-                            .findFirst();
-                    String paramDescription = "- _" + parameter.getName() + "_" + CommonUtil.MD_LINE_SEPARATOR
-                            + "    " + parameter.getDescription() + CommonUtil.MD_LINE_SEPARATOR;
-                    if (defaultVal.isPresent() && defaultVal.get().defaultValue != null) {
-                        return paramDescription + "Default Value: " + defaultVal.get().defaultValue.getValue();
-                    }
-
-                    return paramDescription;
-                })
-                .collect(Collectors.joining(CommonUtil.MD_LINE_SEPARATOR));
-
+                + CommonUtil.MD_LINE_SEPARATOR + description + CommonUtil.MD_LINE_SEPARATOR;
+        StringJoiner joiner = new StringJoiner(CommonUtil.MD_LINE_SEPARATOR);
+        for (int i = 0; i < parameters.size(); i++) {
+            MarkdownDocAttachment.Parameter parameter = parameters.get(i);
+            if (i == 0 && skipFirstParam) {
+                continue;
+            }
+            Optional<BVarSymbol> defaultVal = defaultParams.stream()
+                    .filter(bVarSymbol -> bVarSymbol.getName().getValue().equals(parameter.getName()))
+                    .findFirst();
+            String type = (!types.isEmpty() && types.get(parameter.name) != null) ?
+                    "`" + CommonUtil.getBTypeName(types.get(parameter.name), ctx, false) + "` " : "";
+            String paramDescription = "- " + type + parameter.getName() + ": " + parameter.getDescription();
+            if (defaultVal.isPresent()) {
+                joiner.add(paramDescription + "(Defaultable)");
+            } else {
+                joiner.add(paramDescription);
+            }
+        }
+        String paramsStr = joiner.toString();
+        if (!paramsStr.isEmpty()) {
+            documentation += "**Params**" + CommonUtil.MD_LINE_SEPARATOR + paramsStr;
+        }
         if (!(bInvokableSymbol.retType instanceof BNilType)
                 && bInvokableSymbol.retType != null
                 && bInvokableSymbol.retType.tsymbol != null) {
-            documentation = documentation + CommonUtil.MD_LINE_SEPARATOR
-                    + CommonUtil.MD_LINE_SEPARATOR + "**Return**" + CommonUtil.MD_LINE_SEPARATOR
-                    + bInvokableSymbol.retType.toString();
+            String desc = "";
+            if (docAttachment.returnValueDescription != null && !docAttachment.returnValueDescription.isEmpty()) {
+                desc = "- " + CommonUtil.MD_NEW_LINE_PATTERN.matcher(docAttachment.returnValueDescription).replaceAll(
+                        CommonUtil.MD_LINE_SEPARATOR) + CommonUtil.MD_LINE_SEPARATOR;
+            }
+            documentation += CommonUtil.MD_LINE_SEPARATOR + CommonUtil.MD_LINE_SEPARATOR + "**Returns**"
+                    + " `" + CommonUtil.getBTypeName(bInvokableSymbol.retType, ctx, false) + "` " +
+                    CommonUtil.MD_LINE_SEPARATOR + desc + CommonUtil.MD_LINE_SEPARATOR;
         }
         docMarkupContent.setValue(documentation);
 
         return Either.forRight(docMarkupContent);
-    }
-
-    /**
-     * Get the function signature.
-     *
-     * @param bInvokableSymbol - ballerina function instance
-     * @return {@link Pair} of insert text(left-side) and signature label(right-side)
-     */
-    private static Pair<String, String> getFunctionSignature(BInvokableSymbol bInvokableSymbol) {
-        String[] funcNameComponents = bInvokableSymbol.getName().getValue().split("\\.");
-        String functionName = funcNameComponents[funcNameComponents.length - 1];
-
-        // If there is a receiver symbol, then the name comes with the package name and struct name appended.
-        // Hence we need to remove it
-        if (bInvokableSymbol.receiverSymbol != null) {
-            String receiverType = bInvokableSymbol.receiverSymbol.getType().toString();
-            functionName = functionName.replace(receiverType + ".", "");
-        }
-        StringBuilder signature = new StringBuilder(functionName + "(");
-        StringBuilder insertText = new StringBuilder(functionName + "(");
-        List<BVarSymbol> parameterDefs = bInvokableSymbol.getParameters();
-        List<BVarSymbol> defaultParameterDefs = bInvokableSymbol.getDefaultableParameters();
-
-        if (bInvokableSymbol.kind == null
-                && (SymbolKind.RECORD.equals(bInvokableSymbol.owner.kind)
-                || SymbolKind.FUNCTION.equals(bInvokableSymbol.owner.kind))) {
-            List<String> funcArguments = CommonUtil.FunctionGenerator.getFuncArguments(bInvokableSymbol);
-            if (!funcArguments.isEmpty()) {
-                int funcArgumentsCount = funcArguments.size();
-                for (int itr = 0; itr < funcArgumentsCount; itr++) {
-                    String argument = funcArguments.get(itr);
-                    signature.append(argument);
-                    insertText.append("${").append(itr + 1).append(":");
-                    insertText.append(argument.split(" ")[1]).append("}");
-
-                    if (!(itr == funcArgumentsCount - 1)) {
-                        signature.append(", ");
-                        insertText.append(", ");
-                    }
-                }
-            }
-        } else {
-            for (int itr = 0; itr < parameterDefs.size(); itr++) {
-                signature.append(getParameterSignature(parameterDefs.get(itr), false));
-                insertText.append(getParameterInsertText(parameterDefs.get(itr), false, itr + 1));
-
-                if (!(itr == parameterDefs.size() - 1 && defaultParameterDefs.isEmpty())) {
-                    signature.append(", ");
-                    insertText.append(", ");
-                }
-            }
-            for (int itr = 0; itr < defaultParameterDefs.size(); itr++) {
-                signature.append(getParameterSignature(defaultParameterDefs.get(itr), true));
-                insertText.append(getParameterInsertText(defaultParameterDefs.get(itr), true, 
-                        parameterDefs.size() + itr + 1));
-
-                if (itr < defaultParameterDefs.size() - 1) {
-                    signature.append(", ");
-                    insertText.append(", ");
-                }
-            }
-        }
-        signature.append(")");
-        insertText.append(")");
-        if (bInvokableSymbol.type.getReturnType() == null
-                || bInvokableSymbol.type.getReturnType() instanceof BNilType) {
-            insertText.append(";");
-        }
-        String initString = "(";
-        String endString = ")";
-
-        BType returnType = bInvokableSymbol.type.getReturnType();
-        if (returnType != null && !(returnType instanceof BNilType)) {
-            signature.append(initString).append(returnType.toString());
-            signature.append(endString);
-        }
-
-        return new ImmutablePair<>(insertText.toString(), signature.toString());
-    }
-
-    private static String getParameterSignature(BVarSymbol bVarSymbol, boolean isDefault) {
-        if (!isDefault) {
-            return getTypeName(bVarSymbol) + " " + bVarSymbol.getName();
-        } else {
-            String defaultStringVal;
-            if (bVarSymbol.defaultValue == null || bVarSymbol.defaultValue.getValue() == null) {
-                defaultStringVal = "()";
-            } else {
-                defaultStringVal = bVarSymbol.defaultValue.getValue().toString();
-            }
-            return getTypeName(bVarSymbol) + " " + bVarSymbol.getName() + " = " + defaultStringVal;
-        }
-    }
-
-    private static String getParameterInsertText(BVarSymbol bVarSymbol, boolean isDefault, int iteration) {
-        if (!isDefault) {
-            return "${" + iteration + ":" + bVarSymbol.getName() + "}";
-        } else {
-            String defaultStringVal;
-            if (bVarSymbol.defaultValue == null || bVarSymbol.defaultValue.getValue() == null) {
-                defaultStringVal = "()";
-            } else {
-                defaultStringVal = bVarSymbol.defaultValue.getValue().toString();
-                if (bVarSymbol.getType() != null
-                        && bVarSymbol.getType().toString().equals(TypeConstants.STRING_TNAME)) {
-                    defaultStringVal = "\"" + defaultStringVal + "\"";
-                }
-            }
-            return bVarSymbol.getName() + " = " + "${" + iteration + ":" + defaultStringVal + "}";
-        }
-    }
-
-    private static String getTypeName(BVarSymbol bVarSymbol) {
-        BType paramType = bVarSymbol.getType();
-        String typeName;
-        if (paramType instanceof BInvokableType) {
-            // Check for the case when we can give a function as a parameter
-            typeName = bVarSymbol.type.toString();
-        } else if (paramType instanceof BUnionType) {
-            typeName = paramType.toString();
-        } else {
-            BTypeSymbol tSymbol;
-            tSymbol = (paramType instanceof BArrayType) ?
-                    ((BArrayType) paramType).eType.tsymbol : paramType.tsymbol;
-            List<Name> nameComps = tSymbol.pkgID.nameComps;
-            if (tSymbol.pkgID.getName().getValue().equals(Names.BUILTIN_PACKAGE.getValue())
-                    || tSymbol.pkgID.getName().getValue().equals(Names.DOT.getValue())) {
-                typeName = tSymbol.getName().getValue();
-            } else {
-                typeName = CommonUtil.getLastItem(nameComps).getValue() + UtilSymbolKeys.PKG_DELIMITER_KEYWORD
-                        + tSymbol.getName().getValue();
-            }
-
-            if ((paramType instanceof BArrayType)) {
-                typeName += "[]";
-            }
-        }
-
-        return typeName;
     }
 }

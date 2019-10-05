@@ -17,16 +17,19 @@
  */
 package org.ballerinalang.model.tree.types;
 
+import org.wso2.ballerinalang.compiler.tree.types.BLangType;
+
 import java.util.List;
 
 /**
  * {@code TupleTypeNode} represents a tuple type node in Ballerina
  * <p>
- * e.g. (int, float , string)
+ * e.g. [int, float, string]
  *
  * @since 0.966.0
  */
 public interface TupleTypeNode {
 
     List<? extends TypeNode> getMemberTypeNodes();
+    BLangType getRestParamType();
 }
