@@ -3,6 +3,8 @@ jobs:
   pool:
     vmImage: 'Ubuntu 16.04'
   timeoutInMinutes: 150
+  variables:
+    GRADLE_USER_HOME: $(Pipeline.Workspace)/.gradle
   steps:
   - task: NodeTool@0
     inputs:
@@ -19,6 +21,8 @@ jobs:
   pool:
     vmImage: 'VS2017-Win2016'
   timeoutInMinutes: 150
+  variables:
+    GRADLE_USER_HOME: $(Pipeline.Workspace)/.gradle
   steps:
   - task: NodeTool@0
     inputs:
